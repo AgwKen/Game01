@@ -1,0 +1,24 @@
+/*========================================================================================
+
+
+   Effect code [bullet.h]												PYAE SONE THANT
+                                                                        DATE:07/01/2025
+
+------------------------------------------------------------------------------------------
+
+=========================================================================================*/
+#ifndef EFFECT_H
+#define EFFECT_H
+
+#include <DirectXMath.h>
+
+
+void Effect_Initialize();
+void Effect_Finalize();
+
+void Effect_Update();
+void Effect_Draw();
+
+void Effect_Create(const DirectX::XMFLOAT2& position);
+
+#endif //PLAYER_H

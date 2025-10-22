@@ -1,0 +1,44 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.ncb
+*.aps
+*.pdb
+*.obj
+*.ilk
+*.ipch
+*.log
+*.tlog
+*.lastbuildstate
+*.VC.opendb
+*.VC.db
+*.sdf
+*.cache
+
+# Build artifacts
+bin/
+obj/
+Debug/
+Release/
+x64/
+Win32/
+
+# Executables and libraries
+*.exe
+*.dll
+*.lib
+*.exp
+
+# Intermediate files
+*.o
+*.i
+*.s
+*.res
+
+# Temporary files
+*.~
+*.tmp
+
+# User-specific files
+*.local
