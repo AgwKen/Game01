@@ -16,7 +16,6 @@ struct Vertex3d
 };
 
 static int g_TextureWhite = -1;
-
 MODEL* ModelLoad(const char* FileName, float scale)
 {
 	MODEL* model = new MODEL;
@@ -42,7 +41,11 @@ MODEL* ModelLoad(const char* FileName, float scale)
 				vertex[v].position = XMFLOAT3(mesh->mVertices[v].x * scale, mesh->mVertices[v].y * scale, mesh->mVertices[v].z * scale);
 				vertex[v].normal = XMFLOAT3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
 				vertex[v].color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-				vertex[v].texcoord = XMFLOAT2(mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y);
+
+				if (mesh->HasTextureCoords(0))
+					vertex[v].texcoord = XMFLOAT2(mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y);
+				else
+					vertex[v].texcoord = XMFLOAT2(0, 0);
 			}
 
 			D3D11_BUFFER_DESC bd = {};
@@ -87,15 +90,19 @@ MODEL* ModelLoad(const char* FileName, float scale)
 		}
 	}
 
-	// Texture loading process
+	// Extract directory path from FileName (for separate texture loading)
+	size_t pos = modelPath.find_last_of("/\\");
+	std::string directory = (pos != std::string::npos) ? modelPath.substr(0, pos) : "";
+
 	g_TextureWhite = Texture_Load(L"Texture/white.png");
 
-	for (int i = 0; i < model->AiScene->mNumTextures; i++)
+	//Load embedded textures (inside FBX)
+	for (unsigned int i = 0; i < model->AiScene->mNumTextures; i++)
 	{
 		aiTexture* aitexture = model->AiScene->mTextures[i];
 
-		ID3D11ShaderResourceView* texture = nullptr;
-		ID3D11Resource* resource = nullptr;
+		ID3D11ShaderResourceView* texture;
+		ID3D11Resource* resource;
 
 		CreateWICTextureFromMemory(
 			Direct3D_GetDevice(),
@@ -107,13 +114,53 @@ MODEL* ModelLoad(const char* FileName, float scale)
 		);
 
 		assert(texture);
-
-		resource->Release(); // Release the resource as it's no longer needed
+		resource->Release();
 
 		model->Texture[aitexture->mFilename.C_Str()] = texture;
 	}
+
+	// --- Load external textures (if not embedded) ---
+	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
+	{
+		aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
+		aiString filename;
+		aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &filename);
+
+		if (filename.length == 0) {
+			continue;
+		}
+		if (model->Texture.count(filename.C_Str())) {
+			continue;
+		}// already loaded
+
+
+
+		ID3D11ShaderResourceView* texture;
+		ID3D11Resource* resource;
+		std::string texfilename= directory + "/" + filename.C_Str();
+
+		int len = MultiByteToWideChar(CP_UTF8, 0, texfilename.c_str(), -1, nullptr, 0);
+		wchar_t* pWideFilename = new wchar_t[len];
+		MultiByteToWideChar(CP_UTF8, 0, texfilename.c_str(), -1, pWideFilename, len);
+
+
+		CreateWICTextureFromFile(
+			Direct3D_GetDevice(),
+			Direct3D_GetDeviceContext(),
+			pWideFilename,
+			&resource,
+			&texture);
+
+		delete[] pWideFilename;
+
+		assert(texture);
+
+		resource->Release(); // !!!!!!!!!!
+	}
+
 	return model;
 }
+
 
 void ModelRelease(MODEL* model)
 {
@@ -134,6 +181,7 @@ void ModelRelease(MODEL* model)
 	aiReleaseImport(model->AiScene);
 	delete model;
 }
+
 
 void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 {
