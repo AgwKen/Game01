@@ -195,33 +195,32 @@ void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 
 	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
 	{
+		aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
+
 		// Set texture
 		if (model->AiScene->mNumTextures)
 		{
 			aiString texture;
-			aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
 			aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texture);
 
-			if (texture != aiString("")) {
+			if (texture.length != 0) {
 				Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, &model->Texture[texture.data]);
+				Shader3d_SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
 			}
 			else {
 				Texture_SetTexture(g_TextureWhite);
+				aiColor3D diffuse;
+				aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+				Shader3d_SetColor({ diffuse.r, diffuse.g, diffuse.b, 1.0f });
 			}
 		}
-		aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
-		aiColor3D diffuse;
-		aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-		Shader3d_SetColor({ diffuse.r, diffuse.g, diffuse.b, 1.0f });
 
-		// Set vertex buffer and index buffer
+		// Set vertex and index buffers
 		UINT stride = sizeof(Vertex3d);
 		UINT offset = 0;
 
 		Direct3D_GetDeviceContext()->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
 		Direct3D_GetDeviceContext()->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
 
-		// Issue polygon draw command
 		Direct3D_GetDeviceContext()->DrawIndexed(model->AiScene->mMeshes[m]->mNumFaces * 3, 0, 0);
 	}
-}
