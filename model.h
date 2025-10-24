@@ -19,8 +19,7 @@ struct MODEL
     std::unordered_map<std::string, ID3D11ShaderResourceView*> Texture;
 };
 
-
-MODEL* ModelLoad(const char* FileName,float scale=1.0f);
+MODEL* ModelLoad(const char* FileName, float scale = 1.0f, bool blender = false);
 void ModelRelease(MODEL* model);
 
 void ModelDraw(MODEL* model, const DirectX :: XMMATRIX& mtxWorld);

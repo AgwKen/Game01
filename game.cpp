@@ -26,19 +26,23 @@ static XMFLOAT3 g_CubePosition = {};
 static XMFLOAT3 g_CubeVelocity = {};
 
 static MODEL* g_pModelTest = nullptr;
+//static MODEL* g_pModelCat = nullptr;
+
 
 void Game_Initialize()
 {
 	Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
 	Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 
-	g_pModelTest = ModelLoad("Resource/test.fbx",0.1f);
+	g_pModelTest = ModelLoad("Resources/Model/test.fbx", 0.1f);
+	//g_pModelCat = ModelLoad("Model/AlleyCat.fbx", 0.1f);
+
 }
 
 void Game_Finalize()
 {
 	ModelRelease(g_pModelTest);
-
+	//ModelRelease(g_pModelCat);
 	Mesh_Finalize();
 	Camera_Finalize();
 }
@@ -71,6 +75,7 @@ void Game_Draw()
 	//XMMATRIX mtxThrowCube = XMMatrixRotationY(g_angle * 0.5f);
 	Mesh_Draw(1, 2, 0.0f, -30.0f, -20.0f);
 	ModelDraw(g_pModelTest, XMMatrixTranslation(1.0f, 1.0f, 0.0f));
+	//ModelDraw(g_pModelCat, XMMatrixTranslation(3.0f, 0.0f, 0.0f));
 
 	Camera_DebugDraw();
 }

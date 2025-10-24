@@ -1,27 +1,27 @@
+
 #include <assert.h>
 #include "direct3d.h"
 #include "texture.h"
 #include "model.h"
 #include <DirectXMath.h>
-using namespace DirectX;
 #include "WICTextureLoader11.h"
 #include "shader3d.h"
+using namespace DirectX;
 
+// 3D頂点構造体
 struct Vertex3d
 {
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT4 color;
-	XMFLOAT2 texcoord;
+	XMFLOAT3 position;	// 頂点座標
+	XMFLOAT3 normal;	// 法線
+	XMFLOAT4 color;		// 色
+	XMFLOAT2 texcoord;	// UV
 };
 
 static int g_TextureWhite = -1;
 
-MODEL* ModelLoad(const char* FileName, float scale)
+MODEL* ModelLoad(const char* FileName, float scale, bool blender)
 {
 	MODEL* model = new MODEL;
-
-	const std::string modelPath(FileName);
 
 	model->AiScene = aiImportFile(FileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded);
 	assert(model->AiScene);
@@ -29,46 +29,49 @@ MODEL* ModelLoad(const char* FileName, float scale)
 	model->VertexBuffer = new ID3D11Buffer * [model->AiScene->mNumMeshes];
 	model->IndexBuffer = new ID3D11Buffer * [model->AiScene->mNumMeshes];
 
+
 	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
 	{
 		aiMesh* mesh = model->AiScene->mMeshes[m];
 
+		// 頂点バッファ生成
 		{
 			Vertex3d* vertex = new Vertex3d[mesh->mNumVertices];
 
 			for (unsigned int v = 0; v < mesh->mNumVertices; v++)
 			{
 				vertex[v].position = XMFLOAT3(mesh->mVertices[v].x * scale, mesh->mVertices[v].y * scale, mesh->mVertices[v].z * scale);
-				vertex[v].normal = XMFLOAT3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
+				vertex[v].texcoord = XMFLOAT2(mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y);
 				vertex[v].color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-				if (mesh->HasTextureCoords(0))
-					vertex[v].texcoord = XMFLOAT2(mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y);
-				else
-					vertex[v].texcoord = XMFLOAT2(0, 0);
+				vertex[v].normal = XMFLOAT3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
 			}
 
-			D3D11_BUFFER_DESC bd = {};
-			bd.Usage = D3D11_USAGE_DYNAMIC;
+			D3D11_BUFFER_DESC bd;
+			ZeroMemory(&bd, sizeof(bd));
+			bd.Usage = D3D11_USAGE_DEFAULT;
 			bd.ByteWidth = sizeof(Vertex3d) * mesh->mNumVertices;
 			bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bd.CPUAccessFlags = 0;
 
-			D3D11_SUBRESOURCE_DATA sd = {};
+			D3D11_SUBRESOURCE_DATA sd;
+			ZeroMemory(&sd, sizeof(sd));
 			sd.pSysMem = vertex;
 
-			HRESULT hr = Direct3D_GetDevice()->CreateBuffer(&bd, &sd, &model->VertexBuffer[m]);
-			(void)hr;
+			Direct3D_GetDevice()->CreateBuffer(&bd, &sd, &model->VertexBuffer[m]);
+			// DirectXGetDevice()->CreateBuffer(&bd, &sd, &model->VertexBuffer[m]);
 
 			delete[] vertex;
 		}
 
+
+		// インデックスバッファ生成
 		{
 			unsigned int* index = new unsigned int[mesh->mNumFaces * 3];
 
 			for (unsigned int f = 0; f < mesh->mNumFaces; f++)
 			{
 				const aiFace* face = &mesh->mFaces[f];
+
 				assert(face->mNumIndices == 3);
 
 				index[f * 3 + 0] = face->mIndices[0];
@@ -76,81 +79,81 @@ MODEL* ModelLoad(const char* FileName, float scale)
 				index[f * 3 + 2] = face->mIndices[2];
 			}
 
-			D3D11_BUFFER_DESC bd = {};
+			D3D11_BUFFER_DESC bd;
+			ZeroMemory(&bd, sizeof(bd));
 			bd.Usage = D3D11_USAGE_DEFAULT;
 			bd.ByteWidth = sizeof(unsigned int) * mesh->mNumFaces * 3;
 			bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+			bd.CPUAccessFlags = 0;
 
-			D3D11_SUBRESOURCE_DATA sd = {};
+			D3D11_SUBRESOURCE_DATA sd;
+			ZeroMemory(&sd, sizeof(sd));
 			sd.pSysMem = index;
 
-			HRESULT hr = Direct3D_GetDevice()->CreateBuffer(&bd, &sd, &model->IndexBuffer[m]);
-			(void)hr;
+			Direct3D_GetDevice()->CreateBuffer(&bd, &sd, &model->IndexBuffer[m]);
 
 			delete[] index;
 		}
+
 	}
+	g_TextureWhite = Texture_Load(L"white.png");
 
-	// Extract directory path from FileName (for separate texture loading)
-	size_t pos = modelPath.find_last_of("/\\");
-	std::string directory = (pos != std::string::npos) ? modelPath.substr(0, pos) : "";
-
-	g_TextureWhite = Texture_Load(L"Texture/white.png");
-
-	// Load embedded textures (inside FBX)
+	//テクスチャ読み込み
 	for (unsigned int i = 0; i < model->AiScene->mNumTextures; i++)
 	{
 		aiTexture* aitexture = model->AiScene->mTextures[i];
 
-		ID3D11ShaderResourceView* texture = nullptr;
-		ID3D11Resource* resource = nullptr;
+		ID3D11ShaderResourceView* texture;
+		ID3D11Resource* resource;
 
-		HRESULT hr = CreateWICTextureFromMemory(
+		CreateWICTextureFromMemory(
 			Direct3D_GetDevice(),
 			Direct3D_GetDeviceContext(),
 			(const uint8_t*)aitexture->pcData,
 			(size_t)aitexture->mWidth,
 			&resource,
-			&texture
-		);
+			&texture);
 
-		assert(SUCCEEDED(hr) && texture);
-		if (resource) resource->Release();
+		assert(texture);
 
-		// Use filename as key if present, otherwise use index-based key to avoid collision
-		std::string key = aitexture->mFilename.length ? aitexture->mFilename.C_Str() : ("<embedded_" + std::to_string(i) + ">");
-		model->Texture[key] = texture;
+		resource->Release();
+
+		model->Texture[aitexture->mFilename.data] = texture;
 	}
 
-	// --- Load external textures (if not embedded) ---
+	const std::string modelPath(FileName);
+
+	size_t pos = modelPath.find_last_of("/\\");
+	std::string directory;
+
+	if (pos != std::string::npos) {
+		directory = modelPath.substr(0, pos);
+	}
+	else {
+		directory = "";
+	}
 	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
 	{
-		aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
 		aiString filename;
-		aiReturn ret = aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &filename);
-
-		if (ret != AI_SUCCESS) {
-			continue;
-		}
+		aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
+		aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &filename);
 
 		if (filename.length == 0) {
 			continue;
 		}
-
-		std::string key = filename.C_Str();
-		if (model->Texture.count(key)) {
-			continue; // already loaded
+		if (model->Texture.count(filename.C_Str())) {
+			continue;
 		}
+		ID3D11ShaderResourceView* texture;
+		ID3D11Resource* resource;
 
-		ID3D11ShaderResourceView* texture = nullptr;
-		ID3D11Resource* resource = nullptr;
-		std::string texfilename = directory.empty() ? key : (directory + "/" + key);
+		std::string texfilename = directory + "/" + filename.C_Str();
 
 		int len = MultiByteToWideChar(CP_UTF8, 0, texfilename.c_str(), -1, nullptr, 0);
 		wchar_t* pWideFilename = new wchar_t[len];
 		MultiByteToWideChar(CP_UTF8, 0, texfilename.c_str(), -1, pWideFilename, len);
 
-		HRESULT hr = CreateWICTextureFromFile(
+		CreateWICTextureFromFile(
 			Direct3D_GetDevice(),
 			Direct3D_GetDeviceContext(),
 			pWideFilename,
@@ -159,24 +162,21 @@ MODEL* ModelLoad(const char* FileName, float scale)
 
 		delete[] pWideFilename;
 
-		assert(SUCCEEDED(hr) && texture);
+		assert(texture);
 
-		if (resource) resource->Release();
+		resource->Release();
 
-		// store texture in map using the original filename as key
-		model->Texture[key] = texture;
+		model->Texture[filename.C_Str()] = texture;
 	}
-
 	return model;
 }
-
 
 void ModelRelease(MODEL* model)
 {
 	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
 	{
-		if (model->VertexBuffer[m]) model->VertexBuffer[m]->Release();
-		if (model->IndexBuffer[m]) model->IndexBuffer[m]->Release();
+		model->VertexBuffer[m]->Release();
+		model->IndexBuffer[m]->Release();
 	}
 
 	delete[] model->VertexBuffer;
@@ -184,66 +184,56 @@ void ModelRelease(MODEL* model)
 
 	for (std::pair<const std::string, ID3D11ShaderResourceView*> pair : model->Texture)
 	{
-		if (pair.second) pair.second->Release();
+		pair.second->Release();
 	}
 
 	aiReleaseImport(model->AiScene);
+
 	delete model;
 }
-
 
 void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 {
 	Shader3d_Begin();
 
-	// Set primitive topology
+	// プリミティブトポロジ設定
 	Direct3D_GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// Set world transformation matrix in the vertex shader
+	//頂点シェーダーにワールド座標変換行列を設定
 	Shader3d_SetWorldMatrix(mtxWorld);
 
 	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
 	{
+		aiString texture;
 		aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
+		aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texture);
 
-		// Determine diffuse texture (external or embedded)
-		aiString textureName;
-		aiReturn ret = aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &textureName);
-
-		if (ret == AI_SUCCESS && textureName.length != 0)
-		{
-			std::string key = textureName.C_Str();
-			// If texture exists in map, set it. Otherwise fallback to white.
-			if (model->Texture.count(key))
-			{
-				ID3D11ShaderResourceView* srv = model->Texture[key];
-				Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, &srv);
-				Shader3d_SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
-			}
-			else
-			{
-				Texture_SetTexture(g_TextureWhite);
-				aiColor3D diffuse;
-				aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-				Shader3d_SetColor({ diffuse.r, diffuse.g, diffuse.b, 1.0f });
-			}
+		if (texture.length != 0) {
+			//if (texture != aiString("")) {
+			Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, &model->Texture[texture.data]);
+			Shader3d_SetColor({ 1.0f,1.0f,1.0f,1.0f });
 		}
-		else
-		{
-			// No diffuse texture: use white + material diffuse color
+		else {
 			Texture_SetTexture(g_TextureWhite);
+			//aiMaterial* aimaterial = model->AiScene->mMaterials[model->AiScene->mMeshes[m]->mMaterialIndex];
 			aiColor3D diffuse;
 			aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
 			Shader3d_SetColor({ diffuse.r, diffuse.g, diffuse.b, 1.0f });
 		}
 
-		// Set vertex and index buffers
+		// 頂点バッファを描画パイプラインに設定
 		UINT stride = sizeof(Vertex3d);
 		UINT offset = 0;
-
 		Direct3D_GetDeviceContext()->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
+
 		Direct3D_GetDeviceContext()->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
 
 		Direct3D_GetDeviceContext()->DrawIndexed(model->AiScene->mMeshes[m]->mNumFaces * 3, 0, 0);
 	}
 }
+
+
+
+
+
+
