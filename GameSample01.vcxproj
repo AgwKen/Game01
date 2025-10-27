@@ -169,7 +169,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="..\..\Users\pyaes\Downloads\モデル描画_学生配布用\モデル描画_学生配布用\Assimp\assimp\anim.h" />
-    <ClInclude Include="..\..\Users\pyaes\Downloads\モデル描画_学生配布用\モデル描画_学生配布用\Assimp\assimp\camera.h" />
     <ClInclude Include="..\GameSample\mouse.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="cube.h" />

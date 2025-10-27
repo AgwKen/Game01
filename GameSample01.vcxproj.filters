@@ -204,9 +204,6 @@
     <ClInclude Include="..\..\Users\pyaes\Downloads\モデル描画_学生配布用\モデル描画_学生配布用\Assimp\assimp\anim.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Users\pyaes\Downloads\モデル描画_学生配布用\モデル描画_学生配布用\Assimp\assimp\camera.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="model.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

@@ -67,14 +67,20 @@ void Game_Update(double elapsed_time)
 void Game_Draw()
 {
 	Light_SetAmbientColor({ 0.6f, 0.6f, 0.6f, 1.0f });
-	Light_SetDirectionalWorld({ 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f });
+	Light_SetDirectionalWorld(
+		{ 0.0f, 0.0f, 1.0f, 1.0f },   // world direction
+		{ 1.0f, 1.0f, 1.0f, 1.0f },   // color
+		Camera_GetPosition()          // camera position
+	);
+
+
 	Grid_Draw();
 	XMMATRIX mtxWorld = XMMatrixTranslationFromVector(XMLoadFloat3(&g_CubePosition));
 	Shader3d_SetWorldMatrix(mtxWorld);
 	//CUBE_Draw(g_angle);
 	//XMMATRIX mtxThrowCube = XMMatrixRotationY(g_angle * 0.5f);
 	Mesh_Draw(1, 2, 0.0f, -30.0f, -20.0f);
-	ModelDraw(g_pModelTest, XMMatrixTranslation(1.0f, 1.0f, 0.0f));
+	ModelDraw(g_pModelTest, XMMatrixTranslation(2.0f, 2.0f, 0.0f));
 	//ModelDraw(g_pModelCat, XMMatrixTranslation(3.0f, 0.0f, 0.0f));
 
 	Camera_DebugDraw();
