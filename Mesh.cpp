@@ -121,8 +121,8 @@ void Mesh_Draw(int repeatX, int repeatZ, float heightOffset, float offsetX, floa
     g_pContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    ShaderField_SetViewMatrix(XMLoadFloat4x4(&Camera_GetMatrix()));
-    ShaderField_SetProjectionMatrix(XMLoadFloat4x4(&Camera_GetPerspectiveMatrix()));
+   // ShaderField_SetViewMatrix(XMLoadFloat4x4(&Camera_GetMatrix()));
+   // ShaderField_SetProjectionMatrix(XMLoadFloat4x4(&Camera_GetPerspectiveMatrix()));
 
     for (int z = 0; z < repeatZ; z++) {
         for (int x = 0; x < repeatX; x++) {

@@ -151,6 +151,8 @@
     <ClCompile Include="light.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="player.cpp" />
+    <ClCompile Include="player_camera.cpp" />
     <ClCompile Include="sampler.cpp" />
     <ClCompile Include="shader3d.cpp" />
     <ClCompile Include="shader_field.cpp" />
@@ -183,6 +185,8 @@
     <ClInclude Include="light.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="player.h" />
+    <ClInclude Include="player_camera.h" />
     <ClInclude Include="sampler.h" />
     <ClInclude Include="shader3d.h" />
     <ClInclude Include="shader_field.h" />

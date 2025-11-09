@@ -58,7 +58,8 @@ HWND GameWindow_Create(HINSTANCE hInstance)
        //  nullptr, nullptr, hInstance, nullptr);
 
   //   --- WINDOWED MODE ---
-    DWORD style = WS_OVERLAPPEDWINDOW;  // Standard window with borders
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    // Standard window with borders
     hWnd = CreateWindow(
         WINDOW_CLASS,
         TITLE,

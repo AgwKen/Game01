@@ -13,7 +13,7 @@
 #include "texture.h"
 #include "shader.h"
 using namespace DirectX;
-
+#include <algorithm>
 
 static constexpr int NUM_VERTEX = 5000; // 頂点数
 static ID3D11Buffer* g_pVertexBuffer = nullptr;             // 頂点バッファ
@@ -52,7 +52,83 @@ bool Collision_IsOverlapBox(const Box& a, const Box& b)
 	float br = b.center.x + b.half_width;
 
 	return al < br && ar > bl && at < bb && ab > bt;
-}	
+}
+bool Collision_IsOverlapAABB(const AABB& a, const AABB& b)
+{
+	return a.min.x < b.max.x
+		&& a.max.x > b.min.x
+		&& a.min.y < b.max.y
+		&& a.max.y > b.min.y
+		&& a.min.z < b.max.z
+		&& a.max.z > b.min.z;
+}
+
+Hit Collision_IsHitAABB(const AABB& a, const AABB& b)
+{
+	Hit hit{};
+
+	//did it hit?
+	hit.isHit = Collision_IsOverlapAABB(a, b);
+
+	if (!hit.isHit)
+	{
+		//didnt hit
+		return hit;
+	}
+
+	float xdepth = std::min(a.max.x, b.max.x) - std::max(a.min.x, b.min.x);
+	float ydepth = std::min(a.max.y, b.max.y) - std::max(a.min.y, b.min.y);
+	float zdepth = std::min(a.max.z, b.max.z) - std::max(a.min.z, b.min.z);
+
+
+	//Which axis has the shallowest depth?
+	bool isShallowX = false;
+	bool isShallowY = false;
+	bool isShallowZ = false;
+
+	if (xdepth > ydepth) {
+		if (zdepth > ydepth) {
+			//z
+			isShallowZ = true;
+		}
+		else {
+			//y
+			isShallowY = true;
+		}
+	}
+	else {
+		if (zdepth > xdepth) {
+			//x
+			isShallowX = true;
+		}
+		else {
+			//z	
+			isShallowX = true;
+		}
+	}
+
+
+	//which direction you get hit??
+	XMFLOAT3 a_center = a.GetCenter();
+	XMFLOAT3 b_center = b.GetCenter();
+
+	XMVECTOR normal = XMLoadFloat3(&b_center) - XMLoadFloat3(&a_center);
+
+	if (isShallowX) {
+		normal = XMVector3Normalize(normal* XMVECTOR{1.0f, 0.0f, 0.0f});
+	}
+
+	else if (isShallowY) {
+		normal = XMVector3Normalize(normal * XMVECTOR{ 0.0f, 1.0f, 0.0f });
+	}
+	else if (isShallowZ) {
+		normal = XMVector3Normalize(normal * XMVECTOR{ 0.0f, 0.0f, 1.0f });
+	}
+
+	XMStoreFloat3(&hit.normal, normal);
+
+	return hit;
+}
 
 struct Vertex
 {

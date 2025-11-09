@@ -15,11 +15,26 @@ using namespace DirectX;
 #include "sampler.h"
 #include "shader_field.h"
 
+// NEW: Define structs to match HLSL cbuffer registers b3 and b4
+struct AmbientLightBuffer
+{
+	DirectX::XMFLOAT4 ambient_color;
+};
+
+struct DirectionalLightBuffer
+{
+	DirectX::XMFLOAT4 directional_world_vector;
+	DirectX::XMFLOAT4 directional_color;
+};
+
+
 static ID3D11VertexShader* g_pVertexShader = nullptr;
 static ID3D11InputLayout* g_pInputLayout = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer0 = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer2 = nullptr;
+static ID3D11Buffer* g_pVSConstantBuffer3 = nullptr; // NEW: Ambient Light (b3)
+static ID3D11Buffer* g_pVSConstantBuffer4 = nullptr; // NEW: Directional Light (b4)
 static ID3D11PixelShader* g_pPixelShader = nullptr;
 
 // Note! These are set externally during initialization. No need to release.
@@ -77,7 +92,7 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 	// Define vertex layout
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,		 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
@@ -94,14 +109,26 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 	}
 
 
-	// Create constant buffers for vertex shader
+	// Create constant buffers for vertex shader (b0, b1, b2 - Matrices)
 	D3D11_BUFFER_DESC buffer_desc{};
-	buffer_desc.ByteWidth = sizeof(XMFLOAT4X4); // Buffer size
+	buffer_desc.ByteWidth = sizeof(XMFLOAT4X4); // Buffer size (Matrix)
 	buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;  // Bind flag
 
 	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer0);
 	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
 	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
+
+	// NEW: Create constant buffer for Ambient Light (b3)
+	D3D11_BUFFER_DESC buffer_desc_b3{};
+	buffer_desc_b3.ByteWidth = sizeof(AmbientLightBuffer);
+	buffer_desc_b3.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	g_pDevice->CreateBuffer(&buffer_desc_b3, nullptr, &g_pVSConstantBuffer3);
+
+	// NEW: Create constant buffer for Directional Light (b4)
+	D3D11_BUFFER_DESC buffer_desc_b4{};
+	buffer_desc_b4.ByteWidth = sizeof(DirectionalLightBuffer);
+	buffer_desc_b4.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	g_pDevice->CreateBuffer(&buffer_desc_b4, nullptr, &g_pVSConstantBuffer4);
 
 	// Load precompiled pixel shader
 	// Load precompiled pixel shader
@@ -134,11 +161,29 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 void ShaderField_Finalize()
 {
 	SAFE_RELEASE(g_pPixelShader);
+	SAFE_RELEASE(g_pVSConstantBuffer4); // NEW: Release directional light buffer
+	SAFE_RELEASE(g_pVSConstantBuffer3); // NEW: Release ambient light buffer
 	SAFE_RELEASE(g_pVSConstantBuffer2);
 	SAFE_RELEASE(g_pVSConstantBuffer1);
 	SAFE_RELEASE(g_pVSConstantBuffer0);
 	SAFE_RELEASE(g_pInputLayout);
 	SAFE_RELEASE(g_pVertexShader);
+}
+
+// ... existing matrix setters ...
+
+// NEW: Setter for Ambient Light (b3)
+void ShaderField_SetAmbientColor(const DirectX::XMFLOAT4& color)
+{
+	AmbientLightBuffer buffer = { color };
+	g_pContext->UpdateSubresource(g_pVSConstantBuffer3, 0, nullptr, &buffer, 0, 0);
+}
+
+// NEW: Setter for Directional Light (b4)
+void ShaderField_SetDirectionalLight(const DirectX::XMFLOAT4& direction, const DirectX::XMFLOAT4& color)
+{
+	DirectionalLightBuffer buffer = { direction, color };
+	g_pContext->UpdateSubresource(g_pVSConstantBuffer4, 0, nullptr, &buffer, 0, 0);
 }
 
 void ShaderField_SetWorldMatrix(const DirectX::XMMATRIX& matrix)
@@ -191,6 +236,8 @@ void ShaderField_Begin()
 	g_pContext->VSSetConstantBuffers(0, 1, &g_pVSConstantBuffer0);
 	g_pContext->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
 	g_pContext->VSSetConstantBuffers(2, 1, &g_pVSConstantBuffer2);
+	g_pContext->VSSetConstantBuffers(3, 1, &g_pVSConstantBuffer3); // NEW: Bind Ambient Light (b3)
+	g_pContext->VSSetConstantBuffers(4, 1, &g_pVSConstantBuffer4); // NEW: Bind Directional Light (b4)
 
 	// Set sampler state into the rendering pipeline
 	Sampler_SetFilterAnisotropic();

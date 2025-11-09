@@ -14,6 +14,7 @@ using namespace DirectX;
 #include "shader3d.h"
 #include "key_logger.h"
 #include <sstream>
+#include "shader_field.h" // ADDED: Need this header to access ShaderField_Set...
 
 static XMFLOAT3 g_CameraPosition = { 0.0f, 0.0f, -5.0f };
 static XMFLOAT3 g_CameraFront = { 0.0f, 0.0f,  1.0f };
@@ -38,8 +39,8 @@ void Camera_Initialize(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT
     XMVECTOR u = XMVector3Normalize(XMVector3Cross(f, r));
     XMStoreFloat3(&g_CameraFront, f);
     XMStoreFloat3(&g_CameraRight, r);
-        XMStoreFloat3(&g_CameraUp, u);
-    }
+    XMStoreFloat3(&g_CameraUp, u);
+}
 
 void Camera_Initialize()
 {
@@ -47,7 +48,7 @@ void Camera_Initialize()
     g_CameraFront = { 0.0f, 0.0f,  1.0f };
     g_CameraUp = { 0.0f, 1.0f,  0.0f };
     g_CameraRight = { 1.0f, 0.0f,  0.0f };
-	g_Fov = XMConvertToRadians(60.0f);
+    g_Fov = XMConvertToRadians(60.0f);
 
     XMStoreFloat4x4(&g_CameraMatrix, XMMatrixIdentity());
     XMStoreFloat4x4(&g_PerspectiveMatrix, XMMatrixIdentity());
@@ -123,14 +124,14 @@ void Camera_Update(double elapsed_time)
 
     // Move up/down (Y axis)
     if (KeyLogger_IsPressed(KK_Q)) {
-        position += XMVECTOR{ 0.0f, 1.0f, 0.0f } *CAMERA_MOVE_SPEED * static_cast<float>(elapsed_time);
+        position += XMVECTOR{ 0.0f, 1.0f, 0.0f } * CAMERA_MOVE_SPEED * static_cast<float>(elapsed_time);
     }
     if (KeyLogger_IsPressed(KK_E)) {
-        position += XMVECTOR{ 0.0f, -1.0f, 0.0f } *CAMERA_MOVE_SPEED * static_cast<float>(elapsed_time);
+        position += XMVECTOR{ 0.0f, -1.0f, 0.0f } * CAMERA_MOVE_SPEED * static_cast<float>(elapsed_time);
     }
 
     if (KeyLogger_IsPressed(KK_Z)) {
-		g_Fov -= XMConvertToRadians(10) * static_cast<float>(elapsed_time);
+        g_Fov -= XMConvertToRadians(10) * static_cast<float>(elapsed_time);
     }
     if (KeyLogger_IsPressed(KK_X)) {
         g_Fov += XMConvertToRadians(10) * static_cast<float>(elapsed_time);
@@ -150,15 +151,17 @@ void Camera_Update(double elapsed_time)
     );
     XMStoreFloat4x4(&g_CameraMatrix, mtxView);
     Shader3d_SetViewMatrix(mtxView);
+    ShaderField_SetViewMatrix(mtxView); // FIX: Set for the Mesh Field Shader**
 
     // Projection matrix
-    
+
     float aspectRatio = static_cast<float>(Direct3D_GetBackBufferWidth()) / static_cast<float>(Direct3D_GetBackBufferHeight());
     float nearz = 0.1f;
     float farz = 200.0f;
     XMMATRIX mtxPerspective = XMMatrixPerspectiveFovLH(g_Fov, aspectRatio, nearz, farz);
     XMStoreFloat4x4(&g_PerspectiveMatrix, mtxPerspective);
     Shader3d_SetProjectionMatrix(mtxPerspective);
+    ShaderField_SetProjectionMatrix(mtxPerspective); // FIX: Set for the Mesh Field Shader**
 }
 
 const DirectX::XMFLOAT4X4& Camera_GetMatrix()
@@ -183,7 +186,7 @@ const DirectX::XMFLOAT3& Camera_GetFront()
 
 float Camera_GetFov()
 {
-    return 0.0f;
+    return g_Fov; // Corrected: Use g_Fov instead of 0.0f
 }
 
 void Camera_DebugDraw()
@@ -210,10 +213,11 @@ void Camera_DebugDraw()
 
     // Camera up
     ss << "Camera Up: x = " << g_CameraUp.x;
-    ss << " z = " << g_CameraUp.z << std::endl;
+    ss << " y = " << g_CameraUp.y; // Corrected: Moved y here
+    ss << " z = " << g_CameraUp.z << std::endl; // Corrected: Moved z here
 
     ss << "Camera Fov =" << g_Fov << std::endl;
-    ss << " y = " << g_CameraUp.y;
+    // ss << " y = " << g_CameraUp.y; // REMOVED: Duplicate
 
     g_pDT->SetText(ss.str().c_str(), { 0.0f, 1.0f, 0.0f, 1.0f });
     g_pDT->Draw();
