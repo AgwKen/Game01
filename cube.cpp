@@ -109,13 +109,13 @@
         SAFE_RELEASE(g_pVertexBuffer);
     }
 
-    void CUBE_Draw(const XMMATRIX& mtxWorld)
+    void CUBE_Draw(int texId, const DirectX::XMMATRIX& mtxWorld)
     {
         Shader3d_Begin();
         Shader3d_SetColor(XMFLOAT4(1, 1, 1, 1));
         Direct3D_SetDefaultBlendState();
 
-        Texture_SetTexture(g_CubeTexId);
+        Texture_SetTexture(texId);
 
         UINT stride = sizeof(Vertex3d), offset = 0;
         g_pContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);

@@ -16,10 +16,12 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front);
 void Player_Finalize();
 void Player_Update(double elapsed_time);
 void Player_Draw();
-
+	
 const XMFLOAT3& Player_GetPosition();
 const XMFLOAT3& Player_GetFront();
 AABB Player_GetAABB();
+
+AABB Player_ConvertPositionToAABB(const XMVECTOR& position);
 
 #endif // PLAYER_H
 

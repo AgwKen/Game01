@@ -16,8 +16,9 @@
 
 void CUBE_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext);
 void CUBE_Finalize(void);
-void CUBE_Draw(const DirectX::XMMATRIX& mtxWorld);
+void CUBE_Draw(int texId,const DirectX::XMMATRIX& mtxWorld);
 AABB Cube_GetAABB(const DirectX::XMFLOAT3& position);
+
 
 #endif // CUBE_H
 

@@ -21,6 +21,7 @@ using namespace DirectX;
 #include "shader_field.h"
 #include "player_camera.h"
 #include "cube.h"
+#include "map.h"
 
 static float  g_angle = 0.0f;
 static XMFLOAT3 g_CubePosition = {};
@@ -34,10 +35,12 @@ static MODEL* g_pModelTest3 = nullptr;
 
 void Game_Initialize()
 {
-    //Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
+    Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
     Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
     Player_Initialize({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
     PlayerCamera_Initialize();
+
+	Map_Initialize();
 
     g_pModelTest = ModelLoad("Resources/Model/tree.fbx", 0.1f);
     g_pModelTest2 = ModelLoad("Resources/Model/Formula 1 mesh.fbx", 0.01f);
@@ -46,10 +49,11 @@ void Game_Initialize()
 
 void Game_Finalize()
 {
+	Map_Finalize();
     Player_Finalize();
     Mesh_Finalize();
     PlayerCamera_Finalize();
-    //Camera_Finalize();
+    Camera_Finalize();
 }
 
 // game.cpp (in Game_Update)
@@ -118,8 +122,11 @@ void Game_Draw()
 
     //===== Draw Cube =====//
     //Sampler_SetFilterAnisotropic();
-    XMMATRIX mtxCube = XMMatrixTranslation(3.0f, 0.5f, 2.0f);
-    CUBE_Draw(mtxCube);
+    //XMMATRIX mtxCube = XMMatrixTranslation(3.0f, 0.5f, 2.0f);
+    //CUBE_Draw(mtxCube);
+
+	Map_Draw();
+
 
     //===== Draw Player =====//
     Player_Draw();
@@ -129,5 +136,8 @@ void Game_Draw()
     ModelDraw(g_pModelTest3, XMMatrixTranslation(6.0f, 0.4f, 0.0f));
     
     //===== Debug =====//
-    Camera_DebugDraw();
+    if (PlayerCamera_GetMode() == CameraMode::DEBUG_FREE)
+    {
+        Camera_DebugDraw();
+    }
 }
