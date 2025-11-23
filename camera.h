@@ -27,6 +27,8 @@ const DirectX::XMFLOAT3& Camera_GetFront();
 
 float Camera_GetFov();
 
+void Camera_SetMatrix(const DirectX :: XMMATRIX & view, const DirectX :: XMMATRIX & projection);
+
 void Camera_DebugDraw();
 
 

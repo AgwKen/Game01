@@ -11,23 +11,25 @@
 #include "direct3d.h"
 #include <DirectXMath.h>
 using namespace DirectX;
-#include "shader3d.h"
 #include "key_logger.h"
 #include <sstream>
-#include "shader_field.h" // ADDED: Need this header to access ShaderField_Set...
-
+#include "shader_field.h"
 static XMFLOAT3 g_CameraPosition = { 0.0f, 0.0f, -5.0f };
 static XMFLOAT3 g_CameraFront = { 0.0f, 0.0f,  1.0f };
 static XMFLOAT3 g_CameraUp = { 0.0f, 1.0f,  0.0f };
 static XMFLOAT3 g_CameraRight = { 1.0f, 0.0f,  0.0f };
 
 static constexpr float CAMERA_MOVE_SPEED = 5.0f;
-static constexpr float CAMERA_ROTATION_SPEED = XMConvertToRadians(60); // 30 degrees per second
+static constexpr float CAMERA_ROTATION_SPEED = XMConvertToRadians(60); 
 
 static XMFLOAT4X4 g_CameraMatrix;
 static XMFLOAT4X4 g_PerspectiveMatrix;
 static float g_Fov = XMConvertToRadians(60.0f);
 static hal::DebugText* g_pDT = nullptr;
+
+static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr;
+static ID3D11Buffer* g_pVSConstantBuffer2 = nullptr;
+
 
 void Camera_Initialize(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& front, const DirectX::XMFLOAT3& right)
 {
@@ -53,6 +55,15 @@ void Camera_Initialize()
     XMStoreFloat4x4(&g_CameraMatrix, XMMatrixIdentity());
     XMStoreFloat4x4(&g_PerspectiveMatrix, XMMatrixIdentity());
 
+    // 頂点シェーダー用定数バッファ作成
+    D3D11_BUFFER_DESC buffer_desc{};
+    buffer_desc.ByteWidth = sizeof(XMFLOAT4X4);
+    buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+    Direct3D_GetDevice()->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
+    Direct3D_GetDevice()->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
+
+
 #if defined(DEBUG) || defined(_DEBUG)
     g_pDT = new hal::DebugText(Direct3D_GetDevice(), Direct3D_GetDeviceContext(),
         L"Texture/consolab_ascii_512.png",
@@ -66,6 +77,8 @@ void Camera_Initialize()
 
 void Camera_Finalize()
 {
+    SAFE_RELEASE(g_pVSConstantBuffer2);
+    SAFE_RELEASE(g_pVSConstantBuffer1);
     delete g_pDT;
     g_pDT = nullptr;
 }
@@ -150,8 +163,6 @@ void Camera_Update(double elapsed_time)
         up
     );
     XMStoreFloat4x4(&g_CameraMatrix, mtxView);
-    Shader3d_SetViewMatrix(mtxView);
-    ShaderField_SetViewMatrix(mtxView); // FIX: Set for the Mesh Field Shader**
 
     // Projection matrix
 
@@ -160,8 +171,6 @@ void Camera_Update(double elapsed_time)
     float farz = 200.0f;
     XMMATRIX mtxPerspective = XMMatrixPerspectiveFovLH(g_Fov, aspectRatio, nearz, farz);
     XMStoreFloat4x4(&g_PerspectiveMatrix, mtxPerspective);
-    Shader3d_SetProjectionMatrix(mtxPerspective);
-    ShaderField_SetProjectionMatrix(mtxPerspective); // FIX: Set for the Mesh Field Shader**
 }
 
 const DirectX::XMFLOAT4X4& Camera_GetMatrix()
@@ -186,7 +195,20 @@ const DirectX::XMFLOAT3& Camera_GetFront()
 
 float Camera_GetFov()
 {
-    return g_Fov; // Corrected: Use g_Fov instead of 0.0f
+    return g_Fov;
+}
+
+void Camera_SetMatrix(const DirectX::XMMATRIX& view, const DirectX::XMMATRIX& projection)
+{
+
+    XMFLOAT4X4 v, p;
+    XMStoreFloat4x4(&v, XMMatrixTranspose(view));
+    XMStoreFloat4x4(&p, XMMatrixTranspose(projection));
+
+    Direct3D_GetDeviceContext()->UpdateSubresource(g_pVSConstantBuffer1, 0, nullptr, &v, 0, 0);
+    Direct3D_GetDeviceContext()->UpdateSubresource(g_pVSConstantBuffer2, 0, nullptr, &p, 0, 0);
+    Direct3D_GetDeviceContext()->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
+    Direct3D_GetDeviceContext()->VSSetConstantBuffers(2, 1, &g_pVSConstantBuffer2);
 }
 
 void Camera_DebugDraw()
@@ -213,11 +235,10 @@ void Camera_DebugDraw()
 
     // Camera up
     ss << "Camera Up: x = " << g_CameraUp.x;
-    ss << " y = " << g_CameraUp.y; // Corrected: Moved y here
-    ss << " z = " << g_CameraUp.z << std::endl; // Corrected: Moved z here
+    ss << " y = " << g_CameraUp.y;
+    ss << " z = " << g_CameraUp.z << std::endl;
 
     ss << "Camera Fov =" << g_Fov << std::endl;
-    // ss << " y = " << g_CameraUp.y; // REMOVED: Duplicate
 
     g_pDT->SetText(ss.str().c_str(), { 0.0f, 1.0f, 0.0f, 1.0f });
     g_pDT->Draw();

@@ -10,20 +10,17 @@
 #include "sprite_anim.h"
 #include "sprite.h"
 #include "texture.h"
+#include "billboard.h"
 
 #include <DirectXMath.h>
 using namespace DirectX;
 
-//==============================================================================
-// 定数
-//==============================================================================
 static constexpr int ANIM_PATTERN_MAX = 128;
 static constexpr int ANIM_PLAY_MAX = 256;
 
-//==============================================================================
-// 構造体定義
-//==============================================================================
-struct AnimPatternData {
+
+struct AnimPatternData 
+{
     int m_TextureId{ -1 };                   // テクスチャID
     int m_PatternMax = 0;                    // パターン数
     int m_HPatternMax = 0;                   // 横のパターン最大数
@@ -33,22 +30,17 @@ struct AnimPatternData {
     bool m_IsLooped = true;                  // ループするか
 };
 
-struct AnimPlayData {
+struct AnimPlayData 
+{
     int m_PatternId = -1;                    // 登録されたアニメーションパターンID
     int m_PatternNum = 0;                    // 現在のパターン番号
     double m_AccumulatedTime = 0.0;          // 累積時間
     bool m_IsStopped = false;
 };
 
-//==============================================================================
-// グローバル変数
-//==============================================================================
 static AnimPatternData g_AnimPattern[ANIM_PATTERN_MAX];
 static AnimPlayData g_AnimPlay[ANIM_PLAY_MAX];
 
-//==============================================================================
-// 初期化・終了処理
-//==============================================================================
 void SpriteAnim_Initialize() {
     for (AnimPatternData& data : g_AnimPattern) {
         data.m_TextureId = -1;
@@ -60,13 +52,11 @@ void SpriteAnim_Initialize() {
     }
 }
 
-void SpriteAnim_Finalize() {
-    // 使用中のリソースを解放する場合に追加
+void SpriteAnim_Finalize()
+{
+
 }
 
-//==============================================================================
-// 更新処理
-//==============================================================================
 void SpriteAnim_Update(double elapsed_time) {
     for (int i = 0; i < ANIM_PLAY_MAX; ++i) {
         if (g_AnimPlay[i].m_PatternId < 0) continue;
@@ -94,10 +84,8 @@ void SpriteAnim_Update(double elapsed_time) {
     }
 }
 
-//==============================================================================
-// 描画処理
-//==============================================================================
-void SpriteAnim_Draw(int playid, float dx, float dy, float dw, float dh) {
+void SpriteAnim_Draw(int playid, float dx, float dy, float dw, float dh) 
+{
     int patternId = g_AnimPlay[playid].m_PatternId;
     if (patternId < 0) return;
 
@@ -117,9 +105,32 @@ void SpriteAnim_Draw(int playid, float dx, float dy, float dw, float dh) {
         drawSrcX, drawSrcY, drawSrcW, drawSrcH);
 }
 
-//==============================================================================
-// パターン登録・プレイヤー生成
-//==============================================================================
+void BillboardAnim_Draw(int playid, const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT2& scale, const DirectX::XMFLOAT2& pivot)
+{
+    int anim_pattern_id = g_AnimPlay[playid].m_PatternId;
+    if (anim_pattern_id < 0) return; // Add check for valid pattern ID
+
+    const AnimPatternData* pAnimPatternData = &g_AnimPattern[anim_pattern_id];
+
+    // Use XMUINT4 for the texture cut to resolve the ambiguity.
+    DirectX::XMUINT4 tex_cut = {
+        pAnimPatternData->m_StartPosition.x
+        + pAnimPatternData->m_PatternSize.x
+        * (g_AnimPlay[playid].m_PatternNum % pAnimPatternData->m_HPatternMax),
+        pAnimPatternData->m_StartPosition.y
+        + pAnimPatternData->m_PatternSize.y
+        * (g_AnimPlay[playid].m_PatternNum / pAnimPatternData->m_HPatternMax),
+        pAnimPatternData->m_PatternSize.x,
+        pAnimPatternData->m_PatternSize.y
+    };
+
+    Billboard_Draw(pAnimPatternData->m_TextureId,
+        position, scale,
+        tex_cut, // Pass the explicitly typed XMUINT4
+        pivot
+    );
+}
+
 int SpriteAnim_RegisterPattern(int texId, int pattern_max, int h_pattern_max, double seconds_per_pattern,
     const XMUINT2& pattern_size, const XMUINT2& start_position, bool is_looped) {
     for (int i = 0; i < ANIM_PATTERN_MAX; ++i) {

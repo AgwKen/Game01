@@ -9,6 +9,8 @@
 #include "Assimp/assimp/matrix4x4.h"
 #pragma comment (lib, "assimp-vc143-mt.lib")
 
+#include "collision.h"
+
 struct MODEL
 {
     const aiScene* AiScene = nullptr;
@@ -17,10 +19,14 @@ struct MODEL
     ID3D11Buffer** IndexBuffer = nullptr;
 
     std::unordered_map<std::string, ID3D11ShaderResourceView*> Texture;
+
+    AABB local_aabb = {}; 
 };
 
 MODEL* ModelLoad(const char* FileName, float scale = 1.0f, bool blender = false);
 void ModelRelease(MODEL* model);
 
-void ModelDraw(MODEL* model, const DirectX :: XMMATRIX& mtxWorld);
+void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld);
+void ModelUnlitDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld);
 
+AABB Model_GetAABB(MODEL* model, const DirectX::XMFLOAT3& position);

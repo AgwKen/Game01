@@ -20,8 +20,6 @@ using namespace DirectX;
 static ID3D11VertexShader* g_pVertexShader = nullptr;
 static ID3D11InputLayout* g_pInputLayout = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer0 = nullptr;
-static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr;
-static ID3D11Buffer* g_pVSConstantBuffer2 = nullptr;
 static ID3D11Buffer* g_pPSConstantBuffer0 = nullptr;
 static ID3D11PixelShader* g_pPixelShader = nullptr;
 
@@ -87,8 +85,8 @@ bool Shader3d_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
     buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
     g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer0);
-    g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
-    g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
+    //g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
+    //g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
 
     // ピクセルシェーダー読み込み
     std::ifstream ifs_ps("shader_pixel_3d.cso", std::ios::binary);
@@ -124,8 +122,6 @@ void Shader3d_Finalize()
 {
     SAFE_RELEASE(g_pPixelShader);
     SAFE_RELEASE(g_pPSConstantBuffer0);
-    SAFE_RELEASE(g_pVSConstantBuffer2);
-    SAFE_RELEASE(g_pVSConstantBuffer1);
     SAFE_RELEASE(g_pVSConstantBuffer0);
     SAFE_RELEASE(g_pInputLayout);
     SAFE_RELEASE(g_pVertexShader);
@@ -136,20 +132,6 @@ void Shader3d_SetWorldMatrix(const DirectX::XMMATRIX& matrix)
     XMFLOAT4X4 transpose;
     XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
     g_pContext->UpdateSubresource(g_pVSConstantBuffer0, 0, nullptr, &transpose, 0, 0);
-}
-
-void Shader3d_SetViewMatrix(const DirectX::XMMATRIX& matrix)
-{
-    XMFLOAT4X4 transpose;
-    XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
-    g_pContext->UpdateSubresource(g_pVSConstantBuffer1, 0, nullptr, &transpose, 0, 0);
-}
-
-void Shader3d_SetProjectionMatrix(const DirectX::XMMATRIX& matrix)
-{
-    XMFLOAT4X4 transpose;
-    XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
-    g_pContext->UpdateSubresource(g_pVSConstantBuffer2, 0, nullptr, &transpose, 0, 0);
 }
 
 void Shader3d_SetColor(const XMFLOAT4& color)
@@ -164,9 +146,6 @@ void Shader3d_Begin()
     g_pContext->IASetInputLayout(g_pInputLayout);
 
     g_pContext->VSSetConstantBuffers(0, 1, &g_pVSConstantBuffer0);
-    g_pContext->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
-    g_pContext->VSSetConstantBuffers(2, 1, &g_pVSConstantBuffer2);
-
     g_pContext->PSSetConstantBuffers(0, 1, &g_pPSConstantBuffer0);
 
     Sampler_SetFilterAnisotropic();

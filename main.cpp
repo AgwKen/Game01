@@ -14,6 +14,7 @@
 #include "direct3d.h"
 #include "shader.h"
 #include "shader3d.h"
+#include "shader3d_unlit.h"
 #include "sampler.h"
 #include "sprite.h"
 #include "texture.h"
@@ -33,10 +34,6 @@ using namespace DirectX;
 #include "cube.h"
 #include "Grid.h"
 #include "light.h"
-
-
-//#include <Xinput.h>
-//#pragma comment(lib,"xinput.lib")
 
 /*-------------------------------------------------------------------------------
     ÉÅÉCÉì
@@ -60,6 +57,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     Direct3D_Initialize(hWnd);
     Shader_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
     Shader3d_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
+    Shader3dUnlit_Initialize();
 	Sampler_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
     Texture_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
     Sprite_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
@@ -70,7 +68,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 	Grid_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 	Light_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
     CUBE_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
-	//MeshField_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 
 #if defined(DEBUG) || defined(_DEBUG)
 
@@ -126,11 +123,11 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                 SpriteAnim_Update(elapsed_time);
                 Fade_Update(elapsed_time);
 
-
+                
                 // Clear the screen
                 Direct3D_Clear();
                 Sprite_Begin();
-
+      
                   Scene_Draw();
                   Fade_Draw();
 
@@ -168,6 +165,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     Texture_Finalize();
 	Sampler_Finalize();
     Shader_Finalize();
+    Shader3dUnlit_Finalize();
     Shader3d_Finalize();
     Direct3D_Finalize();
     UninitAudio();

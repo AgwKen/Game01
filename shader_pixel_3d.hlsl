@@ -74,6 +74,8 @@ float4 main(PS_IN pi) : SV_Target
     float3 specular = specular_color.rgb * t;
 
     float alpha = tex.Sample(samp, pi.uv).a * pi.color.a * diffuse_color.a;
+    
+    
     float3 color = ambient + diffuse + specular;
 
     float lim = 1.0f - max(dot(normalW.xyz, toEye), 0.0f);

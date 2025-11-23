@@ -15,8 +15,8 @@ using namespace DirectX;
 #include "camera.h"
 
 static constexpr float FIELD_MESH_SIZE = 1.0f;
-static constexpr int FIELD_MESH_H_COUNT = 50;
-static constexpr int FIELD_MESH_V_COUNT = 25;
+static constexpr int FIELD_MESH_H_COUNT = 100;
+static constexpr int FIELD_MESH_V_COUNT = 50;
 static constexpr int FIELD_MESH_H_VERTEX_COUNT = FIELD_MESH_H_COUNT + 1;
 static constexpr int FIELD_MESH_V_VERTEX_COUNT = FIELD_MESH_V_COUNT + 1;
 static constexpr int NUM_VERTEX = FIELD_MESH_H_VERTEX_COUNT * FIELD_MESH_V_VERTEX_COUNT;
@@ -97,7 +97,7 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
     g_pDevice->CreateBuffer(&bd, &sd, &g_pIndexBuffer);
 
     g_Tex0Id = Texture_Load(L"Texture/grass.jpg");
-    g_Tex1Id = Texture_Load(L"Texture/stone.jpg");
+  //g_Tex1Id = Texture_Load(L"Texture/stone.jpg");
 
     ShaderField_Initialize(g_pDevice, g_pContext);
 }

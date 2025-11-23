@@ -1,7 +1,9 @@
 /*========================================================================================
 
-    Main Game [game.cpp]                                           PYAE SONE THANT
-                                                                    DATE:09/04/2025
+
+    Main Game [game.h]									    			PYAE SONE THANT
+                                                                        DATE:06/27/2025
+
 ------------------------------------------------------------------------------------------
 
 =========================================================================================*/
@@ -16,128 +18,155 @@
 #include <DirectXMath.h>
 #include "model.h"
 #include "sampler.h"
-using namespace DirectX;
 #include "player.h"
 #include "shader_field.h"
 #include "player_camera.h"
-#include "cube.h"
 #include "map.h"
+#include "bullet.h"
+#include "billboard.h"
+#include "sprite_anim.h"
+#include "bullet_hit_effect.h"
+#include "trajetory3d.h"
+#include "sky.h"
 
-static float  g_angle = 0.0f;
-static XMFLOAT3 g_CubePosition = {};
-static XMFLOAT3 g_CubeVelocity = {};
+using namespace DirectX;
+
+static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
-static MODEL* g_pModelTest = nullptr;
-static MODEL* g_pModelTest2 = nullptr;
-static MODEL* g_pModelTest3 = nullptr;
-
-
+static bool g_IsDebug = false;
 
 void Game_Initialize()
 {
-    Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
-    Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
-    Player_Initialize({ 0.0f, 1.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
-    PlayerCamera_Initialize();
-
-	Map_Initialize();
-
-    g_pModelTest = ModelLoad("Resources/Model/tree.fbx", 0.1f);
-    g_pModelTest2 = ModelLoad("Resources/Model/Formula 1 mesh.fbx", 0.01f);
-    g_pModelTest3 = ModelLoad("Resources/Model/snowman.fbx", 0.001f);
+Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
+Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
+Player_Initialize({ 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f });
+Bullet_Initialize();
+Sky_Initialize();
+PlayerCamera_Initialize();
+Map_Initialize();
+Billboard_Initialize();
+BulletHitEffect_Initialize();
+Trajetory3d_Initialize();
 }
 
 void Game_Finalize()
 {
-	Map_Finalize();
-    Player_Finalize();
-    Mesh_Finalize();
-    PlayerCamera_Finalize();
-    Camera_Finalize();
+BulletHitEffect_Finalize();
+Billboard_Finalize();
+Map_Finalize();
+Player_Finalize();
+Sky_Finalize();
+Bullet_Finalize();
+Mesh_Finalize();
+PlayerCamera_Finalize();
+Camera_Finalize();
+Trajetory3d_Finalize();
 }
-
-// game.cpp (in Game_Update)
 
 void Game_Update(double elapsed_time)
 {
-    g_AccumulatedTime += elapsed_time;
+if (KeyLogger_IsTrigger(KK_L)) {
+g_IsDebug = !g_IsDebug;
+}
 
-    // --- ADDED: Check for toggle key (F1) ---
-    if (KeyLogger_IsTrigger(KK_F1))
-    {
-        PlayerCamera_ToggleMode();
-    }
-    // ----------------------------------------
+g_AccumulatedTime += elapsed_time;
 
-    PlayerCamera_Update(elapsed_time);
+SpriteAnim_Update(elapsed_time);
+PlayerCamera_Update(elapsed_time);
+Bullet_Update(elapsed_time);
+BulletHitEffect_Update();
+Trajetory3d_Update(elapsed_time);
 
-    // --- MODIFIED: Conditional Player Update ---
-    if (PlayerCamera_GetMode() == CameraMode::PLAYER_FOLLOW)
-    {
-        Player_Update(elapsed_time);
-    }
-    // --------------------------------------------
+// --- CAMERA / PLAYER UPDATE CONTROL ---
+if (g_IsDebug) {
+    Camera_Update(elapsed_time); 
+} else {
+    Player_Update(elapsed_time);
+}
+Sky_SetPosition(Player_GetPosition());
+// --- BULLET COLLISION WITH MAP ---
+for (int j = 0; j < Map_GetObjectCount(); j++) {
+    for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
+        AABB bullet = Bullet_GetAABB(i);
+        AABB object = Map_GetObject(j)->Aabb;
 
-    if (PlayerCamera_GetMode() == CameraMode::DEBUG_FREE)
-    {
-        Camera_Update(elapsed_time); // Call Camera_Update ONLY in debug mode
+        if (Collision_IsOverlapAABB(bullet, object)) {
+            BulletHitEffect_Create(Bullet_GetPosition(i));
+            Bullet_Destroy(i);
+        }
     }
 }
+
+}
+
 void Game_Draw()
 {
-    //===== Ambient Light =====//
-    Light_SetAmbient({ 0.3f, 0.3f, 0.3f });
-    ShaderField_SetAmbientColor({ 0.3f, 0.3f, 0.3f, 1.0f });
+// --- CAMERA ---
+XMFLOAT4X4 mtxView = g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix();
+XMMATRIX view = XMLoadFloat4x4(&mtxView);
+XMMATRIX proj = g_IsDebug ?
+XMLoadFloat4x4(&Camera_GetPerspectiveMatrix()) :
+XMLoadFloat4x4(&PlayerCamera_GetPerspectiveMatrix());
+Camera_SetMatrix(view, proj);
 
-    //===== Directional Light =====//
-    XMVECTOR v = XMVector3Normalize({ -1.0f, -1.0f, 1.0f });
-    XMFLOAT4 dir;
-    XMStoreFloat4(&dir, v);
-    XMFLOAT4 dirColor = { 0.3f, 0.25f, 0.2f, 1.0f };
-    Light_SetDirectionalWorld(dir, dirColor);
-    ShaderField_SetDirectionalLight(dir, dirColor);
+XMFLOAT3 camera_position = g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition();
+Billboard_SetViewMatrix(mtxView);
+Sampler_SetFilterAnisotropic();
 
-    //===== Grid =====//
-    Grid_Draw();
+Sky_Draw();
 
-    //===== Point Lights =====//
-    Light_SetPointLightCount(0);
+//========================
+// LIGHTING SETUP (Easy Adjustment Zone)
+//========================
+// Ambient Light
+Light_SetAmbient({ 0.3f, 0.3f, 0.3f });
+ShaderField_SetAmbientColor({ 0.8f, 0.8f, 0.8f, 1.0f });
 
-    XMMATRIX rot = XMMatrixRotationY(g_angle);
-    XMFLOAT3 pp0, pp1, pp2;
-    XMStoreFloat3(&pp0, XMVector3Transform({ 0.0f, 2.0f, -3.0f }, rot));
-    XMStoreFloat3(&pp1, XMVector3Transform({ 0.0f, 3.0f,  3.0f }, rot));
-    XMStoreFloat3(&pp2, XMVector3Transform({ 0.0f, 4.0f,  2.0f }, rot));
+// Directional Light
+XMVECTOR dirVec = XMVector3Normalize({ -1.0f, -1.0f, 1.0f });
+XMFLOAT4 dir;
+XMStoreFloat4(&dir, dirVec);
+XMFLOAT4 dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+Light_SetDirectionalWorld(dir, dirColor);
+ShaderField_SetDirectionalLight(dir, dirColor);
 
-    Light_SetPointLight(0, pp0, 5.0f, { 1.0f, 0.0f, 0.0f });
-    Light_SetPointLight(1, pp1, 3.0f, { 0.0f, 1.0f, 0.0f });
-    Light_SetPointLight(2, pp2, 3.0f, { 0.0f, 0.0f, 1.0f });
+// Specular Light
+Light_SetSpecularWorld(Camera_GetPosition(), 1.0f, {0.1f, 0.1f, 0.1f, 1.0f});
 
-    //===== Specular Light =====//
-    Light_SetSpecularWorld(PlayerCamera_GetPosition(), 50.0f, { 0.3f, 0.3f, 0.3f, 0.3f });
-    Light_SetSpecularWorld(Camera_GetPosition(), 1.0f, { 0.1f, 0.1f, 0.1f, 1.0f });
+// Point Lights
+Light_SetPointLightCount(0);
+//========================
 
-    //===== Draw Mesh =====//
-    Mesh_Draw(1, 2, 0.0f, -30.0f, -20.0f);
+//--- GRID ---
+Grid_Draw();
 
-    //===== Draw Cube =====//
-    //Sampler_SetFilterAnisotropic();
-    //XMMATRIX mtxCube = XMMatrixTranslation(3.0f, 0.5f, 2.0f);
-    //CUBE_Draw(mtxCube);
+//--- DRAW OBJECTS ---
+Bullet_Draw();
+Player_Draw();
+Map_Draw();
 
-	Map_Draw();
+//--- BULLET HIT EFFECTS ---
+Direct3D_SetAlphaBlendState();
+Direct3D_SetDepthReadOnly(true);
+BulletHitEffect_Draw();
+Direct3D_SetDepthReadOnly(false);
+Direct3D_SetDefaultBlendState();
 
+Direct3D_SetAlphaBlendState();
+Direct3D_SetDepthReadOnly(true);
+Direct3D_SetDepthReadOnly(false);
+Direct3D_SetDefaultBlendState();
 
-    //===== Draw Player =====//
-    Player_Draw();
+// Inside Game_Draw()
+Direct3D_SetSubtractiveBlendState();  // or Additive
+Direct3D_SetDepthReadOnly(true);      // so particles donÅft write to depth
+Trajetory3d_Draw();
+Direct3D_SetDepthReadOnly(false);
+Direct3D_SetDefaultBlendState();
 
-    ModelDraw(g_pModelTest, XMMatrixTranslation(2.0f, 0.1f, 0.0f));
-    ModelDraw(g_pModelTest2, XMMatrixTranslation(-6.0f, 0.1f, 0.0f));
-    ModelDraw(g_pModelTest3, XMMatrixTranslation(6.0f, 0.4f, 0.0f));
-    
-    //===== Debug =====//
-    if (PlayerCamera_GetMode() == CameraMode::DEBUG_FREE)
-    {
-        Camera_DebugDraw();
-    }
+//--- DEBUG ---
+if (g_IsDebug) {
+    Camera_DebugDraw();
+}
+
 }

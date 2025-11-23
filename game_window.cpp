@@ -46,18 +46,19 @@ HWND GameWindow_Create(HINSTANCE hInstance)
     // =====================================================
 
     // --- FULLSCREEN MODE ---
-//     DWORD style = WS_POPUP;  // No title bar, no borders
- //    hWnd = CreateWindow(
-   //      WINDOW_CLASS,
-     //    TITLE,
-       //  style,
-       //  0,
-       //  0,
-       //  desktop_width,
-       //  desktop_height,
-       //  nullptr, nullptr, hInstance, nullptr);
+    DWORD style = WS_POPUP;  // No title bar, no borders
+     hWnd = CreateWindow(
+        WINDOW_CLASS,
+        TITLE,
+         style,
+         0,
+         0,
+         desktop_width,
+         desktop_height,
+         nullptr, nullptr, hInstance, nullptr);
 
   //   --- WINDOWED MODE ---
+    /*
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     // Standard window with borders
     hWnd = CreateWindow(
@@ -69,12 +70,14 @@ HWND GameWindow_Create(HINSTANCE hInstance)
         SCREEN_WIDTH,
        SCREEN_HEIGHT,
        nullptr, nullptr, hInstance, nullptr);
+       */
 
     ShowWindow(hWnd, SW_SHOW);
     SetForegroundWindow(hWnd);
     SetFocus(hWnd);
 
     return hWnd;
+    
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

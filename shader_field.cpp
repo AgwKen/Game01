@@ -31,8 +31,6 @@ struct DirectionalLightBuffer
 static ID3D11VertexShader* g_pVertexShader = nullptr;
 static ID3D11InputLayout* g_pInputLayout = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer0 = nullptr;
-static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr;
-static ID3D11Buffer* g_pVSConstantBuffer2 = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer3 = nullptr; // NEW: Ambient Light (b3)
 static ID3D11Buffer* g_pVSConstantBuffer4 = nullptr; // NEW: Directional Light (b4)
 static ID3D11PixelShader* g_pPixelShader = nullptr;
@@ -115,8 +113,6 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 	buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;  // Bind flag
 
 	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer0);
-	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
-	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
 
 	// NEW: Create constant buffer for Ambient Light (b3)
 	D3D11_BUFFER_DESC buffer_desc_b3{};
@@ -163,8 +159,6 @@ void ShaderField_Finalize()
 	SAFE_RELEASE(g_pPixelShader);
 	SAFE_RELEASE(g_pVSConstantBuffer4); // NEW: Release directional light buffer
 	SAFE_RELEASE(g_pVSConstantBuffer3); // NEW: Release ambient light buffer
-	SAFE_RELEASE(g_pVSConstantBuffer2);
-	SAFE_RELEASE(g_pVSConstantBuffer1);
 	SAFE_RELEASE(g_pVSConstantBuffer0);
 	SAFE_RELEASE(g_pInputLayout);
 	SAFE_RELEASE(g_pVertexShader);
@@ -198,31 +192,6 @@ void ShaderField_SetWorldMatrix(const DirectX::XMMATRIX& matrix)
 	g_pContext->UpdateSubresource(g_pVSConstantBuffer0, 0, nullptr, &transpose, 0, 0);
 }
 
-void ShaderField_SetViewMatrix(const DirectX::XMMATRIX& matrix)
-{
-	// Define structure for storing constant buffer matrix
-	XMFLOAT4X4 transpose;
-
-	// Transpose matrix and store into buffer structure
-	XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
-
-	// Set matrix into constant buffer
-	g_pContext->UpdateSubresource(g_pVSConstantBuffer1, 0, nullptr, &transpose, 0, 0);
-}
-
-void ShaderField_SetProjectionMatrix(const DirectX::XMMATRIX& matrix)
-{
-	// Define structure for storing constant buffer matrix
-	XMFLOAT4X4 transpose;
-
-	// Transpose matrix and store into buffer structure
-	XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
-
-	// Set matrix into constant buffer
-	g_pContext->UpdateSubresource(g_pVSConstantBuffer2, 0, nullptr, &transpose, 0, 0);
-
-}
-
 void ShaderField_Begin()
 {
 	// Set vertex shader and pixel shader into the rendering pipeline
@@ -234,8 +203,6 @@ void ShaderField_Begin()
 
 	// Set constant buffers into the rendering pipeline
 	g_pContext->VSSetConstantBuffers(0, 1, &g_pVSConstantBuffer0);
-	g_pContext->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
-	g_pContext->VSSetConstantBuffers(2, 1, &g_pVSConstantBuffer2);
 	g_pContext->VSSetConstantBuffers(3, 1, &g_pVSConstantBuffer3); // NEW: Bind Ambient Light (b3)
 	g_pContext->VSSetConstantBuffers(4, 1, &g_pVSConstantBuffer4); // NEW: Bind Directional Light (b4)
 

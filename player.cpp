@@ -14,13 +14,14 @@
 #include "camera.h"
 #include "player_camera.h"
 #include "light.h"
-#include "map.h"]
+#include "map.h"
 #include "cube.h"
+#include "bullet.h"
 
 using namespace DirectX;
 
 static XMFLOAT3 g_PlayerPosition{ 0.0f, 0.0f, 0.0f };
-static XMFLOAT3 g_PlayerFront{ 0.0f, 0.0f, 0.0f };
+static XMFLOAT3 g_PlayerFront{ 0.0f, 0.0f, 1.0f };
 static XMFLOAT3 g_PlayerVelocity{};
 static MODEL* g_pPlayerModel{ nullptr };
 static bool g_IsJump = false;
@@ -33,13 +34,14 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
     g_PlayerVelocity = { 0.0f, 0.0f, 0.0f };
     XMStoreFloat3(&g_PlayerFront, XMVector3Normalize(XMLoadFloat3(&front)));
     g_IsJump = false;
-    g_pPlayerModel = ModelLoad("Resources/Model/test.fbx", 0.1f);
+    g_pPlayerModel = ModelLoad("Resources/Model/test.fbx", 0.03f);
 }
 
 void Player_Finalize()
 {
     ModelRelease(g_pPlayerModel);
 }
+
 void Player_Update(double elapsed_time)
 {
     // 1. Get old state
@@ -60,25 +62,32 @@ void Player_Update(double elapsed_time)
     XMVECTOR gdir{ 0.0f,1.0f, 0.0f };
     velocity += gdir * -9.8f * 15.0f * (float)elapsed_time;
 
-    // 3. Movement Input
+    // =====================
+    // 3. MOVEMENT INPUT (NO CAMERA)
+    // =====================
     XMVECTOR direction{};
-    XMVECTOR front = XMLoadFloat3(&PlayerCamera_GetFront()) * XMVECTOR { 1.0f, 0.0f, 1.0f };
+
+    XMVECTOR forward = { 0.0f, 0.0f, 1.0f };
+    XMVECTOR right = { 1.0f, 0.0f, 0.0f };
 
     if (KeyLogger_IsPressed(KK_W)) {
-        direction += front;
-    }
-    if (KeyLogger_IsPressed(KK_A)) {
-        direction -= XMVector3Cross({ 0.0f,1.0f,0.0f }, front);
+        direction += forward;
     }
     if (KeyLogger_IsPressed(KK_S)) {
-        direction -= front;
+        direction -= forward;
+    }
+    if (KeyLogger_IsPressed(KK_A)) {
+        direction -= right;
     }
     if (KeyLogger_IsPressed(KK_D)) {
-        direction += XMVector3Cross({ 0.0f,1.0f,0.0f }, front);
+        direction += right;
     }
 
+    // =====================
     // 4. Movement Logic
-    if (XMVectorGetX(XMVector3LengthSq(direction)) > 0.0f) {
+    // =====================
+    if (XMVectorGetX(XMVector3LengthSq(direction)) > 0.0f)
+    {
         direction = XMVector3Normalize(direction);
 
         // Rotation Logic
@@ -86,30 +95,30 @@ void Player_Update(double elapsed_time)
         float angle = acosf(dot);
         const float rotation_speed = XM_2PI * 1.0f * (float)elapsed_time;
 
+        XMVECTOR front = XMLoadFloat3(&g_PlayerFront);
+
         if (angle < rotation_speed) {
             front = direction;
         }
         else {
-            XMMATRIX r = XMMatrixIdentity();
-            if (XMVectorGetY(XMVector3Cross(XMLoadFloat3(&g_PlayerFront), direction)) < 0.0f) {
-                r = XMMatrixRotationY(-XM_2PI * 2.0f * (float)elapsed_time);
-            }
-            else {
-                r = XMMatrixRotationY(XM_2PI * 2.0f * (float)elapsed_time);
-            }
-            front = XMVector3TransformNormal(XMLoadFloat3(&g_PlayerFront), r);
-        } 
+            XMVECTOR cross = XMVector3Cross(front, direction);
+            float turnDir = XMVectorGetY(cross) < 0.0f ? -1.0f : 1.0f;
+            XMMATRIX rot = XMMatrixRotationY(turnDir * XM_2PI * 2.0f * (float)elapsed_time);
+            front = XMVector3TransformNormal(front, rot);
+        }
 
-        velocity += front * (float)(2000.0 / 50.0 * elapsed_time); // Apply Movement
         XMStoreFloat3(&g_PlayerFront, front);
+
+        // Apply movement
+        velocity += front * (float)(2000.0 / 50.0 * elapsed_time);
     }
 
-    // 5. FINAL PHYSICS (Always applied)
-    velocity += -velocity * (float)(4.0f * elapsed_time); // Apply friction
-    position += velocity * (float)elapsed_time;           // Apply final velocity
+    // 5. FINAL PHYSICS
+    velocity += -velocity * (float)(4.0f * elapsed_time);
+    position += velocity * (float)elapsed_time;
 
-    // ===== CUBE COLLISION=====
-    Hit finalHit{}; // to store last hit for normal checks later
+    // ===== CUBE COLLISION =====
+    Hit finalHit{};
     AABB finalCube{}, finalPlayer{};
 
     for (int i = 0; i < Map_GetObjectCount(); ++i)
@@ -172,7 +181,7 @@ void Player_Update(double elapsed_time)
         XMStoreFloat3(&g_PlayerPosition, position);
     }
 
-    // Ground plane collision (Y = 0)
+    // Ground collision
     if (XMVectorGetY(position) < 0.0f)
     {
         position = XMVectorSetY(position, 0.0f);
@@ -181,13 +190,23 @@ void Player_Update(double elapsed_time)
     }
 
     XMStoreFloat3(&g_PlayerPosition, position);
-    AABB correctedPlayer = Player_GetAABB();
-
-    XMStoreFloat3(&g_PlayerPosition, position);
     XMStoreFloat3(&g_PlayerVelocity, velocity);
 
-}
+    // Fire bullet
+    if (KeyLogger_IsTrigger(KK_J)) {
+        XMFLOAT3 velocity;
+        XMStoreFloat3(&velocity, XMLoadFloat3(&g_PlayerFront) * 25.0f);
 
+        XMFLOAT3 bulletPos = {
+            g_PlayerPosition.x,
+            g_PlayerPosition.y + 1.5f,
+            g_PlayerPosition.z
+        };
+
+        Bullet_Create(bulletPos, velocity);
+    }
+
+}
 
 void Player_Draw()
 {
@@ -195,7 +214,7 @@ void Player_Draw()
 
     float angle = -atan2f(g_PlayerFront.z, g_PlayerFront.x) + XMConvertToRadians(270.0f);
     XMMATRIX rotation = XMMatrixRotationY(angle);
-    XMMATRIX translation = XMMatrixTranslation(g_PlayerPosition.x, g_PlayerPosition.y + 1.0f, g_PlayerPosition.z);
+    XMMATRIX translation = XMMatrixTranslation(g_PlayerPosition.x, g_PlayerPosition.y + 0.3f, g_PlayerPosition.z);
     XMMATRIX world = rotation * translation;
 
     ModelDraw(g_pPlayerModel, world);
@@ -214,8 +233,8 @@ const XMFLOAT3& Player_GetFront()
 AABB Player_GetAABB()
 {
     return {
-        { g_PlayerPosition.x - 1.0f, g_PlayerPosition.y,       g_PlayerPosition.z - 1.0f },
-        { g_PlayerPosition.x + 1.0f, g_PlayerPosition.y + 2.0f, g_PlayerPosition.z + 1.0f }
+        { g_PlayerPosition.x - 0.25f, g_PlayerPosition.y,        g_PlayerPosition.z - 0.25f },
+        { g_PlayerPosition.x + 0.25f, g_PlayerPosition.y + 1.2f,  g_PlayerPosition.z + 0.25f }
     };
 }
 

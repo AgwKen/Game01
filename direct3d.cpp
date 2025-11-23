@@ -1,9 +1,9 @@
 ﻿/*==============================================================================
 
-   Direct3Dの初期化関連 [direct3d.cpp]
-														 Author : Youhei Sato
-														 Date   : 2025/05/12
---------------------------------------------------------------------------------
+Direct3Dの初期化関連 [direct3d.cpp]
+Author : PYAE SONE THANT
+Date   : 2025/05/12
+-------------------
 
 ==============================================================================*/
 #include <d3d11.h>
@@ -11,26 +11,29 @@
 #include "debug_ostream.h"
 
 #pragma comment(lib, "d3d11.lib")
-// #pragma comment(lib, "dxgi.lib")
-
 
 /* 各種インターフェース */
 static ID3D11Device* g_pDevice = nullptr;
 static ID3D11DeviceContext* g_pDeviceContext = nullptr;
 static IDXGISwapChain* g_pSwapChain = nullptr;
 static ID3D11BlendState* g_pBlendStateMultiply = nullptr;
+static ID3D11BlendState* g_pAdditiveBlendState = nullptr; // added
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthDisable = nullptr;
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthEnable = nullptr;
+static ID3D11DepthStencilState* g_pDepthStencilStateDepthReadOnly = nullptr;
+
+/* ★ NEW state ★ */
+static ID3D11DepthStencilState* g_pDepthStencilStateDepthWriteDisable = nullptr;
 
 /* バックバッファ関連 */
 static ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
 static ID3D11Texture2D* g_pDepthStencilBuffer = nullptr;
 static ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 static D3D11_TEXTURE2D_DESC g_BackBufferDesc{};
-static D3D11_VIEWPORT g_Viewport{};// ビューポートの設定用
+static D3D11_VIEWPORT g_Viewport{};
 
-static bool configureBackBuffer(); // バックバッファの設定・生成
-static void releaseBackBuffer(); // バックバッファの解放
+static bool configureBackBuffer();
+static void releaseBackBuffer();
 
 static ID3D11BlendState* g_pAlphaBlendState = nullptr;
 static ID3D11BlendState* g_pSubtractiveBlendState = nullptr;
@@ -42,33 +45,14 @@ bool Direct3D_Initialize(HWND hWnd)
 	DXGI_SWAP_CHAIN_DESC swap_chain_desc{};
 	swap_chain_desc.Windowed = TRUE;
 	swap_chain_desc.BufferCount = 2;
-	// swap_chain_desc.BufferDesc.Width = 0;
-	// swap_chain_desc.BufferDesc.Height = 0;
-	// ⇒ ウィンドウサイズに合わせて自動的に設定される
 	swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swap_chain_desc.SampleDesc.Count = 1;
 	swap_chain_desc.SampleDesc.Quality = 0;
 	swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-	//swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 	swap_chain_desc.OutputWindow = hWnd;
 
-	/*
-	IDXGIFactory1* pFactory;
-	CreateDXGIFactory1(IID_PPV_ARGS(&pFactory));
-	IDXGIAdapter1* pAdapter;
-	pFactory->EnumAdapters1(1, &pAdapter); // セカンダリアダプタを取得
-	pFactory->Release();
-	DXGI_ADAPTER_DESC1 desc;
-	pAdapter->GetDesc1(&desc); // アダプタの情報を取得して確認したい場合
-	pAdapter->Release(); // D3D11CreateDeviceAndSwapChain()の第１引数に渡して利用し終わったら解放する
-	*/
-
-	UINT device_flags = 0;
-
-#if defined(DEBUG) || defined(_DEBUG)
-	//device_flags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
+		UINT device_flags = 0;
 
 	D3D_FEATURE_LEVEL levels[] = {
 		D3D_FEATURE_LEVEL_11_1,
@@ -101,47 +85,73 @@ bool Direct3D_Initialize(HWND hWnd)
 		return false;
 	}
 
-	// αブレンド
-	// RGBA（A:好きに使って良い値。基本は透明の表現に使う）
-	// αテスト、αブレンド
+	/* ===========================
+	   Blend State Settings
+	   =========================== */
 
-	// ブレンドステート設定
 	D3D11_BLEND_DESC bd = {};
-	bd.AlphaToCoverageEnable = FALSE;
-	bd.IndependentBlendEnable = FALSE;
-	bd.RenderTarget[0].BlendEnable = TRUE; // αブレンドするしない
-
-	// src:ソース（今から描く絵（色））...dest:すでに描かれた絵（色）
-
-	// RGB
+	bd.RenderTarget[0].BlendEnable = TRUE;
 	bd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-	bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD; // OP（演算子）
-	// SrcRGB * SrcA + DestRGB * (1 SrcA)
-
-	// A
-	bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE; // 1
-	bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO; // 0
-	bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD; // OP（演算子）+
-	// SrcA * 1 + DestA * 0
-
+	bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
-
 	g_pDevice->CreateBlendState(&bd, &g_pBlendStateMultiply);
+	float blend_factor[4] = { 0,0,0,0 };
+	g_pDeviceContext->OMSetBlendState(g_pBlendStateMultiply, blend_factor, 0xFFFFFFFF);
 
+	// Additive Blend State
+	D3D11_BLEND_DESC additiveBlendDesc = {};
+	additiveBlendDesc.RenderTarget[0].BlendEnable = TRUE;
+	additiveBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	additiveBlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	additiveBlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	additiveBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	additiveBlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	additiveBlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	additiveBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	g_pDevice->CreateBlendState(&additiveBlendDesc, &g_pAdditiveBlendState);
 
-	float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	g_pDeviceContext->OMSetBlendState(g_pBlendStateMultiply, blend_factor, 0xffffffff);
+	/* ===========================
+	   Depth Stencil States
+	   =========================== */
 
-
-	// 深度ステンシルステート設定
 	D3D11_DEPTH_STENCIL_DESC dsd = {};
 	dsd.DepthFunc = D3D11_COMPARISON_LESS;
 	dsd.StencilEnable = FALSE;
-	dsd.DepthEnable = FALSE; // 無効にする
-	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 
+	// Depth Disabled
+	dsd.DepthEnable = FALSE;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	g_pDevice->CreateDepthStencilState(&dsd, &g_pDepthStencilStateDepthDisable);
+
+	// Depth Enable
+	dsd.DepthEnable = TRUE;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	g_pDevice->CreateDepthStencilState(&dsd, &g_pDepthStencilStateDepthEnable);
+
+	// Depth Test ON, Depth Write OFF (transparent objects)
+	D3D11_DEPTH_STENCIL_DESC transparentDepthDesc = {};
+	transparentDepthDesc.DepthEnable = TRUE;
+	transparentDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	transparentDepthDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	transparentDepthDesc.StencilEnable = FALSE;
+	g_pDevice->CreateDepthStencilState(&transparentDepthDesc, &g_pDepthStencilStateDepthReadOnly);
+
+	/* DepthWriteDisable (full disable) */
+	D3D11_DEPTH_STENCIL_DESC depthWriteDisableDesc = {};
+	depthWriteDisableDesc.DepthEnable = FALSE;
+	depthWriteDisableDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	depthWriteDisableDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	depthWriteDisableDesc.StencilEnable = FALSE;
+	g_pDevice->CreateDepthStencilState(&depthWriteDisableDesc, &g_pDepthStencilStateDepthWriteDisable);
+
+	Direct3D_SetDepthEnable(true);
+
+	/* Alpha, subtractive, opaque blends */
 	D3D11_BLEND_DESC alphaBlendDesc = {};
 	alphaBlendDesc.RenderTarget[0].BlendEnable = TRUE;
 	alphaBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
@@ -153,7 +163,6 @@ bool Direct3D_Initialize(HWND hWnd)
 	alphaBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	g_pDevice->CreateBlendState(&alphaBlendDesc, &g_pAlphaBlendState);
 
-	//  Subtractive Blend State
 	D3D11_BLEND_DESC subtractiveBlendDesc = {};
 	subtractiveBlendDesc.RenderTarget[0].BlendEnable = TRUE;
 	subtractiveBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
@@ -165,28 +174,24 @@ bool Direct3D_Initialize(HWND hWnd)
 	subtractiveBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	g_pDevice->CreateBlendState(&subtractiveBlendDesc, &g_pSubtractiveBlendState);
 
-	// Opaque Blend State
 	D3D11_BLEND_DESC opaqueBlendDesc = {};
 	opaqueBlendDesc.RenderTarget[0].BlendEnable = FALSE;
 	opaqueBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	g_pDevice->CreateBlendState(&opaqueBlendDesc, &g_pOpaqueBlendState);
 
-	g_pDevice->CreateDepthStencilState(&dsd, &g_pDepthStencilStateDepthDisable);
-
-	dsd.DepthEnable = TRUE;
-	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-	g_pDevice->CreateDepthStencilState(&dsd, &g_pDepthStencilStateDepthEnable);
-
-	Direct3D_SetDepthEnable(true);
-
 	return true;
+
 }
 
 void Direct3D_Finalize()
 {
 	SAFE_RELEASE(g_pDepthStencilStateDepthDisable);
 	SAFE_RELEASE(g_pDepthStencilStateDepthEnable);
+	SAFE_RELEASE(g_pDepthStencilStateDepthReadOnly);
+	SAFE_RELEASE(g_pDepthStencilStateDepthWriteDisable);
+
 	SAFE_RELEASE(g_pBlendStateMultiply);
+	SAFE_RELEASE(g_pAdditiveBlendState);
 	SAFE_RELEASE(g_pAlphaBlendState);
 	SAFE_RELEASE(g_pSubtractiveBlendState);
 	SAFE_RELEASE(g_pOpaqueBlendState);
@@ -196,6 +201,7 @@ void Direct3D_Finalize()
 	SAFE_RELEASE(g_pSwapChain);
 	SAFE_RELEASE(g_pDeviceContext);
 	SAFE_RELEASE(g_pDevice);
+
 }
 
 void Direct3D_Clear()
@@ -204,41 +210,41 @@ void Direct3D_Clear()
 	g_pDeviceContext->ClearRenderTargetView(g_pRenderTargetView, clear_color);
 	g_pDeviceContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	// レンダーターゲットビューとデプスステンシルビューの設定
 	g_pDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
 }
 
 void Direct3D_Present()
 {
-	// スワップチェーンの表示
-	g_pSwapChain->Present(1, 0); //benchmark を取るときは　use (0,0)
+	g_pSwapChain->Present(1, 0);
 }
 
-unsigned int Direct3D_GetBackBufferWidth()
-{
-	return g_BackBufferDesc.Width;
-}
-
-unsigned int Direct3D_GetBackBufferHeight()
-{
-	return g_BackBufferDesc.Height;
-}
-
-ID3D11Device* Direct3D_GetDevice()
-{
-	return g_pDevice;
-}
+unsigned int Direct3D_GetBackBufferWidth() { return g_BackBufferDesc.Width; }
+unsigned int Direct3D_GetBackBufferHeight() { return g_BackBufferDesc.Height; }
+ID3D11Device* Direct3D_GetDevice() { return g_pDevice; }
+ID3D11DeviceContext* Direct3D_GetDeviceContext() { return g_pDeviceContext; }
 
 void Direct3D_SetAlphaBlendState()
 {
-	float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	float blend_factor[4] = { 0,0,0,0 };
 	g_pDeviceContext->OMSetBlendState(g_pAlphaBlendState, blend_factor, 0xFFFFFFFF);
+}
+
+void Direct3D_SetAdditiveBlendState()
+{
+	float blend_factor[4] = { 0,0,0,0 };
+	g_pDeviceContext->OMSetBlendState(g_pAdditiveBlendState, blend_factor, 0xFFFFFFFF);
 }
 
 void Direct3D_SetSubtractiveBlendState()
 {
-	float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	float blend_factor[4] = { 0,0,0,0 };
 	g_pDeviceContext->OMSetBlendState(g_pSubtractiveBlendState, blend_factor, 0xFFFFFFFF);
+}
+
+void Direct3D_SetOpaqueBlendState()
+{
+	g_pDeviceContext->OMSetBlendState(g_pOpaqueBlendState, nullptr, 0xFFFFFFFF);
 }
 
 void Direct3D_SetDefaultBlendState()
@@ -246,104 +252,87 @@ void Direct3D_SetDefaultBlendState()
 	g_pDeviceContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 }
 
-void Direct3D_SetOpaqueBlendState() {
-	g_pDeviceContext->OMSetBlendState(g_pOpaqueBlendState, nullptr, 0xFFFFFFFF);
-}
-
 void Direct3D_SetMultiplyBlendState()
 {
-	float blend_factor[4] = { 0, 0, 0, 0 };
+	float blend_factor[4] = { 0,0,0,0 };
 	g_pDeviceContext->OMSetBlendState(g_pBlendStateMultiply, blend_factor, 0xFFFFFFFF);
-}
-
-ID3D11DeviceContext* Direct3D_GetDeviceContext()
-{
-	return g_pDeviceContext;
 }
 
 void Direct3D_SetDepthEnable(bool enable)
 {
-	if (enable) {
-		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthEnable, NULL);
-	}
+	if (enable)
+		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthEnable, 0);
 	else
-	{
-		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthDisable, NULL);
-	}
+		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthDisable, 0);
+}
+
+void Direct3D_SetDepthReadOnly(bool enable)
+{
+	if (enable)
+		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthReadOnly, 0);
+	else
+		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthEnable, 0);
+}
+
+void Direct3D_SetDepthWriteDisable()
+{
+	g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthWriteDisable, 0);
 }
 
 bool configureBackBuffer()
 {
-	HRESULT hr;
-
 	ID3D11Texture2D* back_buffer_pointer = nullptr;
 
-	// バックバッファの取得
-	hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&back_buffer_pointer);
+		HRESULT hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+			(void**)&back_buffer_pointer);
 
 	if (FAILED(hr)) {
 		hal::dout << "バックバッファの取得に失敗しました" << std::endl;
 		return false;
 	}
 
-	// バックバッファのレンダーターゲットビューの生成
 	hr = g_pDevice->CreateRenderTargetView(back_buffer_pointer, nullptr, &g_pRenderTargetView);
-
 	if (FAILED(hr)) {
 		back_buffer_pointer->Release();
-		hal::dout << "バックバッファのレンダーターゲットビューの生成に失敗しました" << std::endl;
+		hal::dout << "バックバッファのRTV生成失敗" << std::endl;
 		return false;
 	}
 
-	// バックバッファの状態（情報）を取得
 	back_buffer_pointer->GetDesc(&g_BackBufferDesc);
+	back_buffer_pointer->Release();
 
-	back_buffer_pointer->Release(); // バックバッファのポインタは不要なので解放
+	D3D11_TEXTURE2D_DESC depth_desc{};
+	depth_desc.Width = g_BackBufferDesc.Width;
+	depth_desc.Height = g_BackBufferDesc.Height;
+	depth_desc.MipLevels = 1;
+	depth_desc.ArraySize = 1;
+	depth_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depth_desc.SampleDesc.Count = 1;
+	depth_desc.Usage = D3D11_USAGE_DEFAULT;
+	depth_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
-	// デプスステンシルバッファの生成
-	D3D11_TEXTURE2D_DESC depth_stencil_desc{};
-	depth_stencil_desc.Width = g_BackBufferDesc.Width;
-	depth_stencil_desc.Height = g_BackBufferDesc.Height;
-	depth_stencil_desc.MipLevels = 1;
-	depth_stencil_desc.ArraySize = 1;
-	depth_stencil_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depth_stencil_desc.SampleDesc.Count = 1;
-	depth_stencil_desc.SampleDesc.Quality = 0;
-	depth_stencil_desc.Usage = D3D11_USAGE_DEFAULT;
-	depth_stencil_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	depth_stencil_desc.CPUAccessFlags = 0;
-	depth_stencil_desc.MiscFlags = 0;
-	hr = g_pDevice->CreateTexture2D(&depth_stencil_desc, nullptr, &g_pDepthStencilBuffer);
+	hr = g_pDevice->CreateTexture2D(&depth_desc, nullptr, &g_pDepthStencilBuffer);
+	if (FAILED(hr)) return false;
 
-	if (FAILED(hr)) {
-		hal::dout << "デプスステンシルバッファの生成に失敗しました" << std::endl;
-		return false;
-	}
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc{};
+	dsv_desc.Format = depth_desc.Format;
+	dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 
-	// デプスステンシルビューの生成
-	D3D11_DEPTH_STENCIL_VIEW_DESC depth_stencil_view_desc{};
-	depth_stencil_view_desc.Format = depth_stencil_desc.Format;
-	depth_stencil_view_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	depth_stencil_view_desc.Texture2D.MipSlice = 0;
-	depth_stencil_view_desc.Flags = 0;
-	hr = g_pDevice->CreateDepthStencilView(g_pDepthStencilBuffer, &depth_stencil_view_desc, &g_pDepthStencilView);
+	hr = g_pDevice->CreateDepthStencilView(
+		g_pDepthStencilBuffer, &dsv_desc, &g_pDepthStencilView);
 
-	if (FAILED(hr)) {
-		hal::dout << "デプスステンシルビューの生成に失敗しました" << std::endl;
-		return false;
-	}
+	if (FAILED(hr)) return false;
 
-	// ビューポートの設定
-	g_Viewport.TopLeftX = 0.0f;
-	g_Viewport.TopLeftY = 0.0f;
-	g_Viewport.Width = static_cast<FLOAT>(g_BackBufferDesc.Width);
-	g_Viewport.Height = static_cast<FLOAT>(g_BackBufferDesc.Height);
+	g_Viewport.TopLeftX = 0;
+	g_Viewport.TopLeftY = 0;
+	g_Viewport.Width = (FLOAT)g_BackBufferDesc.Width;
+	g_Viewport.Height = (FLOAT)g_BackBufferDesc.Height;
 	g_Viewport.MinDepth = 0.0f;
 	g_Viewport.MaxDepth = 1.0f;
 
-	g_pDeviceContext->RSSetViewports(1, &g_Viewport); // ビューポートの設定
-
+	g_pDeviceContext->RSSetViewports(1, &g_Viewport);
 	return true;
+
 }
 
 void releaseBackBuffer()
@@ -351,4 +340,7 @@ void releaseBackBuffer()
 	SAFE_RELEASE(g_pRenderTargetView);
 	SAFE_RELEASE(g_pDepthStencilBuffer);
 	SAFE_RELEASE(g_pDepthStencilView);
+
+	SAFE_RELEASE(g_pDepthStencilStateDepthReadOnly);
+
 }

@@ -11,6 +11,7 @@
 #define PLAYER_CAMERA_H
 
 #include <DirectXMath.h>
+#include "shader_billboard.h"
 
 void PlayerCamera_Initialize();
 void PlayerCamera_Finalize();
@@ -27,5 +28,8 @@ enum class CameraMode
 
 void PlayerCamera_ToggleMode();
 CameraMode PlayerCamera_GetMode();
+
+const  DirectX::XMFLOAT4X4& PlayerCamera_GetViewMatrix();
+const  DirectX::XMFLOAT4X4& PlayerCamera_GetPerspectiveMatrix();
 
 #endif // PLAYER_CAMERA_H
