@@ -21,6 +21,10 @@ static ID3D11BlendState* g_pAdditiveBlendState = nullptr; // added
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthDisable = nullptr;
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthEnable = nullptr;
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthReadOnly = nullptr;
+static ID3D11SamplerState* g_pPointSampler = nullptr;
+
+
+
 
 /* ★ NEW state ★ */
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthWriteDisable = nullptr;
@@ -179,6 +183,25 @@ bool Direct3D_Initialize(HWND hWnd)
 	opaqueBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	g_pDevice->CreateBlendState(&opaqueBlendDesc, &g_pOpaqueBlendState);
 
+	/* ===========================
+	Point Sampler (no blur)
+   =========================== */
+	D3D11_SAMPLER_DESC sampDesc = {};
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	hr = g_pDevice->CreateSamplerState(&sampDesc, &g_pPointSampler);
+	if (FAILED(hr))
+	{
+		MessageBox(hWnd, "Point sampler failed", "Error", MB_OK);
+		return false;
+	}
+
 	return true;
 
 }
@@ -195,6 +218,7 @@ void Direct3D_Finalize()
 	SAFE_RELEASE(g_pAlphaBlendState);
 	SAFE_RELEASE(g_pSubtractiveBlendState);
 	SAFE_RELEASE(g_pOpaqueBlendState);
+	SAFE_RELEASE(g_pPointSampler);
 
 	releaseBackBuffer();
 
@@ -206,6 +230,9 @@ void Direct3D_Finalize()
 
 void Direct3D_Clear()
 {
+
+	g_pDeviceContext->PSSetSamplers(0, 1, &g_pPointSampler);
+
 	float clear_color[4] = { 0.5f, 0.7f, 0.8f, 1.0f };
 	g_pDeviceContext->ClearRenderTargetView(g_pRenderTargetView, clear_color);
 	g_pDeviceContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);

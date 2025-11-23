@@ -39,7 +39,7 @@ void Game_Initialize()
 {
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
-Player_Initialize({ 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f });
+Player_Initialize({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
 Bullet_Initialize();
 Sky_Initialize();
 PlayerCamera_Initialize();
@@ -140,10 +140,10 @@ Light_SetPointLightCount(0);
 //--- GRID ---
 Grid_Draw();
 
-//--- DRAW OBJECTS ---
+//--- DRAW OBJECTS ---[
+Map_Draw();
 Bullet_Draw();
 Player_Draw();
-Map_Draw();
 
 //--- BULLET HIT EFFECTS ---
 Direct3D_SetAlphaBlendState();

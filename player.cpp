@@ -6,10 +6,8 @@
 ---------------------------------------------------------------------------------
 
 =================================================================================*/
-
 #include "player.h"
 #include <DirectXMath.h>
-#include "model.h"
 #include "key_logger.h"
 #include "camera.h"
 #include "player_camera.h"
@@ -17,123 +15,172 @@
 #include "map.h"
 #include "cube.h"
 #include "bullet.h"
+#include "texture.h"
+#include "sprite_anim.h"
+#include "direct3d.h"
+#include "sampler.h"
 
 using namespace DirectX;
 
 static XMFLOAT3 g_PlayerPosition{ 0.0f, 0.0f, 0.0f };
 static XMFLOAT3 g_PlayerFront{ 0.0f, 0.0f, 1.0f };
 static XMFLOAT3 g_PlayerVelocity{};
-static MODEL* g_pPlayerModel{ nullptr };
+static XMFLOAT3 g_VisualOffset{ 0.5f, 0.1f, 0.0f }; // tweak Y to center the sprite
 static bool g_IsJump = false;
-const float PLAYER_SPEED = 5.0f;
+const float PLAYER_SPEED = 8.0f;
 
+//for player sprite animation
+static int animPatternUp = -1;
+static int animPatternDown = -1;
+static int animPatternLeft = -1;
+static int animPatternRight = -1;
+
+static int animIdleUp = -1;
+static int animIdleDown = -1;
+static int animIdleLeft = -1;
+static int animIdleRight = -1;
+
+static int animPlayerId = -1;
+static int animCurrent = -1;
 
 void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 {
     g_PlayerPosition = position;
-    g_PlayerVelocity = { 0.0f, 0.0f, 0.0f };
     XMStoreFloat3(&g_PlayerFront, XMVector3Normalize(XMLoadFloat3(&front)));
     g_IsJump = false;
-    g_pPlayerModel = ModelLoad("Resources/Model/test.fbx", 0.03f);
+
+    int frameCount = 8;
+    int hPatternMax = 8;
+    float secondsPerPattern = 0.1f;
+    float Idle_SecondsPerPattern = 0.2f;
+    DirectX::XMUINT2 patternSize = { 96, 80 };
+    DirectX::XMUINT2 startPos = { 0, 0 };
+    bool loop = true;
+
+    int texRunUp = Texture_Load (L"Texture/run_up.png");
+    int texRunDown = Texture_Load(L"Texture/run_down.png");
+    int texRunLeft = Texture_Load(L"Texture/run_left.png");
+    int texRunRight = Texture_Load(L"Texture/run_right.png");
+
+    int texIdleUp = Texture_Load(L"Texture/idle_up.png");
+    int texIdleDown = Texture_Load(L"Texture/idle_down.png");
+    int texIdleLeft = Texture_Load(L"Texture/idle_left.png");
+    int texIdleRight = Texture_Load(L"Texture/idle_right.png");
+
+    animPatternUp    = SpriteAnim_RegisterPattern(texRunUp   ,frameCount , hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+    animPatternDown  = SpriteAnim_RegisterPattern(texRunDown , frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+    animPatternLeft  = SpriteAnim_RegisterPattern(texRunLeft , frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+    animPatternRight = SpriteAnim_RegisterPattern(texRunRight, frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+
+    animIdleUp    = SpriteAnim_RegisterPattern(texIdleUp    , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleDown  = SpriteAnim_RegisterPattern(texIdleDown  , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleLeft  = SpriteAnim_RegisterPattern(texIdleLeft  , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleRight = SpriteAnim_RegisterPattern(texIdleRight , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+
+    // Start with idle facing DOWN
+    animPlayerId = SpriteAnim_CreatePlayer(animIdleDown);
+    animCurrent = animIdleDown;
+
 }
 
 void Player_Finalize()
 {
-    ModelRelease(g_pPlayerModel);
+    if (animPlayerId >= 0)
+        SpriteAnim_DestroyPlayer(animPlayerId);
 }
 
 void Player_Update(double elapsed_time)
 {
-    // 1. Get old state
     XMVECTOR old_position = XMLoadFloat3(&g_PlayerPosition);
     XMVECTOR velocity = XMLoadFloat3(&g_PlayerVelocity);
-
     AABB old_player_aabb = Player_GetAABB();
     XMVECTOR position = old_position;
 
-    // 2. Jump Input
-    if (KeyLogger_IsTrigger(KK_SPACE) && !g_IsJump)
-    {
-        velocity += { 0.0f, 40.0f, 0.0f };
-        g_IsJump = true;
-    }
+        // --- Jump input ---
+        if (KeyLogger_IsTrigger(KK_SPACE) && !g_IsJump)
+        {
+            velocity += { 0.0f, 40.0f, 0.0f };
+            g_IsJump = true;
+        }
 
-    // 3. Gravity (Always applied)
-    XMVECTOR gdir{ 0.0f,1.0f, 0.0f };
+    // --- Gravity ---
+    XMVECTOR gdir{ 0.0f, 1.0f, 0.0f };
     velocity += gdir * -9.8f * 15.0f * (float)elapsed_time;
 
-    // =====================
-    // 3. MOVEMENT INPUT (NO CAMERA)
-    // =====================
+    // --- Movement input ---
     XMVECTOR direction{};
-
     XMVECTOR forward = { 0.0f, 0.0f, 1.0f };
     XMVECTOR right = { 1.0f, 0.0f, 0.0f };
+    bool moving = false;
 
-    if (KeyLogger_IsPressed(KK_W)) {
-        direction += forward;
-    }
-    if (KeyLogger_IsPressed(KK_S)) {
-        direction -= forward;
-    }
-    if (KeyLogger_IsPressed(KK_A)) {
-        direction -= right;
-    }
-    if (KeyLogger_IsPressed(KK_D)) {
-        direction += right;
-    }
+    if (KeyLogger_IsPressed(KK_W)) { direction += forward; moving = true; }
+    if (KeyLogger_IsPressed(KK_S)) { direction -= forward; moving = true; }
+    if (KeyLogger_IsPressed(KK_A)) { direction -= right;   moving = true; }
+    if (KeyLogger_IsPressed(KK_D)) { direction += right;   moving = true; }
 
-    // =====================
-    // 4. Movement Logic
-    // =====================
-    if (XMVectorGetX(XMVector3LengthSq(direction)) > 0.0f)
+    const float FRICTION = 5.0f; // adjust: higher = stops faster, lower = more slippery
+
+    if (moving)
     {
         direction = XMVector3Normalize(direction);
+        XMStoreFloat3(&g_PlayerFront, direction);
 
-        // Rotation Logic
-        float dot = XMVectorGetX(XMVector3Dot(XMLoadFloat3(&g_PlayerFront), direction));
-        float angle = acosf(dot);
-        const float rotation_speed = XM_2PI * 1.0f * (float)elapsed_time;
-
-        XMVECTOR front = XMLoadFloat3(&g_PlayerFront);
-
-        if (angle < rotation_speed) {
-            front = direction;
-        }
-        else {
-            XMVECTOR cross = XMVector3Cross(front, direction);
-            float turnDir = XMVectorGetY(cross) < 0.0f ? -1.0f : 1.0f;
-            XMMATRIX rot = XMMatrixRotationY(turnDir * XM_2PI * 2.0f * (float)elapsed_time);
-            front = XMVector3TransformNormal(front, rot);
-        }
-
-        XMStoreFloat3(&g_PlayerFront, front);
-
-        // Apply movement
-        velocity += front * (float)(2000.0 / 50.0 * elapsed_time);
+        // Accelerate towards input direction
+        XMVECTOR targetVel = direction * PLAYER_SPEED;
+        velocity = XMVectorLerp(velocity, targetVel, 0.2f); // smooth transition (slight slipperiness)
+    }
+    else
+    {
+        // Apply friction to slow down gradually
+        velocity = XMVectorLerp(velocity, XMVectorSetX(velocity, 0.0f), 0.1f); // X
+        velocity = XMVectorLerp(velocity, XMVectorSetZ(velocity, 0.0f), 0.1f); // Z
     }
 
-    // 5. FINAL PHYSICS
+    // --- Animation switch ---
+    int newAnim = animCurrent;
+    if (moving)
+    {
+        float dx = XMVectorGetX(direction);
+        float dz = XMVectorGetZ(direction);
+
+        if (dx > 0.1f)       newAnim = animPatternRight;
+        else if (dx < -0.1f) newAnim = animPatternLeft;
+        else if (dz > 0.1f)  newAnim = animPatternUp;
+        else if (dz < -0.1f) newAnim = animPatternDown;
+    }
+    else // idle
+    {
+        // Choose idle animation based on last movement direction
+        float fx = g_PlayerFront.x;
+        float fz = g_PlayerFront.z;
+
+        if (fz > 0.5f)       newAnim = animIdleUp;
+        else if (fz < -0.5f) newAnim = animIdleDown;
+        else if (fx < -0.5f) newAnim = animIdleLeft;
+        else if (fx > 0.5f)  newAnim = animIdleRight;
+    }
+
+    if (newAnim != animCurrent)
+    {
+        SpriteAnim_DestroyPlayer(animPlayerId);
+        animPlayerId = SpriteAnim_CreatePlayer(newAnim);
+        animCurrent = newAnim;
+    }
+
+    // --- Final physics ---
     velocity += -velocity * (float)(4.0f * elapsed_time);
     position += velocity * (float)elapsed_time;
 
-    // ===== CUBE COLLISION =====
-    Hit finalHit{};
-    AABB finalCube{}, finalPlayer{};
-
+    // --- Collision with cubes ---
     for (int i = 0; i < Map_GetObjectCount(); ++i)
     {
         AABB cube = Cube_GetAABB(Map_GetObject(i)->Position);
         XMStoreFloat3(&g_PlayerPosition, position);
         AABB player = Player_GetAABB();
-
         Hit hit = Collision_IsHitAABB(cube, player);
+
         if (hit.isHit)
         {
-            finalHit = hit;
-            finalCube = cube;
-            finalPlayer = player;
-
             const float skin = 0.002f;
 
             float overlapX1 = cube.max.x - player.min.x;
@@ -178,10 +225,11 @@ void Player_Update(double elapsed_time)
                 velocity = XMVectorSetZ(velocity, 0.0f);
             }
         }
+
         XMStoreFloat3(&g_PlayerPosition, position);
     }
 
-    // Ground collision
+    //Ground collision
     if (XMVectorGetY(position) < 0.0f)
     {
         position = XMVectorSetY(position, 0.0f);
@@ -192,10 +240,11 @@ void Player_Update(double elapsed_time)
     XMStoreFloat3(&g_PlayerPosition, position);
     XMStoreFloat3(&g_PlayerVelocity, velocity);
 
-    // Fire bullet
-    if (KeyLogger_IsTrigger(KK_J)) {
-        XMFLOAT3 velocity;
-        XMStoreFloat3(&velocity, XMLoadFloat3(&g_PlayerFront) * 25.0f);
+    //Fire bullet
+    if (KeyLogger_IsTrigger(KK_J))
+    {
+        XMFLOAT3 bulletVel;
+        XMStoreFloat3(&bulletVel, XMLoadFloat3(&g_PlayerFront) * 25.0f);
 
         XMFLOAT3 bulletPos = {
             g_PlayerPosition.x,
@@ -203,38 +252,41 @@ void Player_Update(double elapsed_time)
             g_PlayerPosition.z
         };
 
-        Bullet_Create(bulletPos, velocity);
+        Bullet_Create(bulletPos, bulletVel);
     }
-
+ 
 }
 
 void Player_Draw()
 {
-    Light_SetSpecularWorld(Camera_GetPosition(), 4.0f, { 0.3f, 0.25f, 0.2f, 1.0f });
+    if (animPlayerId >= 0)
+    {
+        Direct3D_SetAlphaBlendState();
+        Direct3D_SetDepthReadOnly(true);
+        Sampler_SetFilterPoint();
 
-    float angle = -atan2f(g_PlayerFront.z, g_PlayerFront.x) + XMConvertToRadians(270.0f);
-    XMMATRIX rotation = XMMatrixRotationY(angle);
-    XMMATRIX translation = XMMatrixTranslation(g_PlayerPosition.x, g_PlayerPosition.y + 0.3f, g_PlayerPosition.z);
-    XMMATRIX world = rotation * translation;
+            XMFLOAT3 drawPos = {
+                g_PlayerPosition.x + g_VisualOffset.x,
+                g_PlayerPosition.y + g_VisualOffset.y,
+                g_PlayerPosition.z + g_VisualOffset.z
+        };
 
-    ModelDraw(g_pPlayerModel, world);
+        BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });
+
+        Direct3D_SetDefaultBlendState();
+        Direct3D_SetDepthEnable(true);
+    }
+
 }
 
-const XMFLOAT3& Player_GetPosition()
-{
-    return g_PlayerPosition;
-}
-
-const XMFLOAT3& Player_GetFront()
-{
-    return g_PlayerFront;
-}
+const XMFLOAT3& Player_GetPosition() { return g_PlayerPosition; }
+const XMFLOAT3& Player_GetFront() { return g_PlayerFront; }
 
 AABB Player_GetAABB()
 {
     return {
-        { g_PlayerPosition.x - 0.25f, g_PlayerPosition.y,        g_PlayerPosition.z - 0.25f },
-        { g_PlayerPosition.x + 0.25f, g_PlayerPosition.y + 1.2f,  g_PlayerPosition.z + 0.25f }
+    { g_PlayerPosition.x - 0.25f, g_PlayerPosition.y,        g_PlayerPosition.z - 0.25f },
+    { g_PlayerPosition.x + 0.25f, g_PlayerPosition.y + 1.2f,  g_PlayerPosition.z + 0.25f }
     };
 }
 

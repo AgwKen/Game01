@@ -11,17 +11,18 @@ using namespace DirectX;
 #include "direct3d.h"
 #include "sprite_anim.h"
 #include "billboard.h"
+#include "sampler.h"
 
 // --- Tree animation ---
 static int g_TexId = -1;
 static int g_AnimPatternId = -1;
 static int g_TreePlayerId = -1;
-static XMFLOAT3 g_TreePosition = { -5.0f, 1.0f, 0.0f }; // Tree position
+static XMFLOAT3 g_TreePosition = { -5.0f, 1.0f, 4.0f }; // Tree position
 
 // --- Map objects ---
 static MapObject g_MapObjects[]{
 {FIELD, {0.0f, 0.0f, 0.0f}, {{-25.0f, -1.0f, -25.0f}, {25.0f, 0.0f, 25.0f}}},
-{HOUSE01, {0.0f, 1.5f, 0.0f}}
+{ HOUSE01, {0.0f, 1.0f, 0.0f}}
 };
 
 static MODEL* g_pModelHouse01{};
@@ -30,7 +31,7 @@ static MODEL* g_pModelHouse01{};
 void Map_Initialize()
 {
     // Load house model
-    g_pModelHouse01 = ModelLoad("Resources/Model/house3.fbx", 0.007f);
+    g_pModelHouse01 = ModelLoad("Resources/Model/house3.fbx", 0.005f);
 
     // Load tree texture
     g_TexId = Texture_Load(L"Texture/PineTree.png");
@@ -79,10 +80,25 @@ void Map_Draw()
         }
     }
 
-    Direct3D_SetAlphaBlendState(); // enable alpha blending
-    BillboardAnim_Draw(g_TreePlayerId, g_TreePosition, { 2.5f, 2.5f }, { 0.5f, 1.0f });
-    Direct3D_SetDefaultBlendState(); // restore default
+    for (int i = 0; i < 10; i++)
+    {
+        // Offset each tree along X axis (straight line)
+        XMFLOAT3 pos;
+        pos.x = g_TreePosition.x + (float)i * 3.0f; // spacing = 3 units
+        pos.y = g_TreePosition.y;
+        pos.z = g_TreePosition.z;
 
+        // Set alpha blending + depth test, no depth write
+        Direct3D_SetAlphaBlendState();
+        Direct3D_SetDepthReadOnly(true);
+        Sampler_SetFilterPoint();
+
+        BillboardAnim_Draw(g_TreePlayerId, pos, { 3.0f, 3.0f }, { 0.5f, 1.0f });
+
+        // Restore states for next objects
+        Direct3D_SetDefaultBlendState();
+        Direct3D_SetDepthEnable(true);
+    }
 
 }
 
