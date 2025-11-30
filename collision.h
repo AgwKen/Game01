@@ -13,6 +13,12 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 
+struct Sphere
+{
+    DirectX::XMFLOAT3 center;
+    float radius;
+};
+
 struct Circle
 {
     DirectX::XMFLOAT2 center;
@@ -28,19 +34,26 @@ struct Box
 
 struct AABB
 {
-	DirectX::XMFLOAT3 min;
-	DirectX::XMFLOAT3 max;
+    DirectX::XMFLOAT3 min;
+    DirectX::XMFLOAT3 max;
 
     DirectX::XMFLOAT3 GetCenter() const {
         DirectX::XMFLOAT3 center;
-
         center.x = min.x + (max.x - min.x) * 0.5f;
         center.y = min.y + (max.y - min.y) * 0.5f;
         center.z = min.z + (max.z - min.z) * 0.5f;
-
         return center;
-	}
+    }
+
+    DirectX::XMFLOAT3 GetHalf() const {
+        DirectX::XMFLOAT3 half;
+        half.x = (max.x - min.x) * 0.5f;
+        half.y = (max.y - min.y) * 0.5f;
+        half.z = (max.z - min.z) * 0.5f;
+        return half;
+    }
 };
+
 
 struct Hit
 {
@@ -48,6 +61,8 @@ struct Hit
 	DirectX::XMFLOAT3 normal;
 };
 
+bool Collision_IsOverlapSphere(const Sphere& a, const Sphere& b);
+bool Collision_IsOverlapSphere(const Sphere& a, const DirectX::XMFLOAT3& point);
 
 bool Collision_IsOverlapCircle(const Circle& a, const Circle& b);
 bool Collision_IsOverlapBox(const Box& a, const Box& b);

@@ -22,6 +22,24 @@ static ID3D11DeviceContext* g_pContext = nullptr;           // ‰Šú‰»‚ÅŠO•”‚©‚ç
 
 static int g_WhiteTexId = -1;
 
+bool Collision_IsOverlapSphere(const Sphere& a, const Sphere& b)
+{
+	XMVECTOR ac = XMLoadFloat3(&a.center);
+	XMVECTOR bc = XMLoadFloat3(&b.center);
+	XMVECTOR lsq = XMVector2LengthSq(bc - ac);
+
+	return (a.radius + b.radius) * (a.radius + b.radius) > XMVectorGetX(lsq);
+}
+
+bool Collision_IsOverlapSphere(const Sphere& a, const DirectX::XMFLOAT3& point)
+{
+	XMVECTOR ac = XMLoadFloat3(&a.center);
+	XMVECTOR bc = XMLoadFloat3(&point);
+	XMVECTOR lsq = XMVector2LengthSq(bc - ac);
+
+	return a.radius * a.radius > XMVectorGetX(lsq);
+}
+
 bool Collision_IsOverlapCircle(const Circle& a, const Circle& b)
 {
 	

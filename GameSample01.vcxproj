@@ -150,6 +150,8 @@
     <ClCompile Include="bullet_hit_effect.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="cube.cpp" />
+    <ClCompile Include="enemy.cpp" />
+    <ClCompile Include="enemy_normal.cpp" />
     <ClCompile Include="grid.cpp" />
     <ClCompile Include="light.cpp" />
     <ClCompile Include="map.cpp" />
@@ -185,6 +187,8 @@
     <ClInclude Include="bullet_hit_effect.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="cube.h" />
+    <ClInclude Include="enemy.h" />
+    <ClInclude Include="enemy_normal.h" />
     <ClInclude Include="grid.h" />
     <ClInclude Include="key_logger.h" />
     <ClCompile Include="main.cpp" />
@@ -204,6 +208,7 @@
     <ClInclude Include="shader3d_unlit.h" />
     <ClInclude Include="shader_billboard.h" />
     <ClInclude Include="shader_field.h" />
+    <ClInclude Include="shader_terrain.h" />
     <ClInclude Include="sky.h" />
     <ClInclude Include="sprite_anim.h" />
     <ClCompile Include="system_timer.cpp" />

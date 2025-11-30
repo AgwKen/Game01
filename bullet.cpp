@@ -12,6 +12,7 @@ using namespace DirectX;
 #include "model.h"
 #include "trajetory3d.h"
 
+
 class Bullet
 {
 private:
@@ -124,6 +125,11 @@ AABB Bullet_GetAABB(int index)
         { pos.x - 0.1f, pos.y - 0.1f, pos.z - 0.1f },
         { pos.x + 0.1f, pos.y + 0.1f, pos.z + 0.1f }
     };
+}
+
+Sphere Bullet_GetSphere(int index)
+{
+    return { g_pBullets[index]->GetPosition(), g_pBulletModel->local_aabb.GetHalf().x };
 }
 
 const DirectX::XMFLOAT3& Bullet_GetPosition(int index)

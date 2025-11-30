@@ -19,13 +19,14 @@
 #include "sprite_anim.h"
 #include "direct3d.h"
 #include "sampler.h"
+#include "Mesh.h"
 
 using namespace DirectX;
 
 static XMFLOAT3 g_PlayerPosition{ 0.0f, 0.0f, 0.0f };
 static XMFLOAT3 g_PlayerFront{ 0.0f, 0.0f, 1.0f };
 static XMFLOAT3 g_PlayerVelocity{};
-static XMFLOAT3 g_VisualOffset{ 0.5f, 0.1f, 0.0f }; // tweak Y to center the sprite
+static XMFLOAT3 g_VisualOffset{ 0.5f, 0.2f, 0.0f }; // Y to center the sprite
 static bool g_IsJump = false;
 const float PLAYER_SPEED = 8.0f;
 
@@ -43,11 +44,28 @@ static int animIdleRight = -1;
 static int animPlayerId = -1;
 static int animCurrent = -1;
 
+static int animAttackUp = -1;
+static int animAttackDown = -1;
+static int animAttackLeft = -1;
+static int animAttackRight = -1;
+
+static bool g_IsAttacking = false;
+
+static int animAttack2Up = -1;
+static int animAttack2Down = -1;
+static int animAttack2Left = -1;
+static int animAttack2Right = -1;
+
+static int g_AttackStage = 0;
+
+
 void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 {
     g_PlayerPosition = position;
     XMStoreFloat3(&g_PlayerFront, XMVector3Normalize(XMLoadFloat3(&front)));
     g_IsJump = false;
+
+    Mesh_SetCollisionParams(1, 1, 0.0f, 0.0f);
 
     int frameCount = 8;
     int hPatternMax = 8;
@@ -57,7 +75,7 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
     DirectX::XMUINT2 startPos = { 0, 0 };
     bool loop = true;
 
-    int texRunUp = Texture_Load (L"Texture/run_up.png");
+    int texRunUp = Texture_Load(L"Texture/run_up.png");
     int texRunDown = Texture_Load(L"Texture/run_down.png");
     int texRunLeft = Texture_Load(L"Texture/run_left.png");
     int texRunRight = Texture_Load(L"Texture/run_right.png");
@@ -67,15 +85,37 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
     int texIdleLeft = Texture_Load(L"Texture/idle_left.png");
     int texIdleRight = Texture_Load(L"Texture/idle_right.png");
 
-    animPatternUp    = SpriteAnim_RegisterPattern(texRunUp   ,frameCount , hPatternMax, secondsPerPattern, patternSize, startPos, loop);
-    animPatternDown  = SpriteAnim_RegisterPattern(texRunDown , frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
-    animPatternLeft  = SpriteAnim_RegisterPattern(texRunLeft , frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+    int texAttackUp = Texture_Load(L"Texture/attack1_up.png");
+    int texAttackDown = Texture_Load(L"Texture/attack1_down.png");
+    int texAttackLeft = Texture_Load(L"Texture/attack1_left.png");
+    int texAttackRight = Texture_Load(L"Texture/attack1_right.png");
+
+    int texAttack2Up = Texture_Load(L"Texture/attack2_up.png");
+    int texAttack2Down = Texture_Load(L"Texture/attack2_down.png");
+    int texAttack2Left = Texture_Load(L"Texture/attack2_left.png");
+    int texAttack2Right = Texture_Load(L"Texture/attack2_right.png");
+
+    bool loopAttack = false;
+
+    animAttackUp = SpriteAnim_RegisterPattern(texAttackUp, 8, 8, 0.07f, patternSize, startPos, false);
+    animAttackDown = SpriteAnim_RegisterPattern(texAttackDown, 8, 8, 0.07f, patternSize, startPos, false);
+    animAttackLeft = SpriteAnim_RegisterPattern(texAttackLeft, 8, 8, 0.07f, patternSize, startPos, false);
+    animAttackRight = SpriteAnim_RegisterPattern(texAttackRight, 8, 8, 0.07f, patternSize, startPos, false);
+
+    animAttack2Up = SpriteAnim_RegisterPattern(texAttack2Up, 8, 8, 0.07f, patternSize, startPos, false);
+    animAttack2Down = SpriteAnim_RegisterPattern(texAttack2Down, 8, 8, 0.07f, patternSize, startPos, false);
+    animAttack2Left = SpriteAnim_RegisterPattern(texAttack2Left, 8, 8, 0.07f, patternSize, startPos, false);
+    animAttack2Right = SpriteAnim_RegisterPattern(texAttack2Right, 8, 8, 0.07f, patternSize, startPos, false);
+
+    animPatternUp = SpriteAnim_RegisterPattern(texRunUp, frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+    animPatternDown = SpriteAnim_RegisterPattern(texRunDown, frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
+    animPatternLeft = SpriteAnim_RegisterPattern(texRunLeft, frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
     animPatternRight = SpriteAnim_RegisterPattern(texRunRight, frameCount, hPatternMax, secondsPerPattern, patternSize, startPos, loop);
 
-    animIdleUp    = SpriteAnim_RegisterPattern(texIdleUp    , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
-    animIdleDown  = SpriteAnim_RegisterPattern(texIdleDown  , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
-    animIdleLeft  = SpriteAnim_RegisterPattern(texIdleLeft  , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
-    animIdleRight = SpriteAnim_RegisterPattern(texIdleRight , frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleUp = SpriteAnim_RegisterPattern(texIdleUp, frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleDown = SpriteAnim_RegisterPattern(texIdleDown, frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleLeft = SpriteAnim_RegisterPattern(texIdleLeft, frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
+    animIdleRight = SpriteAnim_RegisterPattern(texIdleRight, frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
 
     // Start with idle facing DOWN
     animPlayerId = SpriteAnim_CreatePlayer(animIdleDown);
@@ -96,16 +136,62 @@ void Player_Update(double elapsed_time)
     AABB old_player_aabb = Player_GetAABB();
     XMVECTOR position = old_position;
 
-        // --- Jump input ---
-        if (KeyLogger_IsTrigger(KK_SPACE) && !g_IsJump)
-        {
-            velocity += { 0.0f, 40.0f, 0.0f };
-            g_IsJump = true;
-        }
+    // --- Jump input ---
+    if (KeyLogger_IsTrigger(KK_SPACE) && !g_IsJump)
+    {
+        velocity += { 0.0f, 40.0f, 0.0f };
+        g_IsJump = true;
+    }
 
     // --- Gravity ---
     XMVECTOR gdir{ 0.0f, 1.0f, 0.0f };
     velocity += gdir * -9.8f * 15.0f * (float)elapsed_time;
+
+    if (!g_IsAttacking && KeyLogger_IsTrigger(KK_P))
+    {
+        g_IsAttacking = true;
+
+        // Choose animation based on front vector and current attack stage
+        float fx = g_PlayerFront.x;
+        float fz = g_PlayerFront.z;
+
+        if (g_AttackStage == 0) // Attack1
+        {
+            if (fz > 0.5f)       animCurrent = animAttackUp;
+            else if (fz < -0.5f) animCurrent = animAttackDown;
+            else if (fx < -0.5f) animCurrent = animAttackLeft;
+            else if (fx > 0.5f)  animCurrent = animAttackRight;
+        }
+        else if (g_AttackStage == 1) // Attack2
+        {
+            if (fz > 0.5f)       animCurrent = animAttack2Up;
+            else if (fz < -0.5f) animCurrent = animAttack2Down;
+            else if (fx < -0.5f) animCurrent = animAttack2Left;
+            else if (fx > 0.5f)  animCurrent = animAttack2Right;
+        }
+
+        SpriteAnim_DestroyPlayer(animPlayerId);
+        animPlayerId = SpriteAnim_CreatePlayer(animCurrent);
+    }
+    if (g_IsAttacking && SpriteAnim_IsStopped(animPlayerId))
+    {
+        g_IsAttacking = false;
+
+        // Advance attack stage or reset
+        g_AttackStage = (g_AttackStage + 1) % 2; // 0 -> 1 -> 0 ...
+
+        // Return to idle animation based on facing
+        float fx = g_PlayerFront.x;
+        float fz = g_PlayerFront.z;
+
+        if (fz > 0.5f)       animCurrent = animIdleUp;
+        else if (fz < -0.5f) animCurrent = animIdleDown;
+        else if (fx < -0.5f) animCurrent = animIdleLeft;
+        else if (fx > 0.5f)  animCurrent = animIdleRight;
+
+        SpriteAnim_DestroyPlayer(animPlayerId);
+        animPlayerId = SpriteAnim_CreatePlayer(animCurrent);
+    }
 
     // --- Movement input ---
     XMVECTOR direction{};
@@ -113,10 +199,14 @@ void Player_Update(double elapsed_time)
     XMVECTOR right = { 1.0f, 0.0f, 0.0f };
     bool moving = false;
 
-    if (KeyLogger_IsPressed(KK_W)) { direction += forward; moving = true; }
-    if (KeyLogger_IsPressed(KK_S)) { direction -= forward; moving = true; }
-    if (KeyLogger_IsPressed(KK_A)) { direction -= right;   moving = true; }
-    if (KeyLogger_IsPressed(KK_D)) { direction += right;   moving = true; }
+    if (!g_IsAttacking) // <-- ADD THIS CHECK
+    {
+        if (KeyLogger_IsPressed(KK_W)) { direction += forward; moving = true; }
+        if (KeyLogger_IsPressed(KK_S)) { direction -= forward; moving = true; }
+        if (KeyLogger_IsPressed(KK_A)) { direction -= right;   moving = true; }
+        if (KeyLogger_IsPressed(KK_D)) { direction += right;   moving = true; }
+    }
+
 
     const float FRICTION = 5.0f; // adjust: higher = stops faster, lower = more slippery
 
@@ -160,12 +250,13 @@ void Player_Update(double elapsed_time)
         else if (fx > 0.5f)  newAnim = animIdleRight;
     }
 
-    if (newAnim != animCurrent)
+    if (!g_IsAttacking && newAnim != animCurrent)
     {
         SpriteAnim_DestroyPlayer(animPlayerId);
         animPlayerId = SpriteAnim_CreatePlayer(newAnim);
         animCurrent = newAnim;
     }
+
 
     // --- Final physics ---
     velocity += -velocity * (float)(4.0f * elapsed_time);
@@ -175,7 +266,7 @@ void Player_Update(double elapsed_time)
     for (int i = 0; i < Map_GetObjectCount(); ++i)
     {
         AABB cube = Cube_GetAABB(Map_GetObject(i)->Position);
-        XMStoreFloat3(&g_PlayerPosition, position);
+        XMStoreFloat3(&g_PlayerPosition, position); // Update g_PlayerPosition for AABB
         AABB player = Player_GetAABB();
         Hit hit = Collision_IsHitAABB(cube, player);
 
@@ -225,38 +316,62 @@ void Player_Update(double elapsed_time)
                 velocity = XMVectorSetZ(velocity, 0.0f);
             }
         }
-
-        XMStoreFloat3(&g_PlayerPosition, position);
     }
 
-    //Ground collision
-    if (XMVectorGetY(position) < 0.0f)
+    //mouatin
     {
-        position = XMVectorSetY(position, 0.0f);
-        velocity = XMVectorSetY(velocity, 0.0f);
-        g_IsJump = false;
-    }
+        float currentX = XMVectorGetX(position);
+        float currentY = XMVectorGetY(position);
+        float currentZ = XMVectorGetZ(position);
 
-    XMStoreFloat3(&g_PlayerPosition, position);
-    XMStoreFloat3(&g_PlayerVelocity, velocity);
-
-    //Fire bullet
-    if (KeyLogger_IsTrigger(KK_J))
-    {
-        XMFLOAT3 bulletVel;
-        XMStoreFloat3(&bulletVel, XMLoadFloat3(&g_PlayerFront) * 25.0f);
-
-        XMFLOAT3 bulletPos = {
-            g_PlayerPosition.x,
-            g_PlayerPosition.y + 1.5f,
-            g_PlayerPosition.z
+        AABB player = {
+    { currentX - 0.25f, currentY - 0.3f, currentZ - 0.25f },
+    { currentX + 0.25f, currentY + 1.0f, currentZ + 0.25f }
         };
 
-        Bullet_Create(bulletPos, bulletVel);
-    }
- 
-}
 
+        float maxHeightUnderPlayer = 0.0f;
+        const float step = 0.05f; // smaller step for sharper slopes
+
+        for (float px = player.min.x; px <= player.max.x; px += step)
+        {
+            {
+                for (float pz = player.min.z; pz <= player.max.z; pz += step)
+                {
+                    float h = Mesh_GetHeightAt(px, pz) - 0.2f; // lowers collision surface
+                    if (h > maxHeightUnderPlayer) maxHeightUnderPlayer = h;
+                }
+            }
+
+            if (XMVectorGetY(position) < maxHeightUnderPlayer)
+            {
+                position = XMVectorSetY(position, maxHeightUnderPlayer);
+                velocity = XMVectorSetY(velocity, 0.0f);
+                g_IsJump = false;
+            }
+        }
+
+
+        XMStoreFloat3(&g_PlayerPosition, position);
+        XMStoreFloat3(&g_PlayerVelocity, velocity);
+
+        //Fire bullet
+        if (KeyLogger_IsTrigger(KK_J))
+        {
+            XMFLOAT3 bulletVel;
+            XMStoreFloat3(&bulletVel, XMLoadFloat3(&g_PlayerFront) * 25.0f);
+
+            XMFLOAT3 bulletPos = {
+                g_PlayerPosition.x,
+                g_PlayerPosition.y + 1.5f,
+                g_PlayerPosition.z
+            };
+
+            Bullet_Create(bulletPos, bulletVel);
+        }
+
+    }
+}
 void Player_Draw()
 {
     if (animPlayerId >= 0)
@@ -265,10 +380,10 @@ void Player_Draw()
         Direct3D_SetDepthReadOnly(true);
         Sampler_SetFilterPoint();
 
-            XMFLOAT3 drawPos = {
-                g_PlayerPosition.x + g_VisualOffset.x,
-                g_PlayerPosition.y + g_VisualOffset.y,
-                g_PlayerPosition.z + g_VisualOffset.z
+        XMFLOAT3 drawPos = {
+            g_PlayerPosition.x + g_VisualOffset.x,
+            g_PlayerPosition.y + g_VisualOffset.y,
+            g_PlayerPosition.z + g_VisualOffset.z
         };
 
         BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });

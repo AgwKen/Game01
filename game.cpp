@@ -28,6 +28,8 @@
 #include "bullet_hit_effect.h"
 #include "trajetory3d.h"
 #include "sky.h"
+//#include "enemy.h"
+
 
 using namespace DirectX;
 
@@ -40,6 +42,7 @@ void Game_Initialize()
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 Player_Initialize({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
+//Enemy_Initialize();
 Bullet_Initialize();
 Sky_Initialize();
 PlayerCamera_Initialize();
@@ -47,6 +50,9 @@ Map_Initialize();
 Billboard_Initialize();
 BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
+
+//Enemy_Create({1.0f,1.0f,1.0f});
+
 }
 
 void Game_Finalize()
@@ -54,6 +60,7 @@ void Game_Finalize()
 BulletHitEffect_Finalize();
 Billboard_Finalize();
 Map_Finalize();
+//Enemy_Finalize();
 Player_Finalize();
 Sky_Finalize();
 Bullet_Finalize();
@@ -65,38 +72,56 @@ Trajetory3d_Finalize();
 
 void Game_Update(double elapsed_time)
 {
-if (KeyLogger_IsTrigger(KK_L)) {
-g_IsDebug = !g_IsDebug;
-}
+    if (KeyLogger_IsTrigger(KK_L)) {
+        g_IsDebug = !g_IsDebug;
+    }
 
-g_AccumulatedTime += elapsed_time;
+    g_AccumulatedTime += elapsed_time;
 
-SpriteAnim_Update(elapsed_time);
-PlayerCamera_Update(elapsed_time);
-Bullet_Update(elapsed_time);
-BulletHitEffect_Update();
-Trajetory3d_Update(elapsed_time);
+    SpriteAnim_Update(elapsed_time);
+    PlayerCamera_Update(elapsed_time);
+    Bullet_Update(elapsed_time);
+    BulletHitEffect_Update();
+    Trajetory3d_Update(elapsed_time);
 
-// --- CAMERA / PLAYER UPDATE CONTROL ---
-if (g_IsDebug) {
-    Camera_Update(elapsed_time); 
-} else {
-    Player_Update(elapsed_time);
-}
-Sky_SetPosition(Player_GetPosition());
-// --- BULLET COLLISION WITH MAP ---
-for (int j = 0; j < Map_GetObjectCount(); j++) {
-    for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
-        AABB bullet = Bullet_GetAABB(i);
-        AABB object = Map_GetObject(j)->Aabb;
+    // --- CAMERA / PLAYER UPDATE CONTROL ---
+    if (g_IsDebug) {
+        Camera_Update(elapsed_time);
+    }
+    else {
+        Player_Update(elapsed_time);
+    }
 
-        if (Collision_IsOverlapAABB(bullet, object)) {
-            BulletHitEffect_Create(Bullet_GetPosition(i));
-            Bullet_Destroy(i);
+    //Enemy_Update(elapsed_time);
+
+    Sky_SetPosition(Player_GetPosition());
+
+
+    // --- BULLET COLLISION WITH MAP ---
+    for (int j = 0; j < Map_GetObjectCount(); j++) {
+        for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
+            AABB bullet = Bullet_GetAABB(i);
+            AABB object = Map_GetObject(j)->Aabb;
+
+            if (Collision_IsOverlapAABB(bullet, object)) {
+                BulletHitEffect_Create(Bullet_GetPosition(i));
+                Bullet_Destroy(i);
+            }
         }
     }
-}
-
+    /*
+    for (int j = 0; j < Enemy_GetEnemyCount(); j++) {
+        for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
+            Sphere bullet = Bullet_GetSphere(i);
+            Sphere enemy = Enemy_GetEnemy(j)->GetCollision();
+            if (Collision_IsOverlapSphere(bullet, enemy)) {
+                BulletHitEffect_Create(Bullet_GetPosition(i));
+                Bullet_Destroy(i);
+                Enemy_GetEnemy(j)->Damage(50);
+            }
+        }
+    }
+	*/
 }
 
 void Game_Draw()
@@ -140,9 +165,14 @@ Light_SetPointLightCount(0);
 //--- GRID ---
 Grid_Draw();
 
+
+
 //--- DRAW OBJECTS ---[
 Map_Draw();
 Bullet_Draw();
+
+//Enemy_Draw();
+
 Player_Draw();
 
 //--- BULLET HIT EFFECTS ---

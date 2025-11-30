@@ -43,6 +43,8 @@ void Map_Initialize()
     // Create tree animation player
     g_TreePlayerId = SpriteAnim_CreatePlayer(g_AnimPatternId);
 
+	Mesh_SetCollisionParams(1.0f, 1.0f,-30.0f, -20.0f);
+
 }
 
 // --- Finalize ---
