@@ -9,6 +9,7 @@
 #include "player.h"
 #include <DirectXMath.h>
 #include "key_logger.h"
+#include "pad_logger.h"
 #include "camera.h"
 #include "player_camera.h"
 #include "light.h"
@@ -20,6 +21,8 @@
 #include "direct3d.h"
 #include "sampler.h"
 #include "Mesh.h"
+#include "enemy.h"
+#include "collision.h"
 
 using namespace DirectX;
 
@@ -147,11 +150,11 @@ void Player_Update(double elapsed_time)
     XMVECTOR gdir{ 0.0f, 1.0f, 0.0f };
     velocity += gdir * -9.8f * 15.0f * (float)elapsed_time;
 
-    if (!g_IsAttacking && KeyLogger_IsTrigger(KK_P))
+    if (!g_IsAttacking && (KeyLogger_IsTrigger(KK_P) || PadLogger_IsTrigger(0, XINPUT_GAMEPAD_X)))
+
     {
         g_IsAttacking = true;
 
-        // Choose animation based on front vector and current attack stage
         float fx = g_PlayerFront.x;
         float fz = g_PlayerFront.z;
 
@@ -199,14 +202,27 @@ void Player_Update(double elapsed_time)
     XMVECTOR right = { 1.0f, 0.0f, 0.0f };
     bool moving = false;
 
-    if (!g_IsAttacking) // <-- ADD THIS CHECK
+    XMFLOAT2 stick = PadLogger_GetLeftThumbStick(0); // 0 = first gamepad
+
+    if (!g_IsAttacking)
+    {
+        if (fabsf(stick.y) > 0.1f) {
+            direction += forward * stick.y;
+            moving = true;
+        }
+        if (fabsf(stick.x) > 0.1f) {
+            direction += right * stick.x;
+            moving = true;
+        }
+    }
+
+    if (!g_IsAttacking)
     {
         if (KeyLogger_IsPressed(KK_W)) { direction += forward; moving = true; }
         if (KeyLogger_IsPressed(KK_S)) { direction -= forward; moving = true; }
         if (KeyLogger_IsPressed(KK_A)) { direction -= right;   moving = true; }
         if (KeyLogger_IsPressed(KK_D)) { direction += right;   moving = true; }
     }
-
 
     const float FRICTION = 5.0f; // adjust: higher = stops faster, lower = more slippery
 
@@ -316,9 +332,7 @@ void Player_Update(double elapsed_time)
                 velocity = XMVectorSetZ(velocity, 0.0f);
             }
         }
-    }
-
-    //mouatin
+    }    //mouatin
     {
         float currentX = XMVectorGetX(position);
         float currentY = XMVectorGetY(position);
@@ -355,8 +369,10 @@ void Player_Update(double elapsed_time)
         XMStoreFloat3(&g_PlayerPosition, position);
         XMStoreFloat3(&g_PlayerVelocity, velocity);
 
+
+
         //Fire bullet
-        if (KeyLogger_IsTrigger(KK_J))
+        if (KeyLogger_IsTrigger(KK_J) || PadLogger_IsTrigger(0, XINPUT_GAMEPAD_RIGHT_SHOULDER))
         {
             XMFLOAT3 bulletVel;
             XMStoreFloat3(&bulletVel, XMLoadFloat3(&g_PlayerFront) * 25.0f);
@@ -371,6 +387,40 @@ void Player_Update(double elapsed_time)
         }
 
     }
+    // Attack hitbox settings
+    float attackRange = 0.5f;
+    float attackWidth = 0.8f;
+
+    // Build attack hitbox forward of the player
+    XMFLOAT3 pos = g_PlayerPosition;
+    XMFLOAT3 front = g_PlayerFront;
+
+    XMFLOAT3 hitPos = {
+        pos.x + front.x * attackRange,
+        pos.y + 0.6f,
+        pos.z + front.z * attackRange
+    };
+
+    AABB attackBox = {
+        { hitPos.x - attackWidth, hitPos.y - 0.6f, hitPos.z - attackWidth },
+        { hitPos.x + attackWidth, hitPos.y + 0.6f, hitPos.z + attackWidth }
+    };
+
+    if (g_IsAttacking)
+    {
+        for (int i = 0; i < Enemy_GetEnemyCount(); i++)
+        {
+            Enemy* e = Enemy_GetEnemy(i);
+            AABB enemyBox = e->GetAABB(); // or GetCollision()
+
+            if (Collision_IsHitAABB(enemyBox, attackBox).isHit)
+            {
+                e->Damage(50);
+            }
+        }
+    }
+
+
 }
 void Player_Draw()
 {

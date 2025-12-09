@@ -9,7 +9,8 @@ Date   : 2025/05/12
 #include <d3d11.h>
 #include "direct3d.h"
 #include "debug_ostream.h"
-
+#include <DirectXMath.h>
+using namespace DirectX;
 #pragma comment(lib, "d3d11.lib")
 
 /* 各種インターフェース */
@@ -42,6 +43,18 @@ static void releaseBackBuffer();
 static ID3D11BlendState* g_pAlphaBlendState = nullptr;
 static ID3D11BlendState* g_pSubtractiveBlendState = nullptr;
 static ID3D11BlendState* g_pOpaqueBlendState = nullptr;
+
+//offscreen render target
+static ID3D11Texture2D* g_pOffscreenBuffer = nullptr;
+static ID3D11RenderTargetView* g_pOffscreenRenderTargetView= nullptr;
+static ID3D11ShaderResourceView* g_pOffscreenShaderResourceView = nullptr;
+static ID3D11Texture2D* g_pOffscreenDepthStencilBuffer = nullptr;
+static ID3D11DepthStencilView* g_pOffscreenDepthStencilView = nullptr;
+static D3D11_TEXTURE2D_DESC g_OffscreenDesc{};
+static D3D11_VIEWPORT g_OffscreenViewport{};
+
+static bool configureOffscreenBuffer();
+static void releaseOffscreenBuffer();
 
 bool Direct3D_Initialize(HWND hWnd)
 {
@@ -88,6 +101,9 @@ bool Direct3D_Initialize(HWND hWnd)
 		MessageBox(hWnd, "バックバッファの設定に失敗しました", "エラー", MB_OK);
 		return false;
 	}
+
+	//offscreen buffer
+	configureOffscreenBuffer();
 
 	/* ===========================
 	   Blend State Settings
@@ -221,6 +237,7 @@ void Direct3D_Finalize()
 	SAFE_RELEASE(g_pPointSampler);
 
 	releaseBackBuffer();
+	releaseOffscreenBuffer();
 
 	SAFE_RELEASE(g_pSwapChain);
 	SAFE_RELEASE(g_pDeviceContext);
@@ -230,6 +247,7 @@ void Direct3D_Finalize()
 
 void Direct3D_Clear()
 {
+	g_pDeviceContext->RSSetViewports(1, &g_Viewport);
 
 	g_pDeviceContext->PSSetSamplers(0, 1, &g_pPointSampler);
 
@@ -299,6 +317,22 @@ void Direct3D_SetDepthReadOnly(bool enable)
 		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthReadOnly, 0);
 	else
 		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthEnable, 0);
+}
+void Direct3D_SetOffscreen()
+{
+	g_pDeviceContext->RSSetViewports(1, &g_OffscreenViewport);
+
+	float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	g_pDeviceContext->ClearRenderTargetView(g_pOffscreenRenderTargetView, clear_color);
+	g_pDeviceContext->ClearDepthStencilView(g_pOffscreenDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	g_pDeviceContext->OMSetRenderTargets(1, &g_pOffscreenRenderTargetView, g_pOffscreenDepthStencilView);
+
+}
+
+void Direct3D_SetOffscreenTexture(int slot)
+{
+	g_pDeviceContext->PSSetShaderResources(slot, 1, &g_pOffscreenShaderResourceView);
 }
 
 void Direct3D_SetDepthWriteDisable()
@@ -370,4 +404,74 @@ void releaseBackBuffer()
 
 	SAFE_RELEASE(g_pDepthStencilStateDepthReadOnly);
 
+}
+
+bool configureOffscreenBuffer()
+{
+	HRESULT hr;
+
+	g_OffscreenDesc.Width = 512;
+	g_OffscreenDesc.Height = 512;
+	g_OffscreenDesc.MipLevels = 1;
+	g_OffscreenDesc.ArraySize = 1;
+	g_OffscreenDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	g_OffscreenDesc.SampleDesc.Count = 1;
+	g_OffscreenDesc.SampleDesc.Quality = 0;
+	g_OffscreenDesc.Usage = D3D11_USAGE_DEFAULT;
+	g_OffscreenDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	g_OffscreenDesc.CPUAccessFlags = 0;
+	g_OffscreenDesc.MiscFlags = 0;
+
+	hr = g_pDevice->CreateTexture2D(&g_OffscreenDesc, nullptr, &g_pOffscreenBuffer);
+	if (FAILED(hr) || !g_pOffscreenBuffer) return false;
+
+	hr = g_pDevice->CreateRenderTargetView(g_pOffscreenBuffer, nullptr, &g_pOffscreenRenderTargetView);
+	if (FAILED(hr)) return false;
+
+	hr = g_pDevice->CreateShaderResourceView(g_pOffscreenBuffer, nullptr, &g_pOffscreenShaderResourceView);
+	if (FAILED(hr)) return false;
+
+	// depth stencil
+	D3D11_TEXTURE2D_DESC depth_stencil_desc{};
+	depth_stencil_desc.Width = g_OffscreenDesc.Width;
+	depth_stencil_desc.Height = g_OffscreenDesc.Height;
+	depth_stencil_desc.MipLevels = 1;
+	depth_stencil_desc.ArraySize = 1;
+	depth_stencil_desc.Format = DXGI_FORMAT_D32_FLOAT;
+	depth_stencil_desc.SampleDesc.Count = 1;
+	depth_stencil_desc.Usage = D3D11_USAGE_DEFAULT;
+	depth_stencil_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+	hr = g_pDevice->CreateTexture2D(&depth_stencil_desc, nullptr, &g_pOffscreenDepthStencilBuffer);
+	if (FAILED(hr) || !g_pOffscreenDepthStencilBuffer) return false;
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC depth_stencil_view_desc{};
+	depth_stencil_view_desc.Format = depth_stencil_desc.Format;
+	depth_stencil_view_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	depth_stencil_view_desc.Texture2D.MipSlice = 0;
+
+	hr = g_pDevice->CreateDepthStencilView(
+		g_pOffscreenDepthStencilBuffer,
+		&depth_stencil_view_desc,
+		&g_pOffscreenDepthStencilView
+	);
+	if (FAILED(hr)) return false;
+
+	g_OffscreenViewport.TopLeftX = 0.0f;
+	g_OffscreenViewport.TopLeftY = 0.0f;
+	g_OffscreenViewport.Width = static_cast<FLOAT>(g_OffscreenDesc.Width);
+	g_OffscreenViewport.Height = static_cast<FLOAT>(g_OffscreenDesc.Height);
+	g_OffscreenViewport.MinDepth = 0.0f;
+	g_OffscreenViewport.MaxDepth = 1.0f;
+
+	return true;
+}
+
+void releaseOffscreenBuffer()
+{
+	SAFE_RELEASE(g_pOffscreenBuffer);
+	SAFE_RELEASE(g_pOffscreenRenderTargetView);
+	SAFE_RELEASE(g_pOffscreenShaderResourceView);
+	SAFE_RELEASE(g_pOffscreenDepthStencilBuffer);
+	SAFE_RELEASE(g_pOffscreenDepthStencilView);
 }

@@ -14,6 +14,7 @@
 #include "Mesh.h"
 #include "light.h"
 #include "key_logger.h"
+#include "pad_logger.h"
 #include "direct3d.h"
 #include <DirectXMath.h>
 #include "model.h"
@@ -28,7 +29,7 @@
 #include "bullet_hit_effect.h"
 #include "trajetory3d.h"
 #include "sky.h"
-//#include "enemy.h"
+#include "enemy.h"
 
 
 using namespace DirectX;
@@ -42,7 +43,8 @@ void Game_Initialize()
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 Player_Initialize({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
-//Enemy_Initialize();
+PadLogger_Initialize();
+Enemy_Initialize();
 Bullet_Initialize();
 Sky_Initialize();
 PlayerCamera_Initialize();
@@ -51,7 +53,7 @@ Billboard_Initialize();
 BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
 
-//Enemy_Create({1.0f,1.0f,1.0f});
+Enemy_Create({5.0f,1.0f,5.0f});
 
 }
 
@@ -60,7 +62,7 @@ void Game_Finalize()
 BulletHitEffect_Finalize();
 Billboard_Finalize();
 Map_Finalize();
-//Enemy_Finalize();
+Enemy_Finalize();
 Player_Finalize();
 Sky_Finalize();
 Bullet_Finalize();
@@ -72,7 +74,9 @@ Trajetory3d_Finalize();
 
 void Game_Update(double elapsed_time)
 {
-    if (KeyLogger_IsTrigger(KK_L)) {
+    PadLogger_Update();
+
+    if (KeyLogger_IsTrigger(KK_F1)) {
         g_IsDebug = !g_IsDebug;
     }
 
@@ -92,7 +96,7 @@ void Game_Update(double elapsed_time)
         Player_Update(elapsed_time);
     }
 
-    //Enemy_Update(elapsed_time);
+    Enemy_Update(elapsed_time);
 
     Sky_SetPosition(Player_GetPosition());
 
@@ -109,7 +113,7 @@ void Game_Update(double elapsed_time)
             }
         }
     }
-    /*
+    
     for (int j = 0; j < Enemy_GetEnemyCount(); j++) {
         for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
             Sphere bullet = Bullet_GetSphere(i);
@@ -121,7 +125,7 @@ void Game_Update(double elapsed_time)
             }
         }
     }
-	*/
+	
 }
 
 void Game_Draw()
@@ -166,12 +170,11 @@ Light_SetPointLightCount(0);
 Grid_Draw();
 
 
-
 //--- DRAW OBJECTS ---[
 Map_Draw();
 Bullet_Draw();
 
-//Enemy_Draw();
+Enemy_Draw();
 
 Player_Draw();
 

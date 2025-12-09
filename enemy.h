@@ -33,13 +33,18 @@ public:
     virtual void Update(double elapsed_time);
     virtual void Draw() const;
     void UpdateState();
+
     virtual void Damage(int damage) {}
     virtual bool IsDestroy() const = 0;
-    virtual Sphere GetCollision() const { return{}; };
+
+    virtual AABB GetAABB() const = 0;
+
+    virtual Sphere GetCollision() const { return {}; }
 
 protected:
     void ChangeState(State* pNext);
 };
+
 
 void Enemy_Initialize();
 void Enemy_Finalize();

@@ -157,6 +157,7 @@
     <ClCompile Include="map.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="pad_logger.cpp" />
     <ClCompile Include="player.cpp" />
     <ClCompile Include="player_camera.cpp" />
     <ClCompile Include="sampler.cpp" />
@@ -201,6 +202,7 @@
     <ClInclude Include="map.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="pad_logger.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="player_camera.h" />
     <ClInclude Include="sampler.h" />
@@ -228,7 +230,6 @@
     <ClInclude Include="game.h" />
     <ClInclude Include="game_window.h" />
     <ClInclude Include="keyboard.h" />
-    <ClInclude Include="polygon.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="score.h" />
     <ClInclude Include="shader.h" />

@@ -125,11 +125,14 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
                 
                 // Clear the screen
+                Direct3D_SetOffscreen();
+                Sprite_Begin();
+                Scene_Draw();
+
                 Direct3D_Clear();
                 Sprite_Begin();
-      
-                  Scene_Draw();
-                  Fade_Draw();
+                Scene_Draw();
+                Fade_Draw();
 
             // Draw FPS counter
 #if defined(DEBUG) || defined(_DEBUG)

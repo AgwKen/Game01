@@ -58,7 +58,7 @@ void Enemy_Update(double elapsed_time)
         g_Enemies[i]->Update(elapsed_time);
     }
 
-    for (int i = g_EnemyCount - 1; i > 0; i--) {
+    for (int i = g_EnemyCount - 1; i >= 0; i--) {
         if (g_Enemies[i]->IsDestroy()) {
             delete g_Enemies[i];
             g_Enemies[i] = g_Enemies[--g_EnemyCount];

@@ -33,4 +33,9 @@ extern ID3D11BlendState* g_pBlendStateMultiply;
 extern ID3D11BlendState* g_pBlendStateAdd;
 extern ID3D11BlendState* g_pBlendStateTransparent;
 
+void Direct3D_SetOffscreen();
+
+//rendering to offscreen buffer
+void Direct3D_SetOffscreenTexture(int slot);
+
 #endif

@@ -129,6 +129,7 @@ void BillboardAnim_Draw(int playid, const DirectX::XMFLOAT3& position, const Dir
         tex_cut, // Pass the explicitly typed XMUINT4
         pivot
     );
+
 }
 
 int SpriteAnim_RegisterPattern(int texId, int pattern_max, int h_pattern_max, double seconds_per_pattern,
