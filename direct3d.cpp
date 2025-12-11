@@ -23,11 +23,6 @@ static ID3D11DepthStencilState* g_pDepthStencilStateDepthDisable = nullptr;
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthEnable = nullptr;
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthReadOnly = nullptr;
 static ID3D11SamplerState* g_pPointSampler = nullptr;
-
-
-
-
-/* ★ NEW state ★ */
 static ID3D11DepthStencilState* g_pDepthStencilStateDepthWriteDisable = nullptr;
 
 /* バックバッファ関連 */

@@ -88,7 +88,7 @@ void Game_Update(double elapsed_time)
     BulletHitEffect_Update();
     Trajetory3d_Update(elapsed_time);
 
-    // --- CAMERA / PLAYER UPDATE CONTROL ---
+    //can change debug Camera and player camera
     if (g_IsDebug) {
         Camera_Update(elapsed_time);
     }
@@ -101,7 +101,7 @@ void Game_Update(double elapsed_time)
     Sky_SetPosition(Player_GetPosition());
 
 
-    // --- BULLET COLLISION WITH MAP ---
+    //Bullet Collision
     for (int j = 0; j < Map_GetObjectCount(); j++) {
         for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
             AABB bullet = Bullet_GetAABB(i);
@@ -144,9 +144,6 @@ Sampler_SetFilterAnisotropic();
 
 Sky_Draw();
 
-//========================
-// LIGHTING SETUP (Easy Adjustment Zone)
-//========================
 // Ambient Light
 Light_SetAmbient({ 0.3f, 0.3f, 0.3f });
 ShaderField_SetAmbientColor({ 0.8f, 0.8f, 0.8f, 1.0f });
