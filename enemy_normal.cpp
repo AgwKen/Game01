@@ -1,9 +1,12 @@
 /*========================================================================================
-    Enemy Normal [enemy_normal.cpp]                                   PYAE SONE THANT
-                                                                        DATE:26/11/2025
-------------------------------------------------------------------------------------------
-========================================================================================*/
 
+
+    Enemey Normal [enemy_normal.cpp]								    PYAE SONE THANT
+                                                                        DATE:12/11/2025
+
+------------------------------------------------------------------------------------------
+
+=========================================================================================*/
 #include "enemy_normal.h"
 #include "collision.h"
 #include "player.h"
@@ -50,7 +53,9 @@ EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
 
     // Death animation
     m_TexDeathId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_death.png");
-    m_AnimDeathId = SpriteAnim_RegisterPattern(m_TexDeathId, 8, 2, 1.0f, { 192, 128 }, { 0, 0 }, false);
+
+    m_AnimDeathId = SpriteAnim_RegisterPattern(m_TexDeathId, 16, 4, 0.4f, { 192,128 }, { 0,0 }, false);
+
     m_AnimDeathPlayId = SpriteAnim_CreatePlayer(m_AnimDeathId);
 
     ChangeState(new EnemyNormalStatePatrol(this));
@@ -222,14 +227,14 @@ void EnemyNormal::EnemyNormalStateIdle::Draw() const
 // ------------------- DEATH -------------------
 void EnemyNormal::EnemyNormalStateDeath::Update(double elapsed_time)
 {
-    m_AccumulatedTime += static_cast<float>(elapsed_time);
-    const double deathAnimDuration = 16 * 0.1f; // 16 frames x 0.1s
-
-    if (m_AccumulatedTime >= deathAnimDuration)
+    if (!SpriteAnim_IsStopped(m_pOwner->m_AnimDeathPlayId))
     {
-        m_pOwner->m_Hp = 0;
+        SpriteAnim_UpdatePlayer(m_pOwner->m_AnimDeathPlayId, elapsed_time);
     }
+
+    m_pOwner->m_IsDead = true;
 }
+
 
 void EnemyNormal::EnemyNormalStateDeath::Draw() const
 {
@@ -242,7 +247,9 @@ void EnemyNormal::EnemyNormalStateDeath::Draw() const
     drawPos.y += m_pOwner->m_VisualOffset.y;
     drawPos.z += m_pOwner->m_VisualOffset.z;
 
-    BillboardAnim_Draw(m_pOwner->m_AnimDeathPlayId, drawPos, { 2.0f, 2.0f }, { 0.5f, 1.0f });
+    drawPos.y -= 0.23f;// change in scale is need to decrese its Y
+
+    BillboardAnim_Draw(m_pOwner->m_AnimDeathPlayId, drawPos, { 3.5f, 2.5f }, { 0.5f, 1.0f });
 
     Direct3D_SetDefaultBlendState();
     Direct3D_SetDepthEnable(true);

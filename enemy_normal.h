@@ -1,3 +1,12 @@
+/*========================================================================================
+
+
+    Enemy Normal [enemy.h]										        PYAE SONE THANT
+                                                                        DATE:12/11/2025
+
+------------------------------------------------------------------------------------------
+
+=========================================================================================*/
 #ifndef ENEMY_NORMAL_H
 #define ENEMY_NORMAL_H
 
@@ -15,7 +24,7 @@ private:
     bool m_FacingRight{ true };
     DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 1.0f, 0.0f };
 
-    // Animation IDs
+	//Animation Player IDs Animation Play IDs
     int m_AnimLeftPlayId{ -1 };
     int m_AnimRightPlayId{ -1 };
     int m_AnimLeftChasePlayId{ -1 };
@@ -23,6 +32,15 @@ private:
     int m_AnimLeftIdlePlayId{ -1 };
     int m_AnimRightIdlePlayId{ -1 };
     int m_AnimDeathPlayId{ -1 };
+
+    //Animation Pattern IDs
+    int m_AnimLeftId{ -1 };
+    int m_AnimRightId{ -1 };
+    int m_AnimLeftChaseId{ -1 };
+    int m_AnimRightChaseId{ -1 };
+    int m_AnimLeftIdleId{ -1 };
+    int m_AnimRightIdleId{ -1 };
+    int m_AnimDeathId{ -1 };
 
     // Texture IDs
     int m_TexWhiteId{ -1 };
@@ -33,28 +51,29 @@ private:
     int m_TexRightIdleId{ -1 };
     int m_TexDeathId{ -1 };
 
-    // Animation pattern IDs
-    int m_AnimLeftId{ -1 };
-    int m_AnimRightId{ -1 };
-    int m_AnimLeftChaseId{ -1 };
-    int m_AnimRightChaseId{ -1 };
-    int m_AnimLeftIdleId{ -1 };
-    int m_AnimRightIdleId{ -1 };
-    int m_AnimDeathId{ -1 };
-
-
 public:
     EnemyNormal(const DirectX::XMFLOAT3& position);
+
+    bool m_IsDead{ false };
 
     void Damage(int damage) override
     {
         m_Hp -= damage;
-        if (m_Hp <= 0)
+        if (m_Hp <= 0 && !m_IsDead)
+        {
+            m_IsDead = true;
+
+            // Reset and Resume Death Animation Player
+            SpriteAnim_SetFrame(m_AnimDeathPlayId, 0); // Sets frame to 0 and stops it
+			SpriteAnim_Resume(m_AnimDeathPlayId);//resume the animation
+
             ChangeState(new EnemyNormalStateDeath(this));
+        }
     }
-
-    bool IsDestroy() const override { return m_Hp <= 0; }
-
+    bool IsDestroy() const override
+    {
+        return m_IsDead && dynamic_cast<EnemyNormalStateDeath*>(GetState()) == nullptr;
+    }
     Sphere GetCollision() const override
     {
         return { { m_Position.x, m_Position.y + 0.5f, m_Position.z }, 0.5f };

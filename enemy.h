@@ -41,9 +41,12 @@ public:
 
     virtual Sphere GetCollision() const { return {}; }
 
+    State* GetState() const { return m_pState; }
+
 protected:
     void ChangeState(State* pNext);
 };
+
 
 
 void Enemy_Initialize();

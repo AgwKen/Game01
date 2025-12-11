@@ -12,11 +12,14 @@
 
 void Enemy::Update(double elapsed_time)
 {
-    m_pState->Update(elapsed_time);
+    if (m_pState)
+        m_pState->Update(elapsed_time);
 }
+
 void Enemy::Draw() const
 {
-    m_pState->Draw();
+    if (m_pState)
+        m_pState->Draw();
 }
 
 void Enemy::UpdateState()

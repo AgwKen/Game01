@@ -84,6 +84,37 @@ void SpriteAnim_Update(double elapsed_time) {
     }
 }
 
+void SpriteAnim_UpdatePlayer(int playid, double elapsed_time)
+{
+    if (playid < 0 || playid >= ANIM_PLAY_MAX) return;
+
+    AnimPlayData& player = g_AnimPlay[playid];
+    if (player.m_PatternId < 0 || player.m_IsStopped) return;
+
+    AnimPatternData* pPattern = &g_AnimPattern[player.m_PatternId];
+
+    player.m_AccumulatedTime += elapsed_time;
+
+    if (player.m_AccumulatedTime >= pPattern->m_seconds_per_pattern)
+    {
+        player.m_PatternNum++;
+
+        if (player.m_PatternNum >= pPattern->m_PatternMax)
+        {
+            if (pPattern->m_IsLooped)
+                player.m_PatternNum = 0;
+            else
+            {
+                player.m_PatternNum = pPattern->m_PatternMax - 1;
+                player.m_IsStopped = true;
+            }
+        }
+
+        player.m_AccumulatedTime -= pPattern->m_seconds_per_pattern;
+    }
+}
+
+
 void SpriteAnim_Draw(int playid, float dx, float dy, float dw, float dh) 
 {
     int patternId = g_AnimPlay[playid].m_PatternId;
@@ -100,7 +131,6 @@ void SpriteAnim_Draw(int playid, float dx, float dy, float dw, float dh)
     int drawSrcW = pPattern->m_PatternSize.x;
     int drawSrcH = pPattern->m_PatternSize.y;
 
-    // The Sprite_Draw function will handle the flipping if 'dw' is negative.
     Sprite_Draw(pPattern->m_TextureId, dx, dy, dw, dh,
         drawSrcX, drawSrcY, drawSrcW, drawSrcH);
 }
@@ -111,8 +141,6 @@ void BillboardAnim_Draw(int playid, const DirectX::XMFLOAT3& position, const Dir
     if (anim_pattern_id < 0) return; // Add check for valid pattern ID
 
     const AnimPatternData* pAnimPatternData = &g_AnimPattern[anim_pattern_id];
-
-    // Use XMUINT4 for the texture cut to resolve the ambiguity.
     DirectX::XMUINT4 tex_cut = {
         pAnimPatternData->m_StartPosition.x
         + pAnimPatternData->m_PatternSize.x
