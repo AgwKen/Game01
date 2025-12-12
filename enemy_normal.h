@@ -20,7 +20,7 @@ class EnemyNormal : public Enemy
 private:
     DirectX::XMFLOAT3 m_Position{ 0.0f, 0.0f, 0.0f };
     float m_DetectionRadius{ 2.0f };
-    int m_Hp{ 50 };
+    int m_Hp{ 5000 };
     bool m_FacingRight{ true };
     DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 1.0f, 0.0f };
 
@@ -32,6 +32,7 @@ private:
     int m_AnimLeftIdlePlayId{ -1 };
     int m_AnimRightIdlePlayId{ -1 };
     int m_AnimDeathPlayId{ -1 };
+    int m_AnimHitPlayId{ -1 };
 
     //Animation Pattern IDs
     int m_AnimLeftId{ -1 };
@@ -41,6 +42,7 @@ private:
     int m_AnimLeftIdleId{ -1 };
     int m_AnimRightIdleId{ -1 };
     int m_AnimDeathId{ -1 };
+    int m_AnimHitId{ -1 };
 
     // Texture IDs
     int m_TexWhiteId{ -1 };
@@ -50,26 +52,26 @@ private:
     int m_TexLeftIdleId{ -1 };
     int m_TexRightIdleId{ -1 };
     int m_TexDeathId{ -1 };
+    int m_TexHitLeftId{ -1 };
+    int m_TexHitRightId{ -1 };
+
+    // ------------------- HIT -------------------
+// Hit animation pattern IDs for left/right
+    int m_AnimHitLeftId{ -1 };
+    int m_AnimHitRightId{ -1 };
+
+    // Hit animation player IDs for left/right
+    int m_AnimHitLeftPlayId{ -1 };
+    int m_AnimHitRightPlayId{ -1 };
+
 
 public:
     EnemyNormal(const DirectX::XMFLOAT3& position);
 
     bool m_IsDead{ false };
 
-    void Damage(int damage) override
-    {
-        m_Hp -= damage;
-        if (m_Hp <= 0 && !m_IsDead)
-        {
-            m_IsDead = true;
+    void Damage(int damage);
 
-            // Reset and Resume Death Animation Player
-            SpriteAnim_SetFrame(m_AnimDeathPlayId, 0); // Sets frame to 0 and stops it
-			SpriteAnim_Resume(m_AnimDeathPlayId);//resume the animation
-
-            ChangeState(new EnemyNormalStateDeath(this));
-        }
-    }
     bool IsDestroy() const override
     {
         return m_IsDead && dynamic_cast<EnemyNormalStateDeath*>(GetState()) == nullptr;
@@ -139,6 +141,21 @@ private:
         void Draw() const override;
     };
 
+    class EnemyNormalStateHit : public Enemy::State
+    {
+    private:
+        EnemyNormal* m_pOwner{ nullptr };
+        Enemy::State* m_PreviousState{ nullptr }; // store previous state
+        float m_AccumulatedTime{ 0.0f };
+
+    public:
+        EnemyNormalStateHit(EnemyNormal* pOwner, Enemy::State* prevState)
+            : m_pOwner(pOwner), m_PreviousState(prevState), m_AccumulatedTime(0.0f) {
+        }
+
+        void Update(double elapsed_time) override;
+        void Draw() const override;
+    };
     // ------------------- DEATH -------------------
     class EnemyNormalStateDeath : public Enemy::State
     {

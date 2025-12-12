@@ -236,3 +236,9 @@ void SpriteAnim_Resume(int playid)
         return;
     g_AnimPlay[playid].m_IsStopped = false;
 }
+
+void SpriteAnim_Pause(int playid)
+{
+    if (playid < 0 || playid >= ANIM_PLAY_MAX) return;
+    g_AnimPlay[playid].m_IsStopped = true;
+}

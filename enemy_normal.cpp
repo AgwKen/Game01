@@ -18,7 +18,6 @@
 #include "mesh.h"
 
 using namespace DirectX;
-
 // ------------------- CONSTRUCTOR -------------------
 EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
 {
@@ -51,6 +50,16 @@ EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
     m_AnimRightIdleId = SpriteAnim_RegisterPattern(m_TexRightIdleId, 6, 3, 0.5f, { 96, 96 }, { 0, 0 }, true);
     m_AnimRightIdlePlayId = SpriteAnim_CreatePlayer(m_AnimRightIdleId);
 
+    // Hit animation
+    m_TexHitLeftId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_ishit_left.png");
+    m_TexHitRightId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_ishit_right.png");
+
+    m_AnimHitLeftId = SpriteAnim_RegisterPattern(m_TexHitLeftId, 7, 1, 1.5f, { 96, 96 }, { 0, 0 }, false);
+    m_AnimHitRightId = SpriteAnim_RegisterPattern(m_TexHitRightId, 7, 1, 1.5f, { 96, 96 }, { 0, 0 }, false);
+
+    m_AnimHitLeftPlayId = SpriteAnim_CreatePlayer(m_AnimHitLeftId);
+    m_AnimHitRightPlayId = SpriteAnim_CreatePlayer(m_AnimHitRightId);
+
     // Death animation
     m_TexDeathId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_death.png");
 
@@ -61,7 +70,39 @@ EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
     ChangeState(new EnemyNormalStatePatrol(this));
 }
 
-// ------------------- PATROL -------------------
+void EnemyNormal::Damage(int damage)
+{
+    m_Hp -= damage;
+
+    if (m_Hp <= 0 && !m_IsDead)
+    {
+        m_IsDead = true;
+
+        SpriteAnim_SetFrame(m_AnimDeathPlayId, 0);
+        SpriteAnim_Resume(m_AnimDeathPlayId);
+
+        ChangeState(new EnemyNormalStateDeath(this));
+    }
+    else if (!m_IsDead)
+    {
+        if (!dynamic_cast<EnemyNormalStateHit*>(GetState()))
+        {
+            int hitPlayId = m_FacingRight ? m_AnimHitRightPlayId : m_AnimHitLeftPlayId;
+
+            SpriteAnim_Pause(m_AnimLeftPlayId);
+            SpriteAnim_Pause(m_AnimRightPlayId);
+            SpriteAnim_Pause(m_AnimLeftIdlePlayId);
+            SpriteAnim_Pause(m_AnimRightIdlePlayId);
+            SpriteAnim_Pause(m_AnimLeftChasePlayId);
+            SpriteAnim_Pause(m_AnimRightChasePlayId);
+
+            SpriteAnim_SetFrame(hitPlayId, 0);
+            SpriteAnim_Resume(hitPlayId);
+
+            ChangeState(new EnemyNormalStateHit(this, GetState()));
+        }
+    }
+}// ------------------- PATROL -------------------
 void EnemyNormal::EnemyNormalStatePatrol::Update(double elapsed_time)
 {
     float speed = 1.5f;
@@ -235,7 +276,6 @@ void EnemyNormal::EnemyNormalStateDeath::Update(double elapsed_time)
     m_pOwner->m_IsDead = true;
 }
 
-
 void EnemyNormal::EnemyNormalStateDeath::Draw() const
 {
     Direct3D_SetAlphaBlendState();
@@ -250,6 +290,39 @@ void EnemyNormal::EnemyNormalStateDeath::Draw() const
     drawPos.y -= 0.23f;// change in scale is need to decrese its Y
 
     BillboardAnim_Draw(m_pOwner->m_AnimDeathPlayId, drawPos, { 3.5f, 2.5f }, { 0.5f, 1.0f });
+
+    Direct3D_SetDefaultBlendState();
+    Direct3D_SetDepthEnable(true);
+}
+
+void EnemyNormal::EnemyNormalStateHit::Update(double elapsed_time)
+{
+    // Update animation
+    SpriteAnim_UpdatePlayer(m_pOwner->m_AnimHitPlayId, elapsed_time);
+
+    // Check if animation finished
+    if (SpriteAnim_IsStopped(m_pOwner->m_AnimHitPlayId))
+    {
+        // Return to previous state
+        // Here you might want to store previous state pointer, or default to Idle
+        m_pOwner->ChangeState(new EnemyNormalStateIdle(m_pOwner, m_pOwner->m_FacingRight, true));
+    }
+}
+
+void EnemyNormal::EnemyNormalStateHit::Draw() const
+{
+    int animToDraw = m_pOwner->m_FacingRight ? m_pOwner->m_AnimHitRightPlayId : m_pOwner->m_AnimHitLeftPlayId;
+
+    Direct3D_SetAlphaBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    Sampler_SetFilterPoint();
+
+    XMFLOAT3 drawPos = m_pOwner->m_Position;
+    drawPos.x += m_pOwner->m_VisualOffset.x;
+    drawPos.y += m_pOwner->m_VisualOffset.y;
+    drawPos.z += m_pOwner->m_VisualOffset.z;
+
+    BillboardAnim_Draw(animToDraw, drawPos, { 2.0f, 2.0f }, { 0.5f, 1.0f });
 
     Direct3D_SetDefaultBlendState();
     Direct3D_SetDepthEnable(true);
