@@ -55,7 +55,7 @@ static int g_BulletCount{ 0 };
 static MODEL* g_pBulletModel{ nullptr };
 void Bullet_Initialize()
 {
-    g_pBulletModel = ModelLoad("Resources/Model/test.fbx",0.05f);
+    g_pBulletModel = ModelLoad("Resources/Model/house01.fbx",0.001f);
 }
 void Bullet_Finalize()
 {
