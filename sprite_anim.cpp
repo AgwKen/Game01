@@ -135,29 +135,47 @@ void SpriteAnim_Draw(int playid, float dx, float dy, float dw, float dh)
         drawSrcX, drawSrcY, drawSrcW, drawSrcH);
 }
 
-void BillboardAnim_Draw(int playid, const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT2& scale, const DirectX::XMFLOAT2& pivot)
+void BillboardAnim_Draw(
+    int playid,
+    const DirectX::XMFLOAT3& position,
+    const DirectX::XMFLOAT2& scale,
+    const DirectX::XMFLOAT2& pivot)
 {
-    int anim_pattern_id = g_AnimPlay[playid].m_PatternId;
-    if (anim_pattern_id < 0) return; // Add check for valid pattern ID
+    // Validate play ID
+    if (playid < 0 || playid >= ANIM_PLAY_MAX) return;
 
-    const AnimPatternData* pAnimPatternData = &g_AnimPattern[anim_pattern_id];
-    DirectX::XMUINT4 tex_cut = {
-        pAnimPatternData->m_StartPosition.x
-        + pAnimPatternData->m_PatternSize.x
-        * (g_AnimPlay[playid].m_PatternNum % pAnimPatternData->m_HPatternMax),
-        pAnimPatternData->m_StartPosition.y
-        + pAnimPatternData->m_PatternSize.y
-        * (g_AnimPlay[playid].m_PatternNum / pAnimPatternData->m_HPatternMax),
-        pAnimPatternData->m_PatternSize.x,
-        pAnimPatternData->m_PatternSize.y
-    };
+    const AnimPlayData& play = g_AnimPlay[playid];
+    int anim_pattern_id = play.m_PatternId;
 
-    Billboard_Draw(pAnimPatternData->m_TextureId,
-        position, scale,
-        tex_cut, // Pass the explicitly typed XMUINT4
+    if (anim_pattern_id < 0) return;
+
+    const AnimPatternData& pattern = g_AnimPattern[anim_pattern_id];
+
+    int frame = play.m_PatternNum;
+
+    // Compute source rect (all integer math, safe)
+    uint32_t srcX =
+        static_cast<uint32_t>(pattern.m_StartPosition.x +
+            pattern.m_PatternSize.x * (frame % pattern.m_HPatternMax));
+
+    uint32_t srcY =
+        static_cast<uint32_t>(pattern.m_StartPosition.y +
+            pattern.m_PatternSize.y * (frame / pattern.m_HPatternMax));
+
+    uint32_t srcW = static_cast<uint32_t>(pattern.m_PatternSize.x);
+    uint32_t srcH = static_cast<uint32_t>(pattern.m_PatternSize.y);
+
+    // Build XMUINT4 explicitly with safe casts
+    DirectX::XMUINT4 tex_cut(srcX, srcY, srcW, srcH);
+
+    // Call billboard draw using float scale + float pivot (no conversion)
+    Billboard_Draw(
+        pattern.m_TextureId,
+        position,
+        scale,
+        tex_cut,
         pivot
     );
-
 }
 
 int SpriteAnim_RegisterPattern(int texId, int pattern_max, int h_pattern_max, double seconds_per_pattern,

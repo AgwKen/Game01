@@ -23,8 +23,7 @@ void Billboard_Draw(
     const DirectX::XMFLOAT2& scale,
     const DirectX::XMUINT4& tex_cut,
     const DirectX::XMFLOAT2& pivot,
-    const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f }  // new
-);
+    const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
 void Billboard_Draw(
     int texId,
@@ -32,7 +31,7 @@ void Billboard_Draw(
     const DirectX::XMFLOAT2& scale,
     const DirectX::XMFLOAT4& tex_cut,
     const DirectX::XMFLOAT2& pivot = { 0.0f, 0.0f },
-    const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f }  // new
+    const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f }
 );
 
 

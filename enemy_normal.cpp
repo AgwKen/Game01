@@ -18,7 +18,11 @@
 #include "mesh.h"
 
 using namespace DirectX;
-// ------------------- CONSTRUCTOR -------------------
+
+static constexpr double HIT_COOLDOWN_TIME = 0.3;
+
+
+
 EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
 {
     m_TexWhiteId = Texture_Load(L"Texture/white.png");
@@ -54,8 +58,8 @@ EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
     m_TexHitLeftId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_ishit_left.png");
     m_TexHitRightId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_ishit_right.png");
 
-    m_AnimHitLeftId = SpriteAnim_RegisterPattern(m_TexHitLeftId, 7, 1, 1.5f, { 96, 96 }, { 0, 0 }, false);
-    m_AnimHitRightId = SpriteAnim_RegisterPattern(m_TexHitRightId, 7, 1, 1.5f, { 96, 96 }, { 0, 0 }, false);
+    m_AnimHitLeftId = SpriteAnim_RegisterPattern(m_TexHitLeftId, 7, 7, 0.1f, { 96, 96 }, { 0, 0 }, false);
+    m_AnimHitRightId = SpriteAnim_RegisterPattern(m_TexHitRightId, 7, 7, 0.1f, { 96, 96 }, { 0, 0 }, false);
 
     m_AnimHitLeftPlayId = SpriteAnim_CreatePlayer(m_AnimHitLeftId);
     m_AnimHitRightPlayId = SpriteAnim_CreatePlayer(m_AnimHitRightId);
@@ -63,7 +67,7 @@ EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
     // Death animation
     m_TexDeathId = Texture_Load(L"sprites/Frost_Guardian/Frost_guardian_death.png");
 
-    m_AnimDeathId = SpriteAnim_RegisterPattern(m_TexDeathId, 16, 4, 0.4f, { 192,128 }, { 0,0 }, false);
+    m_AnimDeathId = SpriteAnim_RegisterPattern(m_TexDeathId, 16, 4, 0.3f, { 192,128 }, { 0,0 }, false);
 
     m_AnimDeathPlayId = SpriteAnim_CreatePlayer(m_AnimDeathId);
 
@@ -72,37 +76,60 @@ EnemyNormal::EnemyNormal(const XMFLOAT3& position) : m_Position(position)
 
 void EnemyNormal::Damage(int damage)
 {
+    if (m_IsDead)
+        return;
+
+    if (m_HitCooldown > 0.0)
+        return;
+
+    m_HitCooldown = HIT_COOLDOWN_TIME;
+
     m_Hp -= damage;
 
-    if (m_Hp <= 0 && !m_IsDead)
+    if (m_Hp <= 0)
     {
         m_IsDead = true;
-
         SpriteAnim_SetFrame(m_AnimDeathPlayId, 0);
         SpriteAnim_Resume(m_AnimDeathPlayId);
-
         ChangeState(new EnemyNormalStateDeath(this));
+        return;
     }
-    else if (!m_IsDead)
+
+    if (!dynamic_cast<EnemyNormalStateHit*>(GetState()))
     {
-        if (!dynamic_cast<EnemyNormalStateHit*>(GetState()))
-        {
-            int hitPlayId = m_FacingRight ? m_AnimHitRightPlayId : m_AnimHitLeftPlayId;
+        // Determine current state type to safely restore it later ***
+        EnemyNormalStateHit::PreviousStateType prevState = EnemyNormalStateHit::PreviousStateType::IDLE;
 
-            SpriteAnim_Pause(m_AnimLeftPlayId);
-            SpriteAnim_Pause(m_AnimRightPlayId);
-            SpriteAnim_Pause(m_AnimLeftIdlePlayId);
-            SpriteAnim_Pause(m_AnimRightIdlePlayId);
-            SpriteAnim_Pause(m_AnimLeftChasePlayId);
-            SpriteAnim_Pause(m_AnimRightChasePlayId);
+        if (dynamic_cast<EnemyNormalStatePatrol*>(GetState()))
+            prevState = EnemyNormalStateHit::PreviousStateType::PATROL;
+        else if (dynamic_cast<EnemyNormalStateChase*>(GetState()))
+            prevState = EnemyNormalStateHit::PreviousStateType::CHASE;
 
-            SpriteAnim_SetFrame(hitPlayId, 0);
-            SpriteAnim_Resume(hitPlayId);
+        int hitPlayId = m_FacingRight ? m_AnimHitRightPlayId : m_AnimHitLeftPlayId;
 
-            ChangeState(new EnemyNormalStateHit(this, GetState()));
-        }
+        SpriteAnim_Pause(m_AnimLeftPlayId);
+        SpriteAnim_Pause(m_AnimRightPlayId);
+        SpriteAnim_Pause(m_AnimLeftIdlePlayId);
+        SpriteAnim_Pause(m_AnimRightIdlePlayId);
+        SpriteAnim_Pause(m_AnimLeftChasePlayId);
+        SpriteAnim_Pause(m_AnimRightChasePlayId);
+
+        SpriteAnim_SetFrame(hitPlayId, 0);
+        SpriteAnim_Resume(hitPlayId);
+
+        ChangeState(new EnemyNormalStateHit(this, prevState, m_FacingRight));
     }
-}// ------------------- PATROL -------------------
+}
+
+void EnemyNormal::Update(double elapsed)
+{
+    if (m_HitCooldown > 0.0)
+        m_HitCooldown -= elapsed;
+
+    if (GetState())
+        GetState()->Update(elapsed);
+}
+// ------------------- PATROL -------------------
 void EnemyNormal::EnemyNormalStatePatrol::Update(double elapsed_time)
 {
     float speed = 1.5f;
@@ -152,43 +179,67 @@ void EnemyNormal::EnemyNormalStateChase::Update(double elapsed_time)
     XMFLOAT3 playerPos = Player_GetPosition();
     XMFLOAT3 myPos = m_pOwner->m_Position;
 
-    XMVECTOR toPlayer = XMVectorSet(playerPos.x - myPos.x, 0.0f, playerPos.z - myPos.z, 0.0f);
+    XMVECTOR toPlayer = XMVectorSet(
+        playerPos.x - myPos.x, 0.0f,
+        playerPos.z - myPos.z, 0.0f);
     float distance = XMVectorGetX(XMVector3Length(toPlayer));
-    if (distance > 0.01f) toPlayer = XMVector3Normalize(toPlayer);
+    if (distance > 0.01f)
+        toPlayer = XMVector3Normalize(toPlayer);
 
     const float stopDistance = 1.5f;
     const double giveUpTime = 10.0;
 
     if (distance <= stopDistance)
     {
-        m_pOwner->ChangeState(new EnemyNormalStateIdle(m_pOwner, playerPos.x > myPos.x, true));
+        m_pOwner->ChangeState(
+            new EnemyNormalStateIdle(m_pOwner, playerPos.x > myPos.x, true)
+        );
         m_GiveUpTimer = 0.0;
         return;
     }
 
     float chaseSpeed = 4.0f;
-    XMVECTOR newPos = XMVectorSet(myPos.x, myPos.y, myPos.z, 0.0f) + toPlayer * chaseSpeed * static_cast<float>(elapsed_time);
+    XMVECTOR newPos =
+        XMVectorSet(myPos.x, myPos.y, myPos.z, 0.0f) +
+        toPlayer * chaseSpeed * static_cast<float>(elapsed_time);
+
     XMStoreFloat3(&m_pOwner->m_Position, newPos);
 
-    float groundHeight = Mesh_GetHeightAt(m_pOwner->m_Position.x, m_pOwner->m_Position.z);
+    float groundHeight =
+        Mesh_GetHeightAt(m_pOwner->m_Position.x, m_pOwner->m_Position.z);
     m_pOwner->m_Position.y = groundHeight;
 
     m_pOwner->m_FacingRight = (playerPos.x > myPos.x);
 
-    if (!Collision_IsOverlapSphere({ m_pOwner->m_Position, m_pOwner->m_DetectionRadius }, playerPos))
+	// Update chase animation again
+    int chasePlayId = m_pOwner->m_FacingRight
+        ? m_pOwner->m_AnimRightChasePlayId
+        : m_pOwner->m_AnimLeftChasePlayId;
+
+    if (SpriteAnim_IsStopped(chasePlayId))
     {
-        m_GiveUpTimer += static_cast<float>(elapsed_time);
+        SpriteAnim_SetFrame(chasePlayId, 0);
+        SpriteAnim_Resume(chasePlayId);
+    }
+
+    SpriteAnim_UpdatePlayer(chasePlayId, elapsed_time);
+
+    if (!Collision_IsOverlapSphere(
+        { m_pOwner->m_Position, m_pOwner->m_DetectionRadius }, playerPos))
+    {
+        m_GiveUpTimer += elapsed_time;
         if (m_GiveUpTimer >= giveUpTime)
         {
-            EnemyNormalStatePatrol* patrolState = new EnemyNormalStatePatrol(m_pOwner);
+            EnemyNormalStatePatrol* patrolState =
+                new EnemyNormalStatePatrol(m_pOwner);
             patrolState->m_MovingRight = !m_pOwner->m_FacingRight;
             m_pOwner->ChangeState(patrolState);
-            m_GiveUpTimer = 0.0f;
+            m_GiveUpTimer = 0.0;
         }
     }
     else
     {
-        m_GiveUpTimer = 0.0f;
+        m_GiveUpTimer = 0.0;
     }
 }
 
@@ -295,17 +346,65 @@ void EnemyNormal::EnemyNormalStateDeath::Draw() const
     Direct3D_SetDepthEnable(true);
 }
 
+
 void EnemyNormal::EnemyNormalStateHit::Update(double elapsed_time)
 {
-    // Update animation
-    SpriteAnim_UpdatePlayer(m_pOwner->m_AnimHitPlayId, elapsed_time);
+    int hitPlayId = m_pOwner->m_FacingRight
+        ? m_pOwner->m_AnimHitRightPlayId
+        : m_pOwner->m_AnimHitLeftPlayId;
 
-    // Check if animation finished
-    if (SpriteAnim_IsStopped(m_pOwner->m_AnimHitPlayId))
+    SpriteAnim_UpdatePlayer(hitPlayId, elapsed_time);
+
+    if (SpriteAnim_IsStopped(hitPlayId))
     {
-        // Return to previous state
-        // Here you might want to store previous state pointer, or default to Idle
-        m_pOwner->ChangeState(new EnemyNormalStateIdle(m_pOwner, m_pOwner->m_FacingRight, true));
+        SpriteAnim_Pause(hitPlayId);
+
+        switch (m_PreviousStateType)
+        {
+        case PreviousStateType::PATROL:
+        {
+            EnemyNormalStatePatrol* patrolState =
+                new EnemyNormalStatePatrol(m_pOwner);
+            patrolState->m_MovingRight = m_PreviousFacingRight;
+
+            int patrolPlayId = m_PreviousFacingRight
+                ? m_pOwner->m_AnimRightPlayId
+                : m_pOwner->m_AnimLeftPlayId;
+
+            SpriteAnim_SetFrame(patrolPlayId, 0);
+            SpriteAnim_Resume(patrolPlayId);
+
+            m_pOwner->ChangeState(patrolState);
+            break;
+        }
+        case PreviousStateType::CHASE:
+        {
+            int chasePlayId = m_PreviousFacingRight
+                ? m_pOwner->m_AnimRightChasePlayId
+                : m_pOwner->m_AnimLeftChasePlayId;
+
+            SpriteAnim_SetFrame(chasePlayId, 0);
+            SpriteAnim_Resume(chasePlayId);
+
+            m_pOwner->ChangeState(new EnemyNormalStateChase(m_pOwner));
+            break;
+        }
+        case PreviousStateType::IDLE:
+        default:
+        {
+            int idlePlayId = m_PreviousFacingRight
+                ? m_pOwner->m_AnimRightIdlePlayId
+                : m_pOwner->m_AnimLeftIdlePlayId;
+
+            SpriteAnim_SetFrame(idlePlayId, 0);
+            SpriteAnim_Resume(idlePlayId);
+
+            m_pOwner->ChangeState(
+                new EnemyNormalStateIdle(m_pOwner, m_PreviousFacingRight, true)
+            );
+            break;
+        }
+        }
     }
 }
 

@@ -23,6 +23,7 @@
 #include "Mesh.h"
 #include "enemy.h"
 #include "collision.h"
+#include "circle_shadow.h"
 
 using namespace DirectX;
 
@@ -427,7 +428,7 @@ void Player_Draw()
     if (animPlayerId >= 0)
     {
         Direct3D_SetAlphaBlendState();
-        Direct3D_SetDepthReadOnly(true);
+        Direct3D_SetDepthReadOnly(false);
         Sampler_SetFilterPoint();
 
         XMFLOAT3 drawPos = {
@@ -439,9 +440,10 @@ void Player_Draw()
         BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });
 
         Direct3D_SetDefaultBlendState();
-        Direct3D_SetDepthEnable(true);
-    }
+        Direct3D_SetDepthEnable(false);
 
+        CircleShadow_Draw(g_PlayerPosition);
+    }
 }
 
 const XMFLOAT3& Player_GetPosition() { return g_PlayerPosition; }

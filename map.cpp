@@ -91,7 +91,7 @@ void Map_Draw()
 
     for (int i = 0; i < 10; i++)
     {
-        XMFLOAT3 pos = { g_TreePosition.x + i * 3.0f, g_TreePosition.y, g_TreePosition.z };
+        XMFLOAT3 pos = { g_TreePosition.x + (float)i * 3.0f, g_TreePosition.y, g_TreePosition.z };
         Direct3D_SetAlphaBlendState();
         Direct3D_SetDepthReadOnly(true);
         Sampler_SetFilterPoint();

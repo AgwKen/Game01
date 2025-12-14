@@ -30,7 +30,8 @@
 #include "trajetory3d.h"
 #include "sky.h"
 #include "enemy.h"
-
+//#include "fog.h"
+#include "circle_shadow.h"
 
 using namespace DirectX;
 
@@ -52,6 +53,9 @@ Map_Initialize();
 Billboard_Initialize();
 BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
+//Fog_Initialize();
+CircleShadow_Initialize();
+
 
 Enemy_Create({5.0f,1.0f,5.0f});
 
@@ -59,6 +63,8 @@ Enemy_Create({5.0f,1.0f,5.0f});
 
 void Game_Finalize()
 {
+CircleShadow_Finalize();
+//Fog_Finalize();
 BulletHitEffect_Finalize();
 Billboard_Finalize();
 Map_Finalize();
@@ -98,6 +104,8 @@ void Game_Update(double elapsed_time)
 
     Enemy_Update(elapsed_time);
 
+    //Fog_Update(elapsed_time);
+
     Sky_SetPosition(Player_GetPosition());
 
 
@@ -125,6 +133,23 @@ void Game_Update(double elapsed_time)
             }
         }
     }
+
+    /*
+    // TEST SPAWN FOG EVERY SECOND
+    static float fogTimer = 0;
+    fogTimer += (float)elapsed_time;
+
+    if (fogTimer > 1.0f)
+    {
+        XMFLOAT3 pos = Player_GetPosition();
+        pos.x += (rand() % 100 - 50) * 0.1f;
+        pos.z += (rand() % 100 - 50) * 0.1f;
+        pos.y += 0.5f;
+
+        Fog_Spawn(pos, 2.5f, 3.0f);
+        fogTimer = 0;
+    }
+    */
 	
 }
 
@@ -170,10 +195,14 @@ Grid_Draw();
 //--- DRAW OBJECTS ---[
 Map_Draw();
 Bullet_Draw();
-
 Enemy_Draw();
-
 Player_Draw();
+
+Direct3D_SetAlphaBlendState();
+Direct3D_SetDepthReadOnly(true);
+//Fog_Draw();
+Direct3D_SetDepthReadOnly(false);
+Direct3D_SetDefaultBlendState();
 
 //--- BULLET HIT EFFECTS ---
 Direct3D_SetAlphaBlendState();
@@ -187,9 +216,9 @@ Direct3D_SetDepthReadOnly(true);
 Direct3D_SetDepthReadOnly(false);
 Direct3D_SetDefaultBlendState();
 
-// Inside Game_Draw()
-Direct3D_SetSubtractiveBlendState();  // or Additive
-Direct3D_SetDepthReadOnly(true);      // so particles donÅft write to depth
+
+Direct3D_SetSubtractiveBlendState();
+Direct3D_SetDepthReadOnly(true);
 Trajetory3d_Draw();
 Direct3D_SetDepthReadOnly(false);
 Direct3D_SetDefaultBlendState();

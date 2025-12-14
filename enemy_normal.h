@@ -15,16 +15,17 @@
 #include "texture.h"
 #include "sprite_anim.h"
 
+
 class EnemyNormal : public Enemy
 {
 private:
     DirectX::XMFLOAT3 m_Position{ 0.0f, 0.0f, 0.0f };
     float m_DetectionRadius{ 2.0f };
-    int m_Hp{ 5000 };
+    int m_Hp{ 500 };
     bool m_FacingRight{ true };
     DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 1.0f, 0.0f };
 
-	//Animation Player IDs Animation Play IDs
+    //Animation Player IDs Animation Play IDs
     int m_AnimLeftPlayId{ -1 };
     int m_AnimRightPlayId{ -1 };
     int m_AnimLeftChasePlayId{ -1 };
@@ -32,7 +33,6 @@ private:
     int m_AnimLeftIdlePlayId{ -1 };
     int m_AnimRightIdlePlayId{ -1 };
     int m_AnimDeathPlayId{ -1 };
-    int m_AnimHitPlayId{ -1 };
 
     //Animation Pattern IDs
     int m_AnimLeftId{ -1 };
@@ -42,7 +42,6 @@ private:
     int m_AnimLeftIdleId{ -1 };
     int m_AnimRightIdleId{ -1 };
     int m_AnimDeathId{ -1 };
-    int m_AnimHitId{ -1 };
 
     // Texture IDs
     int m_TexWhiteId{ -1 };
@@ -55,12 +54,9 @@ private:
     int m_TexHitLeftId{ -1 };
     int m_TexHitRightId{ -1 };
 
-    // ------------------- HIT -------------------
-// Hit animation pattern IDs for left/right
+    //getting hit animations test
     int m_AnimHitLeftId{ -1 };
     int m_AnimHitRightId{ -1 };
-
-    // Hit animation player IDs for left/right
     int m_AnimHitLeftPlayId{ -1 };
     int m_AnimHitRightPlayId{ -1 };
 
@@ -71,6 +67,8 @@ public:
     bool m_IsDead{ false };
 
     void Damage(int damage);
+
+    void Update(double elapsed_time);
 
     bool IsDestroy() const override
     {
@@ -88,6 +86,7 @@ public:
     }
 
 private:
+    double m_HitCooldown{ 0.0 };
     // ------------------- PATROL -------------------
     class EnemyNormalStatePatrol : public Enemy::State
     {
@@ -141,21 +140,29 @@ private:
         void Draw() const override;
     };
 
+    // ... inside class EnemyNormal
     class EnemyNormalStateHit : public Enemy::State
     {
+    public:
+        // *** ADDED ENUM TO TRACK PREVIOUS STATE TYPE ***
+        enum class PreviousStateType { PATROL, CHASE, IDLE };
+
     private:
         EnemyNormal* m_pOwner{ nullptr };
-        Enemy::State* m_PreviousState{ nullptr }; // store previous state
+        PreviousStateType m_PreviousStateType; // Store the type instead of the pointer
+        bool m_PreviousFacingRight; // Store facing direction needed for Patrol/Idle
         float m_AccumulatedTime{ 0.0f };
 
     public:
-        EnemyNormalStateHit(EnemyNormal* pOwner, Enemy::State* prevState)
-            : m_pOwner(pOwner), m_PreviousState(prevState), m_AccumulatedTime(0.0f) {
+        // *** MODIFIED CONSTRUCTOR ***
+        EnemyNormalStateHit(EnemyNormal* pOwner, PreviousStateType prevState, bool facingRight)
+            : m_pOwner(pOwner), m_PreviousStateType(prevState), m_PreviousFacingRight(facingRight), m_AccumulatedTime(0.0f) {
         }
 
         void Update(double elapsed_time) override;
         void Draw() const override;
     };
+    // ...
     // ------------------- DEATH -------------------
     class EnemyNormalStateDeath : public Enemy::State
     {
