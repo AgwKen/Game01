@@ -411,18 +411,10 @@ void EnemyNormal::EnemyNormalStateHit::Update(double elapsed_time)
 void EnemyNormal::EnemyNormalStateHit::Draw() const
 {
     int animToDraw = m_pOwner->m_FacingRight ? m_pOwner->m_AnimHitRightPlayId : m_pOwner->m_AnimHitLeftPlayId;
-
-    Direct3D_SetAlphaBlendState();
-    Direct3D_SetDepthReadOnly(true);
-    Sampler_SetFilterPoint();
-
     XMFLOAT3 drawPos = m_pOwner->m_Position;
     drawPos.x += m_pOwner->m_VisualOffset.x;
     drawPos.y += m_pOwner->m_VisualOffset.y;
     drawPos.z += m_pOwner->m_VisualOffset.z;
 
     BillboardAnim_Draw(animToDraw, drawPos, { 2.0f, 2.0f }, { 0.5f, 1.0f });
-
-    Direct3D_SetDefaultBlendState();
-    Direct3D_SetDepthEnable(true);
 }

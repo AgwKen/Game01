@@ -239,8 +239,9 @@ void Player_Update(double elapsed_time)
     else
     {
         // Apply friction to slow down gradually
-        velocity = XMVectorLerp(velocity, XMVectorSetX(velocity, 0.0f), 0.1f); // X
-        velocity = XMVectorLerp(velocity, XMVectorSetZ(velocity, 0.0f), 0.1f); // Z
+        velocity = XMVectorLerp(velocity, XMVectorSetX(velocity, 0.0f), 0.7f);
+        velocity = XMVectorLerp(velocity, XMVectorSetZ(velocity, 0.0f), 0.7f);
+
     }
 
     // --- Animation switch ---
@@ -427,9 +428,6 @@ void Player_Draw()
 {
     if (animPlayerId >= 0)
     {
-        Direct3D_SetAlphaBlendState();
-        Direct3D_SetDepthReadOnly(false);
-        Sampler_SetFilterPoint();
 
         XMFLOAT3 drawPos = {
             g_PlayerPosition.x + g_VisualOffset.x,
@@ -438,10 +436,6 @@ void Player_Draw()
         };
 
         BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });
-
-        Direct3D_SetDefaultBlendState();
-        Direct3D_SetDepthEnable(false);
-
         CircleShadow_Draw(g_PlayerPosition);
     }
 }

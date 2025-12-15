@@ -17,12 +17,13 @@ SamplerState samp; //
 
 float4 main(PS_IN pi) : SV_TARGET
 {
-   // float4 color = tex.Sample(samp, pi.uv) * pi.color;
-   // if (color.a < 0.5f)
-   // {
-   //     discard;
-   // }
-   // return color;
-    
-    return tex.Sample(samp, pi.uv) * pi.color;
+    float4 color = tex.Sample(samp, pi.uv) * pi.color;
+
+    // Alpha cutout: discard fully transparent pixels
+    if (color.a < 0.5f)
+    {
+        discard;
+    }
+
+    return color;
 }

@@ -40,7 +40,7 @@ void PlayerCamera_Update(double elapsed_time)
         // === Player position ===
         XMVECTOR playerPos = XMLoadFloat3(&Player_GetPosition());
 
-        XMVECTOR offset = XMVectorSet(0.0f, 2.5f, -5.0f, 0.0f);
+        XMVECTOR offset = XMVectorSet(0.0f, 2.0f, -4.0f, 0.0f);
 
         // === Camera position ===
         XMVECTOR cameraPos = playerPos + offset;

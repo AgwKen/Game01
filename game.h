@@ -15,5 +15,8 @@ void Game_Finalize();
 
 void Game_Update(double elapsed_time);
 void Game_Draw();
+void Game_RequestHitStop(float time);
+bool Game_IsHitStopActive();
+
 
 #endif // GAME_H

@@ -89,27 +89,41 @@ void Map_Draw()
         }
     }
 
-    for (int i = 0; i < 10; i++)
+    int treeCountX = 10; // Number of trees along X-axis
+    int treeCountZ = 5;  // Number of trees along Z-axis
+    float spacing = 6.0f; // Distance between trees
+
+    // First tree type
+    for (int x = 0; x < treeCountX; x++)
     {
-        XMFLOAT3 pos = { g_TreePosition.x + (float)i * 3.0f, g_TreePosition.y, g_TreePosition.z };
-        Direct3D_SetAlphaBlendState();
-        Direct3D_SetDepthReadOnly(true);
-        Sampler_SetFilterPoint();
-        BillboardAnim_Draw(g_TreePlayerId, pos, { 3.0f, 3.0f }, { 0.5f, 1.0f });
-        Direct3D_SetDefaultBlendState();
-        Direct3D_SetDepthEnable(true);
+        for (int z = 0; z < treeCountZ; z++)
+        {
+            XMFLOAT3 pos = {
+                g_TreePosition.x + x * spacing,
+                g_TreePosition.y,
+                g_TreePosition.z + z * spacing
+            };
+
+            Sampler_SetFilterPoint();
+            BillboardAnim_Draw(g_TreePlayerId, pos, { 5.0f, 5.0f }, { 0.5f, 1.5f });
+        }
     }
 
-    for (int i = 0; i < 10; i++)
+    // Second tree type
+    for (int x = 0; x < treeCountX; x++)
     {
-        XMFLOAT3 pos2 = { g_Tree2Position.x + i * 3.0f, g_Tree2Position.y, g_Tree2Position.z };
-        Direct3D_SetAlphaBlendState();
-        Direct3D_SetDepthReadOnly(true);
-        Sampler_SetFilterPoint();
-        BillboardAnim_Draw(g_Tree2PlayerId, pos2, { 3.0f, 3.0f }, { 0.5f, 1.0f });
-        Direct3D_SetDefaultBlendState();
-        Direct3D_SetDepthEnable(true);
+        for (int z = 0; z < treeCountZ; z++)
+        {
+            XMFLOAT3 pos2 = {
+                g_Tree2Position.x + x * spacing,
+                g_Tree2Position.y,
+                g_Tree2Position.z + z * spacing
+            };
+            Sampler_SetFilterPoint();
+            BillboardAnim_Draw(g_Tree2PlayerId, pos2, { 5.0f, 5.0f }, { 0.5f, 1.5f });
+        }
     }
+
 }
 
 int Map_GetObjectCount()

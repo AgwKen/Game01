@@ -1,7 +1,7 @@
 /*========================================================================================
 
 
-    Main Game [game.h]									    			PYAE SONE THANT
+    Main Game [game.cpp]									    			PYAE SONE THANT
                                                                         DATE:06/27/2025
 
 ------------------------------------------------------------------------------------------
@@ -38,6 +38,9 @@ using namespace DirectX;
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
 static bool g_IsDebug = false;
+
+static float g_HitStopTime = 0.0f;
+
 
 void Game_Initialize()
 {
@@ -86,6 +89,16 @@ void Game_Update(double elapsed_time)
         g_IsDebug = !g_IsDebug;
     }
 
+    // === HIT STOP ===
+    if (g_HitStopTime > 0.0f)
+    {
+        g_HitStopTime -= (float)elapsed_time;
+        if (g_HitStopTime < 0.0f)
+            g_HitStopTime = 0.0f;
+
+        SpriteAnim_Update(elapsed_time * 0.2f);
+        return;
+    }
     g_AccumulatedTime += elapsed_time;
 
     SpriteAnim_Update(elapsed_time);
@@ -228,4 +241,15 @@ if (g_IsDebug) {
     Camera_DebugDraw();
 }
 
+}
+
+bool Game_IsHitStopActive()
+{
+    return g_HitStopTime > 0.0f;
+}
+
+void Game_RequestHitStop(float time)
+{
+    if (time > g_HitStopTime)
+        g_HitStopTime = time;
 }

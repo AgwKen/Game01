@@ -18,7 +18,7 @@ using namespace DirectX;
 
 static constexpr float FIELD_MESH_SIZE = 1.0f;
 static constexpr int FIELD_MESH_H_COUNT = 100;
-static constexpr int FIELD_MESH_V_COUNT = 50;
+static constexpr int FIELD_MESH_V_COUNT = 100;
 static constexpr int FIELD_MESH_H_VERTEX_COUNT = FIELD_MESH_H_COUNT + 1;
 static constexpr int FIELD_MESH_V_VERTEX_COUNT = FIELD_MESH_V_COUNT + 1;
 static constexpr int NUM_VERTEX = FIELD_MESH_H_VERTEX_COUNT * FIELD_MESH_V_VERTEX_COUNT;
@@ -76,33 +76,135 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
     g_pDevice = pDevice;
     g_pContext = pContext;
 
-        for (int z = 0; z < FIELD_MESH_V_VERTEX_COUNT; ++z)
+    for (int z = 0; z < FIELD_MESH_V_VERTEX_COUNT; ++z)
+    {
+        for (int x = 0; x < FIELD_MESH_H_VERTEX_COUNT; ++x)
         {
-            for (int x = 0; x < FIELD_MESH_H_VERTEX_COUNT; ++x)
-            {
-                int index = x + z * FIELD_MESH_H_VERTEX_COUNT;
-                float worldX = x * FIELD_MESH_SIZE;
-                float worldZ = z * FIELD_MESH_SIZE;
-                float height = 0.0f;
+            int index = x + z * FIELD_MESH_H_VERTEX_COUNT;
+            float worldX = x * FIELD_MESH_SIZE;
+            float worldZ = z * FIELD_MESH_SIZE;
+            float height = 0.0f;
 
-                for (int m = 0; m < g_NumMountains; ++m)
+            // --- Cone mountains ---
+            for (int m = 0; m < g_NumMountains; ++m)
+            {
+                float dx = worldX - g_Mountains[m].x;
+                float dz = worldZ - g_Mountains[m].z;
+                float dist = sqrtf(dx * dx + dz * dz);
+                if (dist < g_Mountains[m].radius)
+                    height += g_Mountains[m].height * (1.0f - dist / g_Mountains[m].radius);
+            }
+
+            /** -- - Ridge-- -
+            {
+                float ridgeX = 0.0f;
+                float ridgeZ = 0.0f;
+                float ridgeLength = 150.0f;
+                float ridgeWidth = 10.0f;
+                float ridgeHeight = 6.0f;
+
+                float dx = worldX - ridgeX;
+                float dz = worldZ - ridgeZ;
+
+                float ridge = ridgeHeight * expf(-(dx * dx) / (ridgeWidth * ridgeWidth));
+
+                float zFactor = 1.0f;
+                if (dz < 0 || dz > ridgeLength) zFactor = 0.0f;
+                else if (dz < 10.0f) zFactor = dz / 10.0f;
+                else if (dz > ridgeLength - 10.0f) zFactor = (ridgeLength - dz) / 10.0f;
+
+                height += ridge * zFactor;
+            }
+            */
+            // --- Plateau ---
+            {
+                float plateX = 50.0f;
+                float plateZ = 80.0f;
+                float plateRadius = 20.0f;
+                float plateHeight = 5.0f;
+                float edgeFalloff = 5.0f;
+
+                float dx = worldX - plateX;
+                float dz = worldZ - plateZ;
+                float dist = sqrtf(dx * dx + dz * dz);
+
+                if (dist < plateRadius)
+                    height += plateHeight;
+                else if (dist < plateRadius + edgeFalloff)
+                    height += plateHeight * (1.0f - (dist - plateRadius) / edgeFalloff);
+            }
+
+            // --- Valley / Depression ---
+            {
+                float valX = 120.0f;
+                float valZ = 200.0f;
+                float valRadius = 15.0f;
+                float valDepth = 4.0f;
+
+                float dx = worldX - valX;
+                float dz = worldZ - valZ;
+                float dist = sqrtf(dx * dx + dz * dz);
+
+                if (dist < valRadius)
+                    height -= valDepth * (1.0f - dist / valRadius);
+            }
+
+            /* -- - Crater / Hole-- -
+            {
+                float crX = 40.0f;
+                float crZ = 50.0f;
+                float crRadius = 8.0f;
+                float crDepth = 3.0f;
+
+                float dx = worldX - crX;
+                float dz = worldZ - crZ;
+                float dist = sqrtf(dx * dx + dz * dz);
+
+                if (dist < crRadius)
+                    height -= crDepth * (1.0f - dist / crRadius);
+            }
+            */
+            // --- Terraces / Steps ---
+            //{
+            //    float stepHeight = 2.0f;
+            //    height = floor(height / stepHeight) * stepHeight;
+            //}
+
+            // --- Random Noise ---
+            {
+                float noise = ((rand() % 20) / 100.0f - 0.5f) * 0.5f; // -0.25 to 0.25
+                height += noise;
+            }
+            // --- River / River Bank ---
+            {
+                float riverCenterX = 100.0f;   // X position of river center
+                float riverStartZ = 0.0f;      // start Z
+                float riverEndZ = 300.0f;      // end Z
+                float riverWidth = 5.0f;       // half-width of river
+                float riverDepth = 3.0f;       // depth of river
+
+                // Check if vertex is within river length
+                if (worldZ >= riverStartZ && worldZ <= riverEndZ)
                 {
-                    float dx = worldX - g_Mountains[m].x;
-                    float dz = worldZ - g_Mountains[m].z;
-                    float dist = sqrtf(dx * dx + dz * dz);
-                    if (dist < g_Mountains[m].radius)
+                    float dx = worldX - riverCenterX;
+                    if (fabs(dx) < riverWidth)
                     {
-                        height += g_Mountains[m].height * (1.0f - dist / g_Mountains[m].radius);
+                        // Linear slope to river center
+                        float factor = 1.0f - fabs(dx) / riverWidth; // 0 at edge, 1 at center
+                        height -= riverDepth * factor;  // lower height
                     }
                 }
-
-                g_MeshVertex[index].position = { worldX, height, worldZ };
-                g_MeshVertex[index].normal = { 0.0f, 1.0f, 0.0f };
-                g_MeshVertex[index].color = { 0.0f, 1.0f, 1.0f, 1.0f };
-                g_MeshVertex[index].texcoord = { float(x), float(z) };
             }
-        }
 
+
+            // Set vertex
+            g_MeshVertex[index].position = { worldX, height, worldZ };
+            g_MeshVertex[index].normal = { 0.0f, 1.0f, 0.0f };
+            g_MeshVertex[index].color = { 0.0f, 1.0f, 1.0f, 1.0f };
+            g_MeshVertex[index].texcoord = { float(x), float(z) };
+        }
+    }
+    // --- Index buffer (unchanged) ---
     int k = 0;
     for (int z = 0; z < FIELD_MESH_V_COUNT; ++z)
     {
@@ -123,6 +225,7 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
         }
     }
 
+    // --- Create buffers ---
     D3D11_BUFFER_DESC bd{};
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.ByteWidth = sizeof(Vertex3d) * NUM_VERTEX;
@@ -139,8 +242,8 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
     g_Tex0Id = Texture_Load(L"Texture/grass.jpg");
 
     ShaderField_Initialize(g_pDevice, g_pContext);
-
 }
+
 
 void Mesh_Finalize()
 {
@@ -155,23 +258,15 @@ void Mesh_Draw(int repeatX, int repeatZ, float heightOffset, float offsetX, floa
     Texture_SetTexture(g_Tex0Id, 0);
     Texture_SetTexture(g_Tex1Id, 1);
 
-        UINT stride = sizeof(Vertex3d);
+    UINT stride = sizeof(Vertex3d);
     UINT offset = 0;
     g_pContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
     g_pContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    for (int z = 0; z < repeatZ; ++z)
-    {
-        for (int x = 0; x < repeatX; ++x)
-        {
-            float worldX = x * FIELD_MESH_H_COUNT * FIELD_MESH_SIZE + offsetX;
-            float worldZ = z * FIELD_MESH_V_COUNT * FIELD_MESH_SIZE + offsetZ;
-
-            ShaderField_SetWorldMatrix(XMMatrixTranslation(worldX, heightOffset, worldZ));
-            g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
-        }
-    }
+    // Draw single map only
+    ShaderField_SetWorldMatrix(XMMatrixTranslation(offsetX, heightOffset, offsetZ));
+    g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
 
 }
 
