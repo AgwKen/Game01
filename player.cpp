@@ -20,10 +20,11 @@
 #include "sprite_anim.h"
 #include "direct3d.h"
 #include "sampler.h"
-#include "Mesh.h"
+#include "terrain.h"
 #include "enemy.h"
 #include "collision.h"
 #include "circle_shadow.h"
+#include "Audio.h"
 
 using namespace DirectX;
 
@@ -32,7 +33,7 @@ static XMFLOAT3 g_PlayerFront{ 0.0f, 0.0f, 1.0f };
 static XMFLOAT3 g_PlayerVelocity{};
 static XMFLOAT3 g_VisualOffset{ 0.5f, 0.2f, 0.0f }; // Y to center the sprite
 static bool g_IsJump = false;
-const float PLAYER_SPEED = 8.0f;
+const float PLAYER_SPEED = 6.0f;
 
 //for player sprite animation
 static int animPatternUp = -1;
@@ -62,6 +63,17 @@ static int animAttack2Right = -1;
 
 static int g_AttackStage = 0;
 
+//for audio 
+static int  g_FootstepGrassSE = -1;
+static int  g_LastFootstepFrame = -1;
+static float footstepTimer = 0.0f;
+const float STEP_INTERVAL = 0.35f;
+static int lastStepFrame = -1;
+
+// sword audio
+static int g_SwordSE = -1;
+static bool g_SwordPlayedThisAttack = false;
+
 
 void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 {
@@ -73,7 +85,7 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 
     int frameCount = 8;
     int hPatternMax = 8;
-    float secondsPerPattern = 0.1f;
+    float secondsPerPattern = 0.15f;
     float Idle_SecondsPerPattern = 0.2f;
     DirectX::XMUINT2 patternSize = { 96, 80 };
     DirectX::XMUINT2 startPos = { 0, 0 };
@@ -125,13 +137,37 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
     animPlayerId = SpriteAnim_CreatePlayer(animIdleDown);
     animCurrent = animIdleDown;
 
+    g_FootstepGrassSE = LoadAudio("Sounds/walk.wav");
+    SetAudioVolume(g_FootstepGrassSE, 0.8f); // 0.0 = mute, 1.0 = normal
+
+    g_SwordSE = LoadAudio("Sounds/sword.wav");
+    SetAudioVolume(g_SwordSE, 0.9f);
+
 }
 
 void Player_Finalize()
 {
+    if (g_SwordSE >= 0)
+    {
+        UnloadAudio(g_SwordSE);
+        g_SwordSE = -1;
+    }
+
     if (animPlayerId >= 0)
+    {
         SpriteAnim_DestroyPlayer(animPlayerId);
+        animPlayerId = -1;
+    }
+
+    if (g_FootstepGrassSE >= 0)
+    {
+        UnloadAudio(g_FootstepGrassSE);
+        g_FootstepGrassSE = -1;
+    }
+
+    g_LastFootstepFrame = -1;
 }
+
 
 void Player_Update(double elapsed_time)
 {
@@ -155,6 +191,7 @@ void Player_Update(double elapsed_time)
 
     {
         g_IsAttacking = true;
+        g_SwordPlayedThisAttack = false;
 
         float fx = g_PlayerFront.x;
         float fz = g_PlayerFront.z;
@@ -422,6 +459,37 @@ void Player_Update(double elapsed_time)
         }
     }
 
+    if (moving && !g_IsJump && !g_IsAttacking)
+    {
+        int frame = SpriteAnim_GetCurrentFrame(animPlayerId);
+
+        if ((frame == 2 || frame == 6) && frame != lastStepFrame)
+        {
+            float pitch = 0.95f + (rand() % 11) * 0.01f;
+            PlayAudioEx(g_FootstepGrassSE, pitch);
+            lastStepFrame = frame;
+        }
+    }
+    else
+    {
+        lastStepFrame = -1;
+    }
+
+    // --- Sword sound (animation-based) ---
+    if (g_IsAttacking && !g_SwordPlayedThisAttack)
+    {
+        int frame = SpriteAnim_GetCurrentFrame(animPlayerId);
+
+        // Choose the swing frame (adjust if needed)
+        // Usually middle of animation looks best
+        if (frame == 3 || frame == 4)
+        {
+            float pitch = 0.95f + (rand() % 11) * 0.01f; // slight variation
+            PlayAudioEx(g_SwordSE, pitch);
+
+            g_SwordPlayedThisAttack = true;
+        }
+    }
 
 }
 void Player_Draw()

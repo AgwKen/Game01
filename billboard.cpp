@@ -99,7 +99,7 @@ void Billboard_Draw(
     const DirectX::XMFLOAT2& scale,
     const DirectX::XMUINT4& tex_cut,
     const DirectX::XMFLOAT2& pivot,
-    const DirectX::XMFLOAT4& color /* new parameter */
+    const DirectX::XMFLOAT4& color
 )
 {
     ShaderBillBoard_Begin();

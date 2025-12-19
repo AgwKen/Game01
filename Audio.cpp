@@ -30,8 +30,17 @@ void InitAudio()
 
 void UninitAudio()
 {
-	g_MasteringVoice->DestroyVoice();
-	g_Xaudio->Release();
+	if (g_MasteringVoice)
+	{
+		g_MasteringVoice->DestroyVoice();
+		g_MasteringVoice = nullptr;
+	}
+
+	if (g_Xaudio)
+	{
+		g_Xaudio->Release();
+		g_Xaudio = nullptr;
+	}
 }
 
 
@@ -130,13 +139,22 @@ int LoadAudio(const char *FileName)
 	return index;
 }
 
-void UnloadAudio(int Index)
+void UnloadAudio(int index)
 {
-	g_Audio[Index].SourceVoice->Stop();
-	g_Audio[Index].SourceVoice->DestroyVoice();
+	if (index < 0) return;
 
-	delete[] g_Audio[Index].SoundData;
-	g_Audio[Index].SoundData = nullptr;
+	if (g_Audio[index].SourceVoice)
+	{
+		g_Audio[index].SourceVoice->Stop();
+		g_Audio[index].SourceVoice->DestroyVoice();
+		g_Audio[index].SourceVoice = nullptr;
+	}
+
+	if (g_Audio[index].SoundData)
+	{
+		delete[] g_Audio[index].SoundData;
+		g_Audio[index].SoundData = nullptr;
+	}
 }
 
 void PlayAudio(int Index, bool Loop)
@@ -170,5 +188,36 @@ void PlayAudio(int Index, bool Loop)
 
 }
 
+void StopAudio(int Index)
+{
+	if (g_Audio[Index].SourceVoice)
+	{
+		g_Audio[Index].SourceVoice->Stop();
+		g_Audio[Index].SourceVoice->FlushSourceBuffers();
+	}
+}
+
+void PlayAudioEx(int Index, float pitch)
+{
+    g_Audio[Index].SourceVoice->Stop();
+    g_Audio[Index].SourceVoice->FlushSourceBuffers();
+
+    XAUDIO2_BUFFER buf{};
+    buf.AudioBytes = g_Audio[Index].Length;
+    buf.pAudioData = g_Audio[Index].SoundData;
+    buf.PlayBegin = 0;
+    buf.PlayLength = g_Audio[Index].PlayLength;
+
+    g_Audio[Index].SourceVoice->SubmitSourceBuffer(&buf);
+    g_Audio[Index].SourceVoice->SetFrequencyRatio(pitch);
+    g_Audio[Index].SourceVoice->Start();
+}
+void SetAudioVolume(int Index, float volume)
+{
+	if (g_Audio[Index].SourceVoice)
+	{
+		g_Audio[Index].SourceVoice->SetVolume(volume);
+	}
+}
 
 

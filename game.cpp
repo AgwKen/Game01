@@ -11,7 +11,7 @@
 #include "shader3d.h"
 #include "grid.h"
 #include "Camera.h"
-#include "Mesh.h"
+#include "terrain.h"
 #include "light.h"
 #include "key_logger.h"
 #include "pad_logger.h"
@@ -32,18 +32,26 @@
 #include "enemy.h"
 //#include "fog.h"
 #include "circle_shadow.h"
-
-using namespace DirectX;
+#include "Audio.h"
+#include "shader3d_unlit.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
 static bool g_IsDebug = false;
-
 static float g_HitStopTime = 0.0f;
+
+//Background music
+static int g_BGM = -1;
+
+// Wind ambience
+static int g_WindSE = -1;
+static float g_WindTimer = 0.0f;
+static float g_NextWindTime = 0.0f;
 
 
 void Game_Initialize()
 {
+InitAudio();
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 Player_Initialize({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
@@ -59,6 +67,16 @@ Trajetory3d_Initialize();
 //Fog_Initialize();
 CircleShadow_Initialize();
 
+g_BGM = LoadAudio("Sounds/bg.wav");
+PlayAudio(g_BGM, true);
+SetAudioVolume(g_BGM, 0.08f);
+
+g_WindSE = LoadAudio("Sounds/wind.wav");
+SetAudioVolume(g_WindSE, 0.15f);
+
+// First wind after random delay (5?15 sec)
+g_NextWindTime = 5.0f + (rand() % 10);
+
 
 Enemy_Create({5.0f,1.0f,5.0f});
 
@@ -66,19 +84,39 @@ Enemy_Create({5.0f,1.0f,5.0f});
 
 void Game_Finalize()
 {
-CircleShadow_Finalize();
-//Fog_Finalize();
-BulletHitEffect_Finalize();
-Billboard_Finalize();
-Map_Finalize();
-Enemy_Finalize();
-Player_Finalize();
-Sky_Finalize();
-Bullet_Finalize();
-Mesh_Finalize();
-PlayerCamera_Finalize();
-Camera_Finalize();
-Trajetory3d_Finalize();
+    // --- Stop & unload BGM ---
+    if (g_BGM >= 0)
+    {
+        StopAudio(g_BGM);
+        UnloadAudio(g_BGM);
+        g_BGM = -1;
+    }
+
+    // --- Stop & unload wind ---
+    if (g_WindSE >= 0)
+    {
+        StopAudio(g_WindSE);
+        UnloadAudio(g_WindSE);
+        g_WindSE = -1;
+    }
+
+    // --- Player unloads its own sounds ---
+    Player_Finalize();
+
+    // --- Now audio system shutdown ---
+    UninitAudio();
+
+    // --- Rest ---
+    CircleShadow_Finalize();
+    Billboard_Finalize();
+    Map_Finalize();
+    Enemy_Finalize();
+    Sky_Finalize();
+    Bullet_Finalize();
+    Mesh_Finalize();
+    PlayerCamera_Finalize();
+    Camera_Finalize();
+    Trajetory3d_Finalize();
 }
 
 void Game_Update(double elapsed_time)
@@ -118,8 +156,6 @@ void Game_Update(double elapsed_time)
     Enemy_Update(elapsed_time);
 
     //Fog_Update(elapsed_time);
-
-    Sky_SetPosition(Player_GetPosition());
 
 
     //Bullet Collision
@@ -163,85 +199,90 @@ void Game_Update(double elapsed_time)
         fogTimer = 0;
     }
     */
-	
+    // === WIND AMBIENCE ===
+    g_WindTimer += (float)elapsed_time;
+
+    if (g_WindTimer >= g_NextWindTime)
+    {
+        PlayAudio(g_WindSE, false); // play once (NOT loop)
+
+        g_WindTimer = 0.0f;
+
+        // Next wind between 8?20 seconds
+        g_NextWindTime = 8.0f + (rand() % 12);
+    }
+
 }
 
 void Game_Draw()
 {
-// --- CAMERA ---
-XMFLOAT4X4 mtxView = g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix();
-XMMATRIX view = XMLoadFloat4x4(&mtxView);
-XMMATRIX proj = g_IsDebug ?
-XMLoadFloat4x4(&Camera_GetPerspectiveMatrix()) :
-XMLoadFloat4x4(&PlayerCamera_GetPerspectiveMatrix());
-Camera_SetMatrix(view, proj);
+    // --- CAMERA ---
+    XMFLOAT4X4 mtxView = g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix();
+    XMMATRIX view = XMLoadFloat4x4(&mtxView);
+    XMMATRIX proj = g_IsDebug ?
+        XMLoadFloat4x4(&Camera_GetPerspectiveMatrix()) :
+        XMLoadFloat4x4(&PlayerCamera_GetPerspectiveMatrix());
+    Camera_SetMatrix(view, proj);
 
-XMFLOAT3 camera_position = g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition();
-Billboard_SetViewMatrix(mtxView);
-Sampler_SetFilterAnisotropic();
+    Billboard_SetViewMatrix(mtxView);
+    Shader3dUnlit_Begin();
 
-Sky_Draw();
+    // --- SKY ---
+    XMFLOAT3 camPos = g_IsDebug
+        ? Camera_GetPosition()
+        : PlayerCamera_GetPosition();
 
-// Ambient Light
-Light_SetAmbient({ 0.3f, 0.3f, 0.3f });
-ShaderField_SetAmbientColor({ 0.8f, 0.8f, 0.8f, 1.0f });
+    Sky_Draw(camPos);
 
-// Directional Light
-XMVECTOR dirVec = XMVector3Normalize({ -1.0f, -1.0f, 1.0f });
-XMFLOAT4 dir;
-XMStoreFloat4(&dir, dirVec);
-XMFLOAT4 dirColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-Light_SetDirectionalWorld(dir, dirColor);
-ShaderField_SetDirectionalLight(dir, dirColor);
+    // --- LIGHTING ---
+    Light_SetAmbient({ 0.15f, 0.15f, 0.15f });
+    ShaderField_SetAmbientColor({ 0.08f, 0.08f, 0.08f, 1.0f });
 
-// Specular Light
-Light_SetSpecularWorld(Camera_GetPosition(), 1.0f, {0.1f, 0.1f, 0.1f, 1.0f});
+    XMVECTOR dirVec = XMVector3Normalize({ 0.6f, -1.0f, -0.4f });
+    XMFLOAT4 dir;
+    XMStoreFloat4(&dir, dirVec);
 
-// Point Lights
-Light_SetPointLightCount(0);
-//========================
+    XMFLOAT4 dirColor = { 0.85f, 0.85f, 0.85f, 1.0f }; // not pure white
 
-//--- GRID ---
-Grid_Draw();
+    Light_SetDirectionalWorld(dir, dirColor);
+    ShaderField_SetDirectionalLight(dir, dirColor);
 
 
-//--- DRAW OBJECTS ---[
-Map_Draw();
-Bullet_Draw();
-Enemy_Draw();
-Player_Draw();
+    Light_SetSpecularWorld(Camera_GetPosition(), 1.0f, { 0.1f, 0.1f, 0.1f, 1.0f });
+    Light_SetPointLightCount(0);
 
-Direct3D_SetAlphaBlendState();
-Direct3D_SetDepthReadOnly(true);
-//Fog_Draw();
-Direct3D_SetDepthReadOnly(false);
-Direct3D_SetDefaultBlendState();
+    // --- DRAW SCENE ---
+    Grid_Draw();
+    Map_Draw();
+    Bullet_Draw();
+    Enemy_Draw();
+    Player_Draw();
 
-//--- BULLET HIT EFFECTS ---
-Direct3D_SetAlphaBlendState();
-Direct3D_SetDepthReadOnly(true);
-BulletHitEffect_Draw();
-Direct3D_SetDepthReadOnly(false);
-Direct3D_SetDefaultBlendState();
+    // --- EFFECTS ---
+    Direct3D_SetAlphaBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    //Fog_Draw();
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
 
-Direct3D_SetAlphaBlendState();
-Direct3D_SetDepthReadOnly(true);
-Direct3D_SetDepthReadOnly(false);
-Direct3D_SetDefaultBlendState();
+    Direct3D_SetAlphaBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    BulletHitEffect_Draw();
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
 
+    Direct3D_SetSubtractiveBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    Trajetory3d_Draw();
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
 
-Direct3D_SetSubtractiveBlendState();
-Direct3D_SetDepthReadOnly(true);
-Trajetory3d_Draw();
-Direct3D_SetDepthReadOnly(false);
-Direct3D_SetDefaultBlendState();
-
-//--- DEBUG ---
-if (g_IsDebug) {
-    Camera_DebugDraw();
+    // --- DEBUG ---
+    if (g_IsDebug) {
+        Camera_DebugDraw();
+    }
 }
 
-}
 
 bool Game_IsHitStopActive()
 {

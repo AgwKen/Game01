@@ -27,11 +27,12 @@ void Direct3D_SetOpaqueBlendState();
 void Direct3D_SetDepthEnable(bool enable);
 void Direct3D_SetDepthReadOnly(bool enable);
 
+void Direct3D_SetRasterizerCullFront();
+void Direct3D_ResetRasterizerState();
+
 extern ID3D11BlendState* g_pAlphaBlendState;
 extern ID3D11BlendState* g_pSubtractiveBlendState;
 extern ID3D11BlendState* g_pBlendStateMultiply;
-extern ID3D11BlendState* g_pBlendStateAdd;
-extern ID3D11BlendState* g_pBlendStateTransparent;
 
 void Direct3D_SetOffscreen();
 

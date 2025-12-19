@@ -15,7 +15,7 @@
 #include "direct3d.h"
 #include "sampler.h"
 #include "map.h"
-#include "mesh.h"
+#include "terrain.h"
 
 using namespace DirectX;
 

@@ -50,11 +50,23 @@ bool Shader3dUnlit_Initialize()
         return false;
     }
 
-    // 頂点レイアウトの定義
     D3D11_INPUT_ELEMENT_DESC layout[] = {
-          { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-          { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 40, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
+
+    // You MUST call this to create the layout handle
+    hr = Direct3D_GetDevice()->CreateInputLayout(
+        layout,
+        _countof(layout),
+        vsbinary_pointer,
+        filesize,
+        &g_pInputLayout
+    );
+
+    delete[] vsbinary_pointer; // Move delete here after creating the layout
 
     if (FAILED(hr)) {
         hal::dout << "Shader3dUnlit_Initialize() シェーダーの読み込みに失敗しました" << std::endl;

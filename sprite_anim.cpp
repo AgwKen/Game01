@@ -260,3 +260,15 @@ void SpriteAnim_Pause(int playid)
     if (playid < 0 || playid >= ANIM_PLAY_MAX) return;
     g_AnimPlay[playid].m_IsStopped = true;
 }
+
+int SpriteAnim_GetCurrentFrame(int playid)
+{
+    if (playid < 0 || playid >= ANIM_PLAY_MAX)
+        return -1;
+
+    if (g_AnimPlay[playid].m_PatternId < 0)
+        return -1;
+
+    return g_AnimPlay[playid].m_PatternNum;
+}
+

@@ -1,54 +1,51 @@
 /*========================================================================================
 
 
-  SkyDome Header [sky.h]										        PYAE SONE THANT
+  Sky cpp [sky.cpp]										            PYAE SONE THANT
                                                                         DATE:11/21/2025
 
 ------------------------------------------------------------------------------------------
 
 =========================================================================================*/
 #include "sky.h"
-using namespace DirectX;
-#include "model.h"
-#include "shader3d_unlit.h"
+#include "cube.h"
+#include "camera.h"
+#include "player_camera.h"
 #include "direct3d.h"
+#include <DirectXMath.h>
+using namespace DirectX;
+#include "texture.h"
+#include "sampler.h"
 
-static MODEL* g_pModelSky{ nullptr };
-static XMFLOAT3 g_Position{};
+static int g_SkyTexId = -1;
 
 void Sky_Initialize()
 {
-    g_pModelSky = ModelLoad("Resources/Model/sky.fbx", 1000.0f, true);
+    g_SkyTexId = Texture_Load(L"Texture/skybox.png");
 }
 
 void Sky_Finalize()
 {
-    ModelRelease(g_pModelSky);
 }
 
-void Sky_SetPosition(const DirectX::XMFLOAT3& position)
+void Sky_Draw(const XMFLOAT3& camPos)
 {
-    g_Position = position;
-}
+    if (g_SkyTexId < 0) return;
 
-void Sky_Draw()
-{
-    if (!g_pModelSky) return;
+    XMMATRIX world =
+        XMMatrixScaling(100.0f, 100.0f, 100.0f) *
+        XMMatrixTranslation(camPos.x, camPos.y, camPos.z);
 
-    // --- disable depth write so sky is always behind ---
+    Sampler_SetFilterAnisotropic();
+
     Direct3D_SetDepthReadOnly(true);
+    Direct3D_SetRasterizerCullFront();
 
-    // --- shader setup ---
-    Shader3dUnlit_Begin();
+    CUBE_Draw(g_SkyTexId, world);
 
-    // --- world matrix ---
-    XMMATRIX world = XMMatrixTranslationFromVector(XMLoadFloat3(&g_Position));
-    Shader3dUnlit_SetWorldMatrix(world);
-    Shader3dUnlit_SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+    Sampler_SetFilterLinear();
 
-    // --- draw the model ---
-    ModelUnlitDraw(g_pModelSky, world);
-
-    // --- restore depth write ---
+    Direct3D_ResetRasterizerState();
     Direct3D_SetDepthReadOnly(false);
 }
+

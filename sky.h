@@ -14,8 +14,8 @@
 
 void Sky_Initialize();
 void Sky_Finalize();
-void Sky_SetPosition(const DirectX::XMFLOAT3& position);
-void Sky_Draw();
+void Sky_Draw(const DirectX::XMFLOAT3& camPos);
+
 
 #endif // SKY_H
 

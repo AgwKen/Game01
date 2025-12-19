@@ -23,7 +23,7 @@ private:
     float m_DetectionRadius{ 2.0f };
     int m_Hp{ 500 };
     bool m_FacingRight{ true };
-    DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 1.0f, 0.0f };
+    DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 0.6f, 0.0f };
 
     //Animation Player IDs Animation Play IDs
     int m_AnimLeftPlayId{ -1 };

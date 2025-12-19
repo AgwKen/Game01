@@ -38,6 +38,7 @@ static void releaseBackBuffer();
 static ID3D11BlendState* g_pAlphaBlendState = nullptr;
 static ID3D11BlendState* g_pSubtractiveBlendState = nullptr;
 static ID3D11BlendState* g_pOpaqueBlendState = nullptr;
+static ID3D11RasterizerState* g_pRasterizerStateCullFront = nullptr; // for skybox
 
 //offscreen render target
 static ID3D11Texture2D* g_pOffscreenBuffer = nullptr;
@@ -130,6 +131,16 @@ bool Direct3D_Initialize(HWND hWnd)
 	additiveBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	g_pDevice->CreateBlendState(&additiveBlendDesc, &g_pAdditiveBlendState);
 
+	// Front-face culling rasterizer (for skybox)
+	D3D11_RASTERIZER_DESC rsDesc = {};
+	rsDesc.FillMode = D3D11_FILL_SOLID;
+	rsDesc.CullMode = D3D11_CULL_FRONT; // cull front faces, show inside of cube
+	rsDesc.FrontCounterClockwise = FALSE;
+	rsDesc.DepthClipEnable = TRUE;
+
+	g_pDevice->CreateRasterizerState(&rsDesc, &g_pRasterizerStateCullFront);
+
+
 	/* ===========================
 	   Depth Stencil States
 	   =========================== */
@@ -219,6 +230,7 @@ bool Direct3D_Initialize(HWND hWnd)
 
 void Direct3D_Finalize()
 {
+	SAFE_RELEASE(g_pRasterizerStateCullFront);
 	SAFE_RELEASE(g_pDepthStencilStateDepthDisable);
 	SAFE_RELEASE(g_pDepthStencilStateDepthEnable);
 	SAFE_RELEASE(g_pDepthStencilStateDepthReadOnly);
@@ -239,7 +251,6 @@ void Direct3D_Finalize()
 	SAFE_RELEASE(g_pDevice);
 
 }
-
 void Direct3D_Clear()
 {
 	g_pDeviceContext->RSSetViewports(1, &g_Viewport);
@@ -313,6 +324,16 @@ void Direct3D_SetDepthReadOnly(bool enable)
 	else
 		g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthEnable, 0);
 }
+void Direct3D_SetRasterizerCullFront()
+{
+	g_pDeviceContext->RSSetState(g_pRasterizerStateCullFront);
+}
+
+void Direct3D_ResetRasterizerState()
+{
+	g_pDeviceContext->RSSetState(nullptr); // default
+}
+
 void Direct3D_SetOffscreen()
 {
 	g_pDeviceContext->RSSetViewports(1, &g_OffscreenViewport);

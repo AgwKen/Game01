@@ -1,43 +1,25 @@
 /*==============================================================================
 
-   shader pixel billboard [shader_pixel_billboard.hlsl]
-                                                         Author : PYAE SONE THANT
-                                                         Date   : 2025/14/11
+  Skybox Pixel Shader [shader_pixel_skybox.hlsl]
+														 Author : PYAE SONE THANT
+														 Date   : 2025/16/12
 --------------------------------------------------------------------------------
 
 ==============================================================================*/
 
-Texture2D tex : register(t0);
+TextureCube skyTex : register(t0);
 SamplerState samp : register(s0);
-
-// PS cb for tint color / global color (bound from C++)
-cbuffer PS_CONSTANT_BUFFER : register(b0)
-{
-    float4 tintColor;
-};
 
 struct PS_IN
 {
     float4 posH : SV_POSITION;
-    float4 color : COLOR0;
-    float2 uv : TEXCOORD0;
-    float alpha : TEXCOORD1;
+    float3 dir : TEXCOORD0;
 };
 
 float4 main(PS_IN pi) : SV_Target
 {
-    float4 texc = tex.Sample(samp, pi.uv);
+    // Sample cubemap using the direction vector
+    float4 color = skyTex.Sample(samp, pi.dir);
 
-    // Multiply sampled color by vertex color then by the PS tint color
-    texc *= pi.color;
-    texc *= tintColor;
-
-    // Apply alpha control (so C++ can change global alpha easily)
-    texc.a *= pi.alpha;
-
-    // Optional: discard very transparent pixels to improve blend precision
-    if (texc.a < 0.01f)
-        discard;
-
-    return texc;
+    return color; // fully unlit
 }

@@ -33,7 +33,6 @@ void SpriteAnim_DestroyPlayer(int index);
 void SpriteAnim_SetFrame(int playid, int frameIndex);
 void SpriteAnim_Resume(int playid);
 void SpriteAnim_Pause(int playid);
-
-
+int SpriteAnim_GetCurrentFrame(int playid);
 
 #endif //SPRITE_ANIM_H
