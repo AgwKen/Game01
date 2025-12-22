@@ -16,7 +16,6 @@ void Billboard_Finalize();
 
 void Billboard_SetViewMatrix(const DirectX::XMFLOAT4X4& view);
 
-// Add color parameter (with default white)
 void Billboard_Draw(
     int texId,
     const DirectX::XMFLOAT3& position,

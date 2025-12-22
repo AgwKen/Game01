@@ -73,6 +73,13 @@ bool Collision_IsOverlapBox(const Box& a, const Box& b)
 }
 bool Collision_IsOverlapAABB(const AABB& a, const AABB& b)
 {
+	//  SAFETY CHECK (DEBUG)
+	if (a.min.x > a.max.x || a.min.y > a.max.y || a.min.z > a.max.z)
+		return false;
+
+	if (b.min.x > b.max.x || b.min.y > b.max.y || b.min.z > b.max.z)
+		return false;
+
 	return a.min.x < b.max.x
 		&& a.max.x > b.min.x
 		&& a.min.y < b.max.y

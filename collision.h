@@ -38,7 +38,7 @@ struct AABB
     DirectX::XMFLOAT3 max;
 
     DirectX::XMFLOAT3 GetCenter() const {
-        DirectX::XMFLOAT3 center;
+        DirectX::XMFLOAT3 center{};
         center.x = min.x + (max.x - min.x) * 0.5f;
         center.y = min.y + (max.y - min.y) * 0.5f;
         center.z = min.z + (max.z - min.z) * 0.5f;
@@ -46,7 +46,7 @@ struct AABB
     }
 
     DirectX::XMFLOAT3 GetHalf() const {
-        DirectX::XMFLOAT3 half;
+        DirectX::XMFLOAT3 half{};
         half.x = (max.x - min.x) * 0.5f;
         half.y = (max.y - min.y) * 0.5f;
         half.z = (max.z - min.z) * 0.5f;

@@ -33,7 +33,7 @@ static XMFLOAT3 g_PlayerFront{ 0.0f, 0.0f, 1.0f };
 static XMFLOAT3 g_PlayerVelocity{};
 static XMFLOAT3 g_VisualOffset{ 0.5f, 0.2f, 0.0f }; // Y to center the sprite
 static bool g_IsJump = false;
-const float PLAYER_SPEED = 6.0f;
+const float PLAYER_SPEED = 4.0f;
 
 //for player sprite animation
 static int animPatternUp = -1;

@@ -1,9 +1,9 @@
 /*========================================================================================
 
-    Mesh cpp [Mesh.cpp]									    	        PYAE SONE THANT
+    terrain cpp [Mesh.cpp]                                                PYAE SONE THANT
                                                                         DATE:09/11/2025
 
-------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 
 =========================================================================================*/
 #include "terrain.h"
@@ -15,10 +15,9 @@ using namespace DirectX;
 #include "camera.h"
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
 
-/*========================================================================================
-    Constants
-=========================================================================================*/
+
 static constexpr float FIELD_MESH_SIZE = 1.0f;
 static constexpr int FIELD_MESH_H_COUNT = 200;
 static constexpr int FIELD_MESH_V_COUNT = 200;
@@ -27,18 +26,14 @@ static constexpr int FIELD_MESH_V_VERTEX_COUNT = FIELD_MESH_V_COUNT + 1;
 static constexpr int NUM_VERTEX = FIELD_MESH_H_VERTEX_COUNT * FIELD_MESH_V_VERTEX_COUNT;
 static constexpr int NUM_INDEX = 3 * 2 * FIELD_MESH_H_COUNT * FIELD_MESH_V_COUNT;
 
-/*========================================================================================
-    D3D Resources
-=========================================================================================*/
 static ID3D11Buffer* g_pVertexBuffer = nullptr;
 static ID3D11Buffer* g_pIndexBuffer = nullptr;
 
-static int g_Tex0Id = -1;// grass
-static int g_Tex1Id = -1;//moutain rock
+static int g_Tex0Id = -1; // grass
+static int g_Tex1Id = -1; // rock
 
 static ID3D11Device* g_pDevice = nullptr;
 static ID3D11DeviceContext* g_pContext = nullptr;
-
 
 static float g_CollisionOffsetX = 0.0f;
 static float g_CollisionOffsetZ = 0.0f;
@@ -61,7 +56,10 @@ enum class TerrainShapeType
     Cone,
     Plateau,
     Valley,
-    SmoothHill
+    SmoothHill,
+    FlatSurfaceMoutain,
+    slopeMountain,
+    GradualHill
 };
 
 struct TerrainShape
@@ -71,25 +69,20 @@ struct TerrainShape
     float z;
     float radius;
     float height;
-    float extra;   // edge falloff, etc.
+    float extra;
 };
 
-/* === DATA ONLY (easy to edit) === */
 static TerrainShape g_TerrainShapes[] =
 {
-    // Mountains
     { TerrainShapeType::SmoothHill,    40.0f,  25.0f, 10.0f,  3.0f, 0.0f },
-    { TerrainShapeType::Cone,    70.0f,  10.0f, 10.0f,  5.0f, 0.0f },
-
-    // Mount Everest
-    { TerrainShapeType::Cone,   100.0f, 100.0f, 30.0f, 18.0f, 0.0f },
-
-    // Plateau
-    { TerrainShapeType::Plateau, 50.0f,  80.0f, 20.0f,  5.0f, 5.0f },
-
-    // Valley
-    { TerrainShapeType::Valley, 120.0f, 200.0f, 15.0f,  4.0f, 0.0f },
+    { TerrainShapeType::Cone,          70.0f,  10.0f, 10.0f,  5.0f, 0.0f },
+    { TerrainShapeType::FlatSurfaceMoutain, 120.0f,  90.0f, 35.0f, 14.0f, 0.0f },
+    { TerrainShapeType::slopeMountain,80.0f, 40.0f, 40.0f, 18.0f, 0.0f },
+    { TerrainShapeType::GradualHill, 100.0f, 50.0f, 60.0f, 5.0f, 0.0f },// very gradual, low height
+    { TerrainShapeType::Plateau,       50.0f,  80.0f, 20.0f,  5.0f, 5.0f },
+    { TerrainShapeType::Valley,       120.0f, 200.0f, 15.0f,  4.0f, 0.0f },
 };
+
 
 static int g_NumShapes = sizeof(g_TerrainShapes) / sizeof(TerrainShape);
 
@@ -97,7 +90,9 @@ static float EvaluateShapeHeight(const TerrainShape& shape, float worldX, float 
 {
     float dx = worldX - shape.x;
     float dz = worldZ - shape.z;
-    float dist = sqrtf(dx * dx + dz * dz);
+
+    float distort = sinf(worldX * 0.12f) * 2.0f + cosf(worldZ * 0.15f) * 2.5f;
+    float dist = sqrtf(dx * dx + dz * dz) + distort;
 
     switch (shape.type)
     {
@@ -125,11 +120,53 @@ static float EvaluateShapeHeight(const TerrainShape& shape, float worldX, float 
             return shape.height * expf(-t * t * 3.0f);
         }
         break;
+    case TerrainShapeType::FlatSurfaceMoutain:
+        if (dist < shape.radius)
+        {
+            float baseRadius = shape.radius * 0.5f;  // start slope from 0 to 50% radius
+            if (dist < baseRadius)
+            {
+                float t = dist / baseRadius;  // 0 at center, 1 at end of base slope
+                return shape.height * powf(t, 2.0f); // gentle rise at base
+            }
+
+            // Flat top region
+            float edge = shape.radius * 0.85f;  // top flat until 85% of radius
+            if (dist < edge)
+                return shape.height;
+
+            // Steep cliff at the edges
+            float t = (dist - edge) / (shape.radius - edge);
+            t = std::min(t, 1.0f);
+            return shape.height * (1.0f - t * t * t * 4.0f);
+        }
+        break;
+
+    case TerrainShapeType::slopeMountain:
+        if (dist < shape.radius)
+        {
+            float t = dist / shape.radius;  // 0 at center, 1 at edge
+            t = std::min(t, 1.0f);
+
+            float plateauRatio = 0.4f; // top 20% is flat
+            float ascentCurve = 1.0f;  // smaller = more gradual ascent
+
+            if (t < plateauRatio)
+            {
+                return shape.height;
+            }
+            else
+            {
+                // Smooth slope from base to plateau
+                float slopeT = (t - plateauRatio) / (1.0f - plateauRatio); // normalize to 0..1
+                return shape.height * (1.0f - powf(slopeT, ascentCurve));
+            }
+        }
+        break;
     }
 
     return 0.0f;
 }
-
 
 void Mesh_SetCollisionParams(int repeatX, int repeatZ, float offsetX, float offsetZ)
 {
@@ -137,6 +174,18 @@ void Mesh_SetCollisionParams(int repeatX, int repeatZ, float offsetX, float offs
     g_RepeatZ = repeatZ;
     g_CollisionOffsetX = offsetX;
     g_CollisionOffsetZ = offsetZ;
+}
+
+float Mesh_GetHeightAt(float worldX, float worldZ)
+{
+    float localX = worldX - g_CollisionOffsetX;
+    float localZ = worldZ - g_CollisionOffsetZ;
+
+    float height = 0.0f;
+    for (int i = 0; i < g_NumShapes; ++i)
+        height += EvaluateShapeHeight(g_TerrainShapes[i], localX, localZ);
+
+    return height;
 }
 
 void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
@@ -153,21 +202,32 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
             float worldZ = z * FIELD_MESH_SIZE;
 
             float height = 0.0f;
-
-            // === Terrain Shapes ===
             for (int i = 0; i < g_NumShapes; ++i)
-            {
                 height += EvaluateShapeHeight(g_TerrainShapes[i], worldX, worldZ);
-            }
 
-            // === Random Noise ===
-            float noise = ((rand() % 20) / 100.0f - 0.5f) * 0.5f;
+            float noise = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
             height += noise;
 
             g_MeshVertex[index].position = { worldX, height, worldZ };
-            g_MeshVertex[index].normal = { 0.0f, 1.0f, 0.0f };
-            g_MeshVertex[index].color = { 0.0f, 1.0f, 1.0f, 1.0f };
-            g_MeshVertex[index].texcoord = { float(x), float(z) };
+            g_MeshVertex[index].color = { 1,1,1,1 };
+            g_MeshVertex[index].texcoord = { worldX * 0.1f, worldZ * 0.1f };
+        } 
+    }
+
+    // NORMALS
+    for (int z = 1; z < FIELD_MESH_V_VERTEX_COUNT - 1; ++z)
+    {
+        for (int x = 1; x < FIELD_MESH_H_VERTEX_COUNT - 1; ++x)
+        {
+            int i = x + z * FIELD_MESH_H_VERTEX_COUNT;
+            float hl = g_MeshVertex[i - 1].position.y;
+            float hr = g_MeshVertex[i + 1].position.y;
+            float hd = g_MeshVertex[i - FIELD_MESH_H_VERTEX_COUNT].position.y;
+            float hu = g_MeshVertex[i + FIELD_MESH_H_VERTEX_COUNT].position.y;
+
+            XMFLOAT3 n = { hl - hr, 2.0f, hd - hu };
+            XMStoreFloat3(&g_MeshVertex[i].normal,
+                XMVector3Normalize(XMLoadFloat3(&n)));
         }
     }
 
@@ -177,9 +237,9 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
         for (int x = 0; x < FIELD_MESH_H_COUNT; ++x)
         {
             int tl = x + z * FIELD_MESH_H_VERTEX_COUNT;
-            int tr = (x + 1) + z * FIELD_MESH_H_VERTEX_COUNT;
-            int bl = x + (z + 1) * FIELD_MESH_H_VERTEX_COUNT;
-            int br = (x + 1) + (z + 1) * FIELD_MESH_H_VERTEX_COUNT;
+            int tr = tl + 1;
+            int bl = tl + FIELD_MESH_H_VERTEX_COUNT;
+            int br = bl + 1;
 
             g_MeshIndex[k++] = tl;
             g_MeshIndex[k++] = bl;
@@ -219,8 +279,8 @@ void Mesh_Finalize()
 void Mesh_Draw(int repeatX, int repeatZ, float heightOffset, float offsetX, float offsetZ)
 {
     ShaderField_Begin();
-    Texture_SetTexture(g_Tex0Id, 0); //grass
-    Texture_SetTexture(g_Tex1Id, 1); // moutain
+    Texture_SetTexture(g_Tex0Id, 0);
+    Texture_SetTexture(g_Tex1Id, 1);
 
     UINT stride = sizeof(Vertex3d);
     UINT offset = 0;
@@ -231,20 +291,4 @@ void Mesh_Draw(int repeatX, int repeatZ, float heightOffset, float offsetX, floa
 
     ShaderField_SetWorldMatrix(XMMatrixTranslation(offsetX, heightOffset, offsetZ));
     g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
-}
-
-float Mesh_GetHeightAt(float worldX, float worldZ)
-{
-    // Convert world Å® terrain local
-    float localX = worldX - g_CollisionOffsetX;
-    float localZ = worldZ - g_CollisionOffsetZ;
-
-    float height = 0.0f;
-
-    for (int i = 0; i < g_NumShapes; ++i)
-    {
-        height += EvaluateShapeHeight(g_TerrainShapes[i], localX, localZ);
-    }
-
-    return height;
 }

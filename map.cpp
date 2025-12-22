@@ -48,13 +48,39 @@ struct GrassInstance
 
 static std::vector<GrassInstance> g_GrassInstances;
 
-// add models!
 static MapObject g_MapObjects[]{
     { FIELD,   {0.0f, 0.0f, 0.0f}, {{-25.0f, -1.0f, -25.0f}, {25.0f, 0.0f, 25.0f}} },
-    { HOUSE01, {0.0f, 1.0f, 0.0f} }
+    { HOUSE01, {-4.0f, 1.0f, 0.0f} }
 };
 
 static MODEL* g_pModelHouse01 = nullptr;
+
+void AddGrassCircle(const XMFLOAT3& center, float radius, float spacing)
+{
+    for (float x = -radius; x <= radius; x += spacing)
+    {
+        for (float z = -radius; z <= radius; z += spacing)
+        {
+            if ((x * x + z * z) > radius * radius)
+                continue;
+
+            GrassInstance g;
+            g.pos = {
+                center.x + x + RandRange(-0.15f, 0.15f),
+                center.y + RandRange(-0.03f, 0.02f),
+                center.z + z + RandRange(-0.15f, 0.15f)
+            };
+
+            g.size = {
+                RandRange(0.18f, 0.26f), // width
+                RandRange(0.22f, 0.35f)  // height
+            };
+
+            g_GrassInstances.push_back(g);
+        }
+    }
+}
+
 
 void Map_Initialize()
 {
@@ -78,7 +104,6 @@ void Map_Initialize()
     // Collision
     Mesh_SetCollisionParams(1, 2, -30.0f, -20.0f);
 
-    //to generate random grass
     srand(1); // fixed seed for stable layout
 
     XMFLOAT3 grassCenter = { -10.0f, 0.05f, -5.0f };
@@ -86,6 +111,12 @@ void Map_Initialize()
     float grassSpacing = 0.4f;
 
     g_GrassInstances.clear();
+
+    // Add several grass circles
+    AddGrassCircle({ -10.0f, 0.05f, -5.0f }, 6.0f, 0.9f);
+    AddGrassCircle({ 0.0f, 0.05f, -10.0f }, 3.0f, 0.3f);
+    AddGrassCircle({ 54.0f, 18.0f, 15.0f }, 11.0f, 0.5f);
+
 
     for (float x = -radius; x <= radius; x += grassSpacing)
     {
@@ -218,3 +249,4 @@ const MapObject* Map_GetObject(int index)
 {
     return &g_MapObjects[index];
 }
+

@@ -37,4 +37,7 @@ struct MapObject
 };
 const MapObject* Map_GetObject(int index);	
 
+void AddGrassCircle(const DirectX::XMFLOAT3& center, float radius, float spacing);
+
+
 #endif //MAP_H

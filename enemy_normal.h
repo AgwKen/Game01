@@ -20,7 +20,7 @@ class EnemyNormal : public Enemy
 {
 private:
     DirectX::XMFLOAT3 m_Position{ 0.0f, 0.0f, 0.0f };
-    float m_DetectionRadius{ 2.0f };
+    float m_DetectionRadius{ 5.0f };
     int m_Hp{ 500 };
     bool m_FacingRight{ true };
     DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 0.6f, 0.0f };

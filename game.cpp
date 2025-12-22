@@ -47,6 +47,8 @@ static int g_BGM = -1;
 static int g_WindSE = -1;
 static float g_WindTimer = 0.0f;
 static float g_NextWindTime = 0.0f;
+static float bgmDelayTimer = 0.0f;
+static bool bgmStarted = false;
 
 
 void Game_Initialize()
@@ -68,8 +70,8 @@ Trajetory3d_Initialize();
 CircleShadow_Initialize();
 
 g_BGM = LoadAudio("Sounds/bg.wav");
-PlayAudio(g_BGM, true);
-SetAudioVolume(g_BGM, 0.08f);
+//PlayAudio(g_BGM, true);
+//SetAudioVolume(g_BGM, 0.08f);
 
 g_WindSE = LoadAudio("Sounds/wind.wav");
 SetAudioVolume(g_WindSE, 0.15f);
@@ -78,7 +80,7 @@ SetAudioVolume(g_WindSE, 0.15f);
 g_NextWindTime = 5.0f + (rand() % 10);
 
 
-Enemy_Create({5.0f,1.0f,5.0f});
+Enemy_Create({6.0f,5.0f,0.0f});
 
 }
 
@@ -123,6 +125,20 @@ void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
 
+    /*
+   if (!bgmStarted)
+   {
+       bgmDelayTimer += (float)elapsed_time;
+       if (bgmDelayTimer >= 7.0f)
+       {
+           PlayAudio(g_BGM, true);
+           SetAudioVolume(g_BGM, 0.08f);
+           bgmStarted = true;
+       }
+   }
+   */
+
+
     if (KeyLogger_IsTrigger(KK_F1)) {
         g_IsDebug = !g_IsDebug;
     }
@@ -159,22 +175,30 @@ void Game_Update(double elapsed_time)
 
 
     //Bullet Collision
-    for (int j = 0; j < Map_GetObjectCount(); j++) {
-        for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
-            AABB bullet = Bullet_GetAABB(i);
-            AABB object = Map_GetObject(j)->Aabb;
+    /*
+    for (int j = 0; j < Map_GetObjectCount(); j++)
+    {
+        auto* obj = Map_GetObject(j);
+        if (!obj) continue;
 
-            if (Collision_IsOverlapAABB(bullet, object)) {
+        for (int i = Bullet_GetBulletsCount() - 1; i >= 0; i--)
+        {
+            AABB bullet = Bullet_GetAABB(i);
+            AABB object = obj->Aabb;
+
+            if (Collision_IsOverlapAABB(bullet, object))
+            {
                 BulletHitEffect_Create(Bullet_GetPosition(i));
                 Bullet_Destroy(i);
             }
         }
     }
-    
+
     for (int j = 0; j < Enemy_GetEnemyCount(); j++) {
-        for (int i = 0; i < Bullet_GetBulletsCount(); i++) {
+        for (int i = Bullet_GetBulletsCount() - 1; i >= 0; i--) {
             Sphere bullet = Bullet_GetSphere(i);
             Sphere enemy = Enemy_GetEnemy(j)->GetCollision();
+
             if (Collision_IsOverlapSphere(bullet, enemy)) {
                 BulletHitEffect_Create(Bullet_GetPosition(i));
                 Bullet_Destroy(i);
@@ -182,7 +206,7 @@ void Game_Update(double elapsed_time)
             }
         }
     }
-
+    */
     /*
     // TEST SPAWN FOG EVERY SECOND
     static float fogTimer = 0;
