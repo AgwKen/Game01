@@ -31,25 +31,15 @@ void LightCamera_SetFront(const DirectX::XMFLOAT3& front)
 	g_Front = front;
 }
 
-const DirectX::XMFLOAT4X4& LightCamera_GetViewMatrix()
+DirectX::XMMATRIX LightCamera_GetViewMatrix()
 {
-	XMFLOAT4X4 mtxView;
-
-	XMMATRIX view = XMMatrixLookToLH(XMLoadFloat3(&g_Position), XMVECTOR{ 0.0f, -1.0f, 0.0f, 0.0f }, XMLoadFloat3(&g_Front));
-
-	XMStoreFloat4x4(&mtxView, view);
-
-	return mtxView;
+	// Use your existing position and front direction
+	return XMMatrixLookToLH(XMLoadFloat3(&g_Position), XMLoadFloat3(&g_Front), XMVECTOR{ 0.0f, 1.0f, 0.0f, 0.0f });
 }
 
-const DirectX::XMFLOAT4X4& LightCamera_GetProjectionMatrix()
+DirectX::XMMATRIX LightCamera_GetProjectionMatrix()
 {
-	XMFLOAT4X4 mtxProj;
-
-	float value = 30.0f;
-	XMMATRIX proj = XMMatrixOrthographicOffCenterLH(-value, value, -value, value, 0.1f, 1000.0f);
-
-	XMStoreFloat4x4(&mtxProj, proj);
-
-	return mtxProj;
+	// Directional lights use Orthographic projection for shadows
+	float size = 30.0f;
+	return XMMatrixOrthographicLH(size, size, 0.1f, 1000.0f);
 }

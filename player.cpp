@@ -74,7 +74,6 @@ static int lastStepFrame = -1;
 static int g_SwordSE = -1;
 static bool g_SwordPlayedThisAttack = false;
 
-
 void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 {
     g_PlayerPosition = position;
@@ -508,6 +507,15 @@ void Player_Draw()
     }
 }
 
+int Player_GetAnimId()
+{
+    return animPlayerId;
+}
+
+int Player_GetIndexCount()
+{
+    return 6; // quad = 2 triangles
+}
 const XMFLOAT3& Player_GetPosition() { return g_PlayerPosition; }
 const XMFLOAT3& Player_GetFront() { return g_PlayerFront; }
 
@@ -526,3 +534,5 @@ AABB Player_ConvertPositionToAABB(const XMVECTOR& position)
     XMStoreFloat3(&aabb.max, position + XMVECTOR{ 1.0f, 2.0f, 1.0f });
     return aabb;
 }
+
+

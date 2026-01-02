@@ -151,12 +151,18 @@
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="circle_shadow.cpp" />
     <ClCompile Include="cube.cpp" />
+    <ClCompile Include="depthShader.cpp" />
     <ClCompile Include="enemy.cpp" />
+    <ClCompile Include="enemy_humanoid.cpp" />
+    <ClCompile Include="enemy_mushroom.cpp" />
     <ClCompile Include="enemy_normal.cpp" />
     <ClCompile Include="fog.cpp" />
     <ClCompile Include="grid.cpp" />
     <ClCompile Include="light.cpp" />
+    <ClCompile Include="light_camera.cpp" />
     <ClCompile Include="map.cpp" />
+    <ClCompile Include="rendertextureclass.cpp" />
+    <ClCompile Include="shadow.cpp" />
     <ClCompile Include="terrain.cpp" />
     <ClCompile Include="model.cpp" />
     <ClCompile Include="pad_logger.cpp" />
@@ -191,7 +197,10 @@
     <ClInclude Include="camera.h" />
     <ClInclude Include="circle_shadow.h" />
     <ClInclude Include="cube.h" />
+    <ClInclude Include="depthShader.h" />
     <ClInclude Include="enemy.h" />
+    <ClInclude Include="enemy_humanoid.h" />
+    <ClInclude Include="enemy_mushroom.h" />
     <ClInclude Include="enemy_normal.h" />
     <ClInclude Include="fog.h" />
     <ClInclude Include="grid.h" />
@@ -203,7 +212,10 @@
     <ClCompile Include="sprite.cpp" />
     <ClCompile Include="sprite_anim.cpp" />
     <ClInclude Include="light.h" />
+    <ClInclude Include="light_camera.h" />
     <ClInclude Include="map.h" />
+    <ClInclude Include="rendertextureclass.h" />
+    <ClInclude Include="shadow.h" />
     <ClInclude Include="terrain.h" />
     <ClInclude Include="model.h" />
     <ClInclude Include="pad_logger.h" />
@@ -243,6 +255,22 @@
     <ClInclude Include="title.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="depth_pixel.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="depth_vertex.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="shader_pixel_2d.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
@@ -298,6 +326,18 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="shader_vertex_field.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shadow_pixel.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shadow_vertex.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>

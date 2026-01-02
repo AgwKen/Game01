@@ -17,10 +17,14 @@ void Player_Finalize();
 void Player_Update(double elapsed_time);
 void Player_Draw();
 
+int Player_GetAnimId();
+int Player_GetIndexCount();
+
 const XMFLOAT3& Player_GetPosition();
 const XMFLOAT3& Player_GetFront();
 AABB Player_GetAABB();
 
 AABB Player_ConvertPositionToAABB(const XMVECTOR& position);
+
 
 #endif // PLAYER_H

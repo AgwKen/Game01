@@ -15,6 +15,7 @@
 static ID3D11SamplerState* g_pSamplerFilterPoint = nullptr;
 static ID3D11SamplerState* g_pSamplerFilterLinear = nullptr;
 static ID3D11SamplerState* g_pSamplerFilterAnisotropic = nullptr;
+static ID3D11SamplerState* g_pSamplerClamp = nullptr;
 
 static ID3D11Device* g_pDevice = nullptr;                   // ‰Šú‰»‚ÅŠO•”‚©‚çİ’è
 static ID3D11DeviceContext* g_pContext = nullptr;           // ‰Šú‰»‚ÅŠO•”‚©‚çİ’è
@@ -59,6 +60,9 @@ void Sampler_Finalize()
     SAFE_RELEASE(g_pSamplerFilterLinear);
     SAFE_RELEASE(g_pSamplerFilterPoint);
 }
+
+ID3D11SamplerState* Sampler_GetClamp() { return g_pSamplerClamp; }
+ID3D11SamplerState* Sampler_GetWrap() { return g_pSamplerFilterLinear; }
 
 void Sampler_SetFilterPoint()
 {

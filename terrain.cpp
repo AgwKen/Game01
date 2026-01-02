@@ -292,3 +292,11 @@ void Mesh_Draw(int repeatX, int repeatZ, float heightOffset, float offsetX, floa
     ShaderField_SetWorldMatrix(XMMatrixTranslation(offsetX, heightOffset, offsetZ));
     g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
 }
+
+
+
+
+
+
+
+

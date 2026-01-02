@@ -34,6 +34,10 @@
 #include "circle_shadow.h"
 #include "Audio.h"
 #include "shader3d_unlit.h"
+#include "rendertextureclass.h"
+#include "depthShader.h"
+#include  "shadow.h"
+#include "light_camera.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -50,11 +54,20 @@ static float g_NextWindTime = 0.0f;
 static float bgmDelayTimer = 0.0f;
 static bool bgmStarted = false;
 
+static RenderTextureClass* g_pRenderTexture = nullptr;
+static DepthShaderClass* g_pDepthShader = nullptr;
 
 void Game_Initialize()
 {
 InitAudio();
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
+
+// 4. Initialize Light Camera (Position the "Sun")
+// Looking from (10, 20, 10) down towards the center (0,0,0)
+XMFLOAT3 lightPos = { 10.0f, 20.0f, 10.0f };
+XMFLOAT3 lightDir = { -0.5f, -1.0f, -0.5f };
+LightCamera_Initialize(lightDir, lightPos);
+
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 Player_Initialize({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
 PadLogger_Initialize();

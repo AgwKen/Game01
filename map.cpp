@@ -23,6 +23,7 @@ using namespace DirectX;
 #include "billboard.h"
 #include "sampler.h"
 
+
 static float RandRange(float min, float max)
 {
     return min + (float)rand() / RAND_MAX * (max - min);

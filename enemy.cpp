@@ -9,6 +9,7 @@
 =========================================================================================*/
 #include "enemy.h"
 #include "enemy_normal.h"
+#include "enemy_mushroom.h"
 
 void Enemy::Update(double elapsed_time)
 {
@@ -79,7 +80,9 @@ void Enemy_Draw()
 
 void Enemy_Create(const DirectX::XMFLOAT3& position)
 {
-    g_Enemies[g_EnemyCount++] = new EnemyNormal(position);
+    //g_Enemies[g_EnemyCount++] = new EnemyNormal(position);
+    g_Enemies[g_EnemyCount++] = new EnemyMushroom(position);
+
 }
 
 int Enemy_GetEnemyCount()
