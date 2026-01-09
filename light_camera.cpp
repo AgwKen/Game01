@@ -43,3 +43,8 @@ DirectX::XMMATRIX LightCamera_GetProjectionMatrix()
 	float size = 30.0f;
 	return XMMatrixOrthographicLH(size, size, 0.1f, 1000.0f);
 }
+
+DirectX::XMFLOAT3 LightCamera_GetPosition()
+{
+	return g_Position;
+}

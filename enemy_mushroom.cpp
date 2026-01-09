@@ -28,10 +28,10 @@ EnemyMushroom::EnemyMushroom(const XMFLOAT3& position)
 
     // ---------------- IDLE ----------------
     m_AnimLeftIdlePlayId = SpriteAnim_CreatePlayer(
-        SpriteAnim_RegisterPattern(texLeftIdle, 7, 7, 0.6f, { 80,64 }, { 0,0 }, true));
+        SpriteAnim_RegisterPattern(texLeftIdle, 7, 7, 0.3f, { 80,64 }, { 0,0 }, true));
 
     m_AnimRightIdlePlayId = SpriteAnim_CreatePlayer(
-        SpriteAnim_RegisterPattern(texRightIdle, 7, 7, 0.6f, { 80,64 }, { 0,0 }, true));
+        SpriteAnim_RegisterPattern(texRightIdle, 7, 7, 0.3f, { 80,64 }, { 0,0 }, true));
 
     // ---------------- HIT ----------------
     m_AnimHitLeftPlayId = SpriteAnim_CreatePlayer(

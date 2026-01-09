@@ -38,6 +38,9 @@
 #include "depthShader.h"
 #include  "shadow.h"
 #include "light_camera.h"
+#include "coin.h"
+#include "CoinScore.h"
+
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -57,10 +60,17 @@ static bool bgmStarted = false;
 static RenderTextureClass* g_pRenderTexture = nullptr;
 static DepthShaderClass* g_pDepthShader = nullptr;
 
+//coin
+static CoinScoreUI* g_CoinUI = nullptr;
+
+
 void Game_Initialize()
 {
 InitAudio();
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
+
+// 3. Initialize the Shadow Shader (for drawing the final scene)
+Shadow_Initialize();
 
 // 4. Initialize Light Camera (Position the "Sun")
 // Looking from (10, 20, 10) down towards the center (0,0,0)
@@ -94,6 +104,11 @@ g_NextWindTime = 5.0f + (rand() % 10);
 
 
 Enemy_Create({6.0f,5.0f,0.0f});
+
+g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
+g_CoinUI->SetCoinCount(g_PlayerCoinScore);
+
+
 
 }
 
@@ -132,6 +147,9 @@ void Game_Finalize()
     PlayerCamera_Finalize();
     Camera_Finalize();
     Trajetory3d_Finalize();
+    delete g_CoinUI;
+    g_CoinUI = nullptr;
+
 }
 
 void Game_Update(double elapsed_time)
@@ -248,6 +266,52 @@ void Game_Update(double elapsed_time)
         // Next wind between 8?20 seconds
         g_NextWindTime = 8.0f + (rand() % 12);
     }
+    // Inside Game_Update in game.cpp
+
+    for (auto it = g_Coins.begin(); it != g_Coins.end(); )
+    {
+        Coin& coin = *it;
+        Coin_Update(coin, elapsed_time);
+
+        XMFLOAT3 playerPos = Player_GetPosition();
+
+        // 1. INCREASE DISTANCE: 1.0f might be too small for the visual size. 
+        // Try 1.5f or 2.0f for a better "snag" feel.
+        float collectDistance = 1.5f;
+
+        float dx = coin.position.x - playerPos.x;
+        float dy = coin.position.y - playerPos.y;
+        float dz = coin.position.z - playerPos.z;
+        float distSq = dx * dx + dy * dy + dz * dz;
+
+        if (!coin.collected && distSq < (collectDistance * collectDistance))
+        {
+            // 2. IMMEDIATE FEEDBACK: Update score and UI
+            g_PlayerCoinScore += 1;
+            if (g_CoinUI) {
+                g_CoinUI->SetCoinCount(g_PlayerCoinScore);
+            }
+
+            // 3. REMOVAL: Since you aren't playing a "collection animation," 
+            // just erase it immediately to make it feel snappy.
+            it = g_Coins.erase(it);
+            continue;
+        }
+        ++it;
+    }
+
+    // DELETE THIS BLOCK BELOW in your game.cpp:
+    // This block is redundant and causing confusion because 'collected' 
+    // is never set to true in your current logic.
+    /*
+    g_Coins.erase(
+        std::remove_if(g_Coins.begin(), g_Coins.end(),
+            [](const Coin& c) { return c.collected && c.collectTimer > 0.01f; }),
+        g_Coins.end()
+    );
+    */
+    if (g_CoinUI)
+        g_CoinUI->Update(elapsed_time);
 
 }
 
@@ -294,6 +358,12 @@ void Game_Draw()
     Bullet_Draw();
     Enemy_Draw();
     Player_Draw();
+    // --- Draw coins ---
+    for (auto& coin : g_Coins)
+    {
+        BillboardAnim_Draw(coin.animPlayId, coin.position, { 0.15f, 0.15f }, { 0.5f, 1.0f });
+    }
+
 
     // --- EFFECTS ---
     Direct3D_SetAlphaBlendState();
@@ -313,6 +383,14 @@ void Game_Draw()
     Trajetory3d_Draw();
     Direct3D_SetDepthReadOnly(false);
     Direct3D_SetDefaultBlendState();
+
+    Direct3D_SetAlphaBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    if (g_CoinUI)
+        g_CoinUI->Draw();
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
+
 
     // --- DEBUG ---
     if (g_IsDebug) {

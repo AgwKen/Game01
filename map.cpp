@@ -46,6 +46,13 @@ struct GrassInstance
     XMFLOAT3 pos;
     XMFLOAT2 size;
 };
+struct TreePlacement
+{
+    float x;
+    float z;
+    float scale;
+};
+
 
 static std::vector<GrassInstance> g_GrassInstances;
 
@@ -53,6 +60,43 @@ static MapObject g_MapObjects[]{
     { FIELD,   {0.0f, 0.0f, 0.0f}, {{-25.0f, -1.0f, -25.0f}, {25.0f, 0.0f, 25.0f}} },
     { HOUSE01, {-4.0f, 1.0f, 0.0f} }
 };
+
+static TreePlacement g_TreePlacements[] =
+{
+    // ===== EXISTING =====
+    { -5.0f, 10.0f, 1.0f },
+    {  0.0f, 20.0f, 1.0f },
+    { 10.0f, 15.0f, 1.2f },
+    { 15.0f, 25.0f, 0.9f },
+    { 20.0f, 18.0f, 1.1f },
+
+    // ===== CONTINUE =====
+    { -10.0f, 15.0f, 1.0f },
+    {  -5.0f, 25.0f, 1.1f },
+    {   0.0f, 30.0f, 1.2f },
+    {   5.0f, 25.0f, 0.95f },
+
+    {  40.0f, 30.0f, 1.1f },
+    {  50.0f, 35.0f, 1.3f },
+    {  30.0f, 10.0f, 1.0f },
+
+    {  60.0f, 25.0f, 1.2f },
+    {  50.0f, 5.0f, 1.0f },
+
+    // ===== SAFE BACK AREA (below mountains) =====
+    { -15.0f, 20.0f, 1.15f },
+    { -15.0f, 30.0f, 1.25f },
+    { -10.0f, 35.0f, 1.10f },
+
+   {   30.0f, 35.0f, 1.05f },
+    {  10.0f, 40.0f, 1.20f },
+    {  15.0f, 40.0f, 1.30f },
+
+    {  20.0f, 35.0f, 1.15f },
+    {  25.0f, 30.0f, 1.05f },
+};
+
+
 
 static MODEL* g_pModelHouse01 = nullptr;
 
@@ -82,6 +126,22 @@ void AddGrassCircle(const XMFLOAT3& center, float radius, float spacing)
     }
 }
 
+ID3D11ShaderResourceView* Map_GetTexture()
+{
+    // Looking at your terrain.cpp, g_Tex0Id is the grass texture
+    // In texture.cpp, there is no direct "Get" function, so we must add one 
+    // OR use the internal array if Map has access to it.
+    // Since Texture_SetTexture is the only way to bind, 
+    // we need to add a getter to texture.cpp first (see step 3).
+    return Texture_GetSRV(1); // We will create this name in step 3
+}
+
+int Map_GetIndexCount()
+{
+    // Looking at your terrain.cpp, NUM_INDEX is the constant used for drawing
+    // You can return this constant directly.
+    return 3 * 2 * 200 * 200; // This matches NUM_INDEX in terrain.cpp
+}
 
 void Map_Initialize()
 {
@@ -114,10 +174,11 @@ void Map_Initialize()
     g_GrassInstances.clear();
 
     // Add several grass circles
+    /*
     AddGrassCircle({ -10.0f, 0.05f, -5.0f }, 6.0f, 0.9f);
     AddGrassCircle({ 0.0f, 0.05f, -10.0f }, 3.0f, 0.3f);
     AddGrassCircle({ 54.0f, 18.0f, 15.0f }, 11.0f, 0.5f);
-
+    */
 
     for (float x = -radius; x <= radius; x += grassSpacing)
     {
@@ -190,40 +251,30 @@ void Map_Draw()
         }
     }
 
- // for trees
-    int treeCountX = 10;
-    int treeCountZ = 5;
-    float spacing = 5.0f;
+    int treeCount = sizeof(g_TreePlacements) / sizeof(g_TreePlacements[0]);
 
-    for (int x = 0; x < treeCountX; x++)
+    for (int i = 0; i < treeCount; i++)
     {
-        for (int z = 0; z < treeCountZ; z++)
-        {
-            XMFLOAT3 pos = {
-                g_TreePosition.x + x * spacing,
-                g_TreePosition.y,
-                g_TreePosition.z + z * spacing
-            };
+        const TreePlacement& tree = g_TreePlacements[i];
 
-            Sampler_SetFilterPoint();
-            BillboardAnim_Draw(g_TreePlayerId, pos, { 5.0f, 5.0f }, { 0.5f, 1.5f });
-        }
+        float x = tree.x;
+        float z = tree.z;
+
+        // stick tree to terrain
+        float y = Mesh_GetHeightAt(x, z);
+
+        XMFLOAT3 pos = { x, y, z };
+
+        Sampler_SetFilterPoint();
+
+        BillboardAnim_Draw(
+            g_TreePlayerId,
+            pos,
+            { 5.0f * tree.scale, 5.0f * tree.scale },
+            { 0.5f, 0.5f }
+        );
     }
 
-    for (int x = 0; x < treeCountX; x++)
-    {
-        for (int z = 0; z < treeCountZ; z++)
-        {
-            XMFLOAT3 pos2 = {
-                g_Tree2Position.x + x * 4.0f,
-                g_Tree2Position.y,
-                g_Tree2Position.z + z * 4.0f
-            };
-
-            Sampler_SetFilterPoint();
-            BillboardAnim_Draw(g_Tree2PlayerId, pos2, { 5.0f, 5.0f }, { 0.5f, 1.5f });
-        }
-    }
     
     Billboard_SetViewMatrix(PlayerCamera_GetViewMatrix());
     Sampler_SetFilterPoint();

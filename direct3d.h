@@ -38,5 +38,6 @@ void Direct3D_SetOffscreen();
 
 //rendering to offscreen buffer
 void Direct3D_SetOffscreenTexture(int slot);
+void Direct3D_SetRenderTarget();
 
 #endif

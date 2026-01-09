@@ -114,6 +114,7 @@ protected:
     {
     protected:
         EnemyHumanoid* m_pOwner{};
+        bool m_CoinDropped{ false };
 
     public:
         StateDeath(EnemyHumanoid* owner);

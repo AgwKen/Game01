@@ -19,8 +19,8 @@ using namespace DirectX;
 
 
 static constexpr float FIELD_MESH_SIZE = 1.0f;
-static constexpr int FIELD_MESH_H_COUNT = 200;
-static constexpr int FIELD_MESH_V_COUNT = 200;
+static constexpr int FIELD_MESH_H_COUNT = 100;
+static constexpr int FIELD_MESH_V_COUNT = 100;
 static constexpr int FIELD_MESH_H_VERTEX_COUNT = FIELD_MESH_H_COUNT + 1;
 static constexpr int FIELD_MESH_V_VERTEX_COUNT = FIELD_MESH_V_COUNT + 1;
 static constexpr int NUM_VERTEX = FIELD_MESH_H_VERTEX_COUNT * FIELD_MESH_V_VERTEX_COUNT;
@@ -59,7 +59,9 @@ enum class TerrainShapeType
     SmoothHill,
     FlatSurfaceMoutain,
     slopeMountain,
-    GradualHill
+    GradualHill,
+    Ridge,
+    RidgeHorizontal
 };
 
 struct TerrainShape
@@ -69,18 +71,28 @@ struct TerrainShape
     float z;
     float radius;
     float height;
-    float extra;
+    float extra; // length
 };
 
 static TerrainShape g_TerrainShapes[] =
 {
-    { TerrainShapeType::SmoothHill,    40.0f,  25.0f, 10.0f,  3.0f, 0.0f },
-    { TerrainShapeType::Cone,          70.0f,  10.0f, 10.0f,  5.0f, 0.0f },
-    { TerrainShapeType::FlatSurfaceMoutain, 120.0f,  90.0f, 35.0f, 14.0f, 0.0f },
-    { TerrainShapeType::slopeMountain,80.0f, 40.0f, 40.0f, 18.0f, 0.0f },
+    { TerrainShapeType::SmoothHill,    40.0f,  25.0f, 10.0f,  2.0f, 0.0f },
+    { TerrainShapeType::SmoothHill,    15.0f,  100.0f, 50.0f,  20.0f, 0.0f },
+  //  { TerrainShapeType::Cone,          70.0f,  10.0f, 10.0f,  5.0f, 0.0f },
+   // { TerrainShapeType::FlatSurfaceMoutain, 120.0f,  90.0f, 35.0f, 14.0f, 0.0f },
+   // { TerrainShapeType::slopeMountain,80.0f, 40.0f, 40.0f, 18.0f, 0.0f },
     { TerrainShapeType::GradualHill, 100.0f, 50.0f, 60.0f, 5.0f, 0.0f },// very gradual, low height
-    { TerrainShapeType::Plateau,       50.0f,  80.0f, 20.0f,  5.0f, 5.0f },
-    { TerrainShapeType::Valley,       120.0f, 200.0f, 15.0f,  4.0f, 0.0f },
+   // { TerrainShapeType::Plateau,       50.0f,  80.0f, 20.0f,  5.0f, 5.0f },
+    //{ TerrainShapeType::Valley,       120.0f, 200.0f, 15.0f,  4.0f, 0.0f },
+     { TerrainShapeType::GradualHill, 28.0f, 5.0f, 60.0f, 5.0f, 0.0f },
+    // { TerrainShapeType::Plateau,       30.0f,  80.0f, 20.0f,  5.0f, 5.0f },
+     { TerrainShapeType::Plateau,       40.0f,  70.0f, 10.0f,  5.0f, 5.0f },
+     { TerrainShapeType::Ridge,     0.0f,  90.0f, 10.0f,  10.0f, 120.0f },
+     { TerrainShapeType::Ridge,     100.0f,  90.0f, 10.0f,  10.0f, 120.0f },
+   { TerrainShapeType::RidgeHorizontal,     60.0f,  100.0f, 10.0f,  10.0f, 40.0f },
+    { TerrainShapeType::Plateau,       50.0f,  80.0f, 1.0f,  10.0f, 50.0f },
+    //  { TerrainShapeType::RidgeHorizontal,     50.0f,  0.0f, 10.0f,  10.0f, 100.0f },
+   //{ TerrainShapeType::RidgeHorizontal,     2.0f,  90.0f, 10.0f,  10.0f, 120.0f },
 };
 
 
@@ -163,6 +175,42 @@ static float EvaluateShapeHeight(const TerrainShape& shape, float worldX, float 
             }
         }
         break;
+    case TerrainShapeType::Ridge:
+    {
+        float nx = fabsf(dx) / shape.radius;  // width
+        float nz = fabsf(dz) / shape.extra;   // length
+
+        float dist = sqrtf(nx * nx + nz * nz);
+        if (dist >= 1.0f)
+            break;
+
+        float core = 0.35f;
+        if (dist < core)
+            return shape.height;
+
+        float t = (dist - core) / (1.0f - core);
+        return shape.height * (1.0f - t * t);
+    }
+    break;
+    case TerrainShapeType::RidgeHorizontal:
+    {
+        float nx = fabsf(dx) / shape.extra;   // length
+        float nz = fabsf(dz) / shape.radius;  // width
+
+        float dist = sqrtf(nx * nx + nz * nz);
+        if (dist >= 1.0f)
+            break;
+
+        float core = 0.35f;
+        if (dist < core)
+            return shape.height;
+
+        float t = (dist - core) / (1.0f - core);
+        return shape.height * (1.0f - t * t);
+    }
+    break;
+
+
     }
 
     return 0.0f;
@@ -176,14 +224,30 @@ void Mesh_SetCollisionParams(int repeatX, int repeatZ, float offsetX, float offs
     g_CollisionOffsetZ = offsetZ;
 }
 
+float Mesh_GetVertexNoise(float x, float z)
+{
+    // deterministic pseudo-random function based on position
+    return (sinf(x * 0.3f + z * 0.7f) * 0.15f + cosf(x * 0.5f - z * 0.2f) * 0.15f) * 0.5f;
+}
+
+
 float Mesh_GetHeightAt(float worldX, float worldZ)
 {
+    // Apply collision offsets
     float localX = worldX - g_CollisionOffsetX;
     float localZ = worldZ - g_CollisionOffsetZ;
 
+    // Sum the procedural shapes for collision
     float height = 0.0f;
     for (int i = 0; i < g_NumShapes; ++i)
+    {
         height += EvaluateShapeHeight(g_TerrainShapes[i], localX, localZ);
+    }
+
+    // If you want, you can add tiny deterministic noise that doesn't break slopes
+    // e.g., a simple sine-based bump:
+  // add deterministic noise that matches mesh
+    height += Mesh_GetVertexNoise(localX, localZ);
 
     return height;
 }
@@ -192,6 +256,7 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 {
     g_pDevice = pDevice;
     g_pContext = pContext;
+
 
     for (int z = 0; z < FIELD_MESH_V_VERTEX_COUNT; ++z)
     {
@@ -205,8 +270,9 @@ void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
             for (int i = 0; i < g_NumShapes; ++i)
                 height += EvaluateShapeHeight(g_TerrainShapes[i], worldX, worldZ);
 
-            float noise = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
+            float noise = Mesh_GetVertexNoise(worldX, worldZ);
             height += noise;
+
 
             g_MeshVertex[index].position = { worldX, height, worldZ };
             g_MeshVertex[index].color = { 1,1,1,1 };

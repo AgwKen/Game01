@@ -39,5 +39,8 @@ const MapObject* Map_GetObject(int index);
 
 void AddGrassCircle(const DirectX::XMFLOAT3& center, float radius, float spacing);
 
+ID3D11ShaderResourceView* Map_GetTexture();
+int Map_GetIndexCount();
+
 
 #endif //MAP_H

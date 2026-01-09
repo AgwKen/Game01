@@ -10,12 +10,17 @@
 #include "map.h"
 #include "terrain.h"
 #include <cmath>
+#include "coin.h"
+#include <vector>
+#include "texture.h"
 
 using namespace DirectX;
 
 static constexpr double HIT_COOLDOWN_TIME = 0.3;
 static constexpr float ARRIVE_DISTANCE = 1.2f;
 
+extern std::vector<Coin> g_Coins;
+extern int g_PlayerCoinScore; // top-left score
 
 // ----------------------------------------------------------------
 EnemyHumanoid::EnemyHumanoid(const XMFLOAT3& position)
@@ -295,8 +300,23 @@ void EnemyHumanoid::StateDeath::Update(double elapsed)
 {
     SpriteAnim_UpdatePlayer(m_pOwner->m_AnimDeathPlayId, elapsed);
 
-    if (SpriteAnim_IsStopped(m_pOwner->m_AnimDeathPlayId))
-        m_pOwner->ChangeState(nullptr);
+    if (!m_CoinDropped && SpriteAnim_IsStopped(m_pOwner->m_AnimDeathPlayId))
+    {
+        Coin coin;
+        coin.position = m_pOwner->m_Position;
+        coin.position.y += m_pOwner->m_VisualOffset.y; // slightly above enemy
+        coin.spawnY = coin.position.y;                 // <<< important
+        coin.timer = 0.0f;                             // <<< important
+
+        int texCoin = Texture_Load(L"Texture/coin.png");
+        int animId = SpriteAnim_RegisterPattern(texCoin, 5, 5, 0.1, { 16,16 }, { 0,0 }, true);
+        coin.animPlayId = SpriteAnim_CreatePlayer(animId);
+
+        g_Coins.push_back(coin);
+
+        m_CoinDropped = true;       // mark coin as dropped
+        m_pOwner->ChangeState(nullptr); // destroy enemy
+    }
 }
 
 void EnemyHumanoid::StateDeath::Draw() const

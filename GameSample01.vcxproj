@@ -150,6 +150,8 @@
     <ClCompile Include="bullet_hit_effect.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="circle_shadow.cpp" />
+    <ClCompile Include="coin.cpp" />
+    <ClCompile Include="coinScore.cpp" />
     <ClCompile Include="cube.cpp" />
     <ClCompile Include="depthShader.cpp" />
     <ClCompile Include="enemy.cpp" />
@@ -174,7 +176,9 @@
     <ClCompile Include="shader_billboard.cpp" />
     <ClCompile Include="shader_field.cpp" />
     <ClCompile Include="sky.cpp" />
+    <ClCompile Include="Text.cpp" />
     <ClCompile Include="trajetory3d.cpp" />
+    <ClCompile Include="UI.cpp" />
     <ClCompile Include="WICTextureLoader11.cpp" />
     <ClCompile Include="collision.cpp" />
     <ClCompile Include="debug_ostream.cpp" />
@@ -196,6 +200,8 @@
     <ClInclude Include="bullet_hit_effect.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="circle_shadow.h" />
+    <ClInclude Include="coin.h" />
+    <ClInclude Include="coinScore.h" />
     <ClInclude Include="cube.h" />
     <ClInclude Include="depthShader.h" />
     <ClInclude Include="enemy.h" />
@@ -232,7 +238,9 @@
     <ClCompile Include="system_timer.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="title.cpp" />
+    <ClInclude Include="Text.h" />
     <ClInclude Include="trajetory3d.h" />
+    <ClInclude Include="UI.h" />
     <ClInclude Include="WICTextureLoader11.h" />
   </ItemGroup>
   <ItemGroup>

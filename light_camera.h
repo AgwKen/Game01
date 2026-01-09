@@ -18,5 +18,6 @@ void LightCamera_SetFront(const DirectX::XMFLOAT3& front);
 
 DirectX::XMMATRIX LightCamera_GetViewMatrix();
 DirectX::XMMATRIX LightCamera_GetProjectionMatrix();
+DirectX::XMFLOAT3 LightCamera_GetPosition();
 
 #endif // LIGHT_CAMERA_H

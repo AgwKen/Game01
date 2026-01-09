@@ -15,6 +15,8 @@ using namespace DirectX;
 #include "key_logger.h"
 #include "pad_logger.h"
 #include "direct3d.h"
+#include <algorithm>
+
 
 // Camera State
 static XMFLOAT3 g_PlayerCameraPosition = { 0.0f, 0.0f, 0.0f };
@@ -34,14 +36,23 @@ static constexpr float CAMERA_DISTANCE = -4.0f;
 
 static constexpr float PEEK_DISTANCE = 2.0f;
 static constexpr float PEEK_SPEED = 3.0f;
-static constexpr float PEEK_RETURN_SPEED = 3.0f;
+static constexpr float PEEK_RETURN_SPEED = 0.5f;
 static constexpr float PEEK_DEADZONE = 0.2f;
 
 static constexpr float PEEK_Y_SCALE = 1.0f;   //  no more than 1
 static constexpr float PEEK_DOWN_SCALE = 0.6f; // optional
 
+static constexpr float CAMERA_FOLLOW_SPEED = 3.0f; // smaller = slower, heavier camera
+
+
 void PlayerCamera_Initialize()
 {
+    XMVECTOR playerPos = XMLoadFloat3(&Player_GetPosition());
+    XMVECTOR offset = XMVectorSet(0.0f, CAMERA_HEIGHT, CAMERA_DISTANCE, 0.0f);
+    XMVECTOR startPos = playerPos + offset;
+
+    XMStoreFloat3(&g_PlayerCameraPosition, startPos);
+
 }
 
 void PlayerCamera_Finalize()
@@ -107,11 +118,36 @@ void PlayerCamera_Update(double elapsed_time)
         0.0f
     );
 
-    XMVECTOR cameraPos = playerPos + cameraOffset;
-    XMStoreFloat3(&g_PlayerCameraPosition, cameraPos);
+    // Desired camera position (where camera wants to be)
+    XMVECTOR desiredCameraPos = playerPos + cameraOffset;
+
+    // Current camera position
+    XMVECTOR currentCameraPos = XMLoadFloat3(&g_PlayerCameraPosition);
+
+    // Smooth follow (LERP)
+    // Smooth follow (XZ only, lock Y)
+    float t = CAMERA_FOLLOW_SPEED * dt;
+    t = std::min(t, 1.0f);
+
+    XMFLOAT3 cur, des;
+    XMStoreFloat3(&cur, currentCameraPos);
+    XMStoreFloat3(&des, desiredCameraPos);
+
+    cur.x += (des.x - cur.x) * t;
+    cur.z += (des.z - cur.z) * t;
+    cur.y = des.y; // lock height
+
+    currentCameraPos = XMLoadFloat3(&cur);
 
 
-    //TARGET (PLAYER + PEEK OFFSET
+    // Store back
+// Store back
+    XMStoreFloat3(&g_PlayerCameraPosition, currentCameraPos);
+
+    // Use smoothed camera position
+    XMVECTOR cameraPos = currentCameraPos;
+
+    // TARGET (PLAYER + PEEK OFFSET)
     XMVECTOR lookTarget = playerPos +
         XMVectorSet(
             g_PeekOffset.x,
@@ -122,7 +158,6 @@ void PlayerCamera_Update(double elapsed_time)
 
     XMVECTOR front = XMVector3Normalize(lookTarget - cameraPos);
     XMStoreFloat3(&g_PlayerCameraFront, front);
-
 
     XMMATRIX view = XMMatrixLookAtLH(
         cameraPos,

@@ -351,6 +351,11 @@ void Direct3D_SetOffscreenTexture(int slot)
 	g_pDeviceContext->PSSetShaderResources(slot, 1, &g_pOffscreenShaderResourceView);
 }
 
+void Direct3D_SetRenderTarget()
+{
+	g_pDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	g_pDeviceContext->RSSetViewports(1, &g_Viewport);
+}
 void Direct3D_SetDepthWriteDisable()
 {
 	g_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilStateDepthWriteDisable, 0);
