@@ -15,7 +15,8 @@ class EnemyHumanoid : public Enemy
 protected:
     // ---------------- BASIC DATA ----------------
     DirectX::XMFLOAT3 m_Position{ 0,0,0 };
-    DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 0.6f, 0.0f };
+    DirectX::XMFLOAT3 m_VisualOffset{ 0.0f, 0.6f, 0.0f }; // Base offset
+    DirectX::XMFLOAT2 m_VisualScale{ 2.0f, 2.0f };      // Default scale for all enemies
 
     float m_DetectionRadius{ 5.0f };
     float m_WalkSpeed{ 1.5f };
@@ -25,7 +26,10 @@ protected:
     bool  m_IsDead{ false };
     bool  m_FacingRight{ true };
 
+
     double m_HitCooldown{ 0.0 };
+    double m_AttackCooldown{ 0.0 };
+    double m_NoAttackTimer{ 0.0 };
 
     // ---------------- ANIMATION PLAYERS ----------------
     int m_AnimLeftPlayId{ -1 };
@@ -37,6 +41,12 @@ protected:
     int m_AnimDeathPlayId{ -1 };
     int m_AnimHitLeftPlayId{ -1 };
     int m_AnimHitRightPlayId{ -1 };
+
+    //attack
+    int m_AnimLeftAttackPlayId{ -1 };
+    int m_AnimRightAttackPlayId{ -1 };
+
+    bool m_IsInvincible{ false }; // New flag for the attack duration
 
 protected:
     EnemyHumanoid(const DirectX::XMFLOAT3& position);
@@ -118,6 +128,17 @@ protected:
 
     public:
         StateDeath(EnemyHumanoid* owner);
+        void Update(double elapsed_time) override;
+        void Draw() const override;
+    };
+    class StateAttack : public Enemy::State
+    {
+    protected:
+        EnemyHumanoid* m_pOwner{};
+        bool m_FacingRight{};
+        bool m_HitDone{ false };
+    public:
+        StateAttack(EnemyHumanoid* owner, bool facingRight);
         void Update(double elapsed_time) override;
         void Draw() const override;
     };

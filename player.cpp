@@ -74,6 +74,19 @@ static int lastStepFrame = -1;
 static int g_SwordSE = -1;
 static bool g_SwordPlayedThisAttack = false;
 
+//getting attacked
+static int   g_PlayerHP = 100;
+static bool  g_PlayerInvincible = false;
+static double g_PlayerInvincibleTimer = 0.0;
+static bool g_IsKnockedBack = false;
+static double g_KnockbackTimer = 0.0;
+static double hitStop = 0.0;
+
+
+static int g_HealthTex = -1;
+static int g_HealthPatternId = -1;
+static int g_HealthAnimId = -1; // <--- Add this line
+
 void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 {
     g_PlayerPosition = position;
@@ -132,6 +145,19 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
     animIdleLeft = SpriteAnim_RegisterPattern(texIdleLeft, frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
     animIdleRight = SpriteAnim_RegisterPattern(texIdleRight, frameCount, hPatternMax, Idle_SecondsPerPattern, patternSize, startPos, loop);
 
+    int healthTexId = Texture_Load(L"Texture/Health-Sheet.png");
+    g_HealthPatternId = SpriteAnim_RegisterPattern(
+        healthTexId,
+        5,
+        5,
+        0.1,         // Speed comes 4th
+        { 16, 16 }, // Pattern Size comes 5th
+        { 0, 0 },    // Start Position comes 6th
+        false        // Loop comes 7th
+    );
+    g_HealthAnimId = SpriteAnim_CreatePlayer(g_HealthPatternId);
+
+
     // Start with idle facing DOWN
     animPlayerId = SpriteAnim_CreatePlayer(animIdleDown);
     animCurrent = animIdleDown;
@@ -141,6 +167,7 @@ void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 
     g_SwordSE = LoadAudio("Sounds/sword.wav");
     SetAudioVolume(g_SwordSE, 0.9f);
+
 
 }
 
@@ -491,6 +518,33 @@ void Player_Update(double elapsed_time)
     }
 
 }
+void Player_DrawHealthUI()
+{
+    if (g_HealthAnimId < 0) return;
+
+    int maxHP = 5;
+    int hp = std::max(1, std::min(g_PlayerHP / 20, maxHP));
+    int frameIndex = maxHP - hp;
+    frameIndex = std::min(frameIndex, 4);
+
+    SpriteAnim_SetFrame(g_HealthAnimId, frameIndex);
+
+    // --- Health UI size ---
+    float healthWidth = 80.0f; // Adjust based on your sprite
+    float healthHeight = 80.0f;
+
+    // --- Truly center bottom ---
+    float screenWidth = 1023.0f;
+    float screenHeight = 576.0f;
+
+    // Center horizontally
+    float posX = (screenWidth - healthWidth);
+
+    // Position at bottom with small margin
+    float posY = screenHeight - healthHeight + 400.0f; // 10px margin from bottom
+
+    SpriteAnim_Draw(g_HealthAnimId, posX, posY, healthWidth, healthHeight);
+}
 void Player_Draw()
 {
     if (animPlayerId >= 0)
@@ -501,10 +555,10 @@ void Player_Draw()
             g_PlayerPosition.y + g_VisualOffset.y,
             g_PlayerPosition.z + g_VisualOffset.z
         };
-
         BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });
         CircleShadow_Draw(g_PlayerPosition);
     }
+
 }
 
 int Player_GetAnimId()
@@ -533,6 +587,33 @@ AABB Player_ConvertPositionToAABB(const XMVECTOR& position)
     XMStoreFloat3(&aabb.min, position - XMVECTOR{ 1.0f, 0.0f, 1.0f });
     XMStoreFloat3(&aabb.max, position + XMVECTOR{ 1.0f, 2.0f, 1.0f });
     return aabb;
+}
+void Player_Damage(int damage, const XMFLOAT3& knockDir, float knockPower)
+{
+    hitStop = 0.05;
+
+    if (g_PlayerInvincible)
+        return;
+
+    g_PlayerHP -= damage;
+
+    g_PlayerInvincible = true;
+    g_PlayerInvincibleTimer = 0.6;
+
+    g_IsKnockedBack = true;
+    g_KnockbackTimer = 0.15;
+
+    float power = std::min(knockPower, 10.0f);
+
+
+    g_PlayerVelocity.x = knockDir.x * power;
+    g_PlayerVelocity.z = knockDir.z * power;
+    g_PlayerVelocity.y = power * 0.2f;
+}
+
+bool Player_IsInvincible()
+{
+    return g_PlayerInvincible;
 }
 
 

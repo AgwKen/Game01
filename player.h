@@ -25,8 +25,10 @@ const XMFLOAT3& Player_GetFront();
 AABB Player_GetAABB();
 
 AABB Player_ConvertPositionToAABB(const XMVECTOR& position);
-void Player_Damage(int damage);
-int Player_GetHp();
+void Player_Damage(int damage, const XMFLOAT3& knockDir, float knockPower);
+bool Player_IsInvincible();
+void Player_DrawHealthUI();
+
 
 
 

@@ -1,0 +1,28 @@
+[33mf73072e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: reset: moving to HEAD~1
+[33m46ecc50[m HEAD@{1}: reset: moving to HEAD~1
+[33m8a85421[m HEAD@{2}: commit: adding attack animation to the enemy
+[33m46ecc50[m HEAD@{3}: commit: testing game shadow
+[33mf73072e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{4}: commit: will try EnemyHumanoid code
+[33mca6af16[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{5}: commit: fixed the texture blend on the moutain
+[33m9b35ba7[m HEAD@{6}: reset: moving to HEAD
+[33m9b35ba7[m HEAD@{7}: commit: tested some terrain designs , new moutain theories worked collision worked
+[33m808231e[m HEAD@{8}: pull --progress --no-edit --no-stat --recurse-submodules=no origin: Merge made by the 'ort' strategy.
+[33m781e12f[m HEAD@{9}: commit: small change on bullet
+[33m8c1ada0[m HEAD@{10}: commit: fixed getting hit bug
+[33m63979dc[m HEAD@{11}: commit: adding fog particle system
+[33mdc435fe[m HEAD@{12}: commit: the death animation works correctly now,
+[33m50c22eb[m HEAD@{13}: commit: improving enemy beheviors
+[33mbd92c36[m HEAD@{14}: reset: moving to HEAD
+[33mbd92c36[m HEAD@{15}: commit: updated enemy behaviors and spawners, when player attack the enemey dies, only patrol and chase,
+[33m6dd377a[m HEAD@{16}: commit: fixed the moutain collisions
+[33mf3ad45f[m HEAD@{17}: commit: added player character (main) animations such as running and idle animaton
+[33m13280f3[m HEAD@{18}: commit: changes major updates on the map design,effects,animations, billboard animations
+[33m3467c3e[m HEAD@{19}: commit: correct collision caculation in player.cpp player_update
+[33m6500068[m HEAD@{20}: commit: made good changes for cameras , added fuction where i can switch between debug camera and player camera, using F1
+[33maebe7ad[m HEAD@{21}: commit: updated shader pixel 3D
+[33m02d4fee[m HEAD@{22}: commit: Changes on Model cpp mainly
+[33m0cf809e[m HEAD@{23}: commit: was error on model cpp,fixed version here
+[33m65c2752[m HEAD@{24}: commit: New changes on model cpp, model Draw
+[33m3e8dc68[m HEAD@{25}: commit: added new changes on model cpp, on model load
+[33me631bad[m HEAD@{26}: Branch: renamed refs/heads/master to refs/heads/main
+[33me631bad[m HEAD@{28}: commit (initial): first commit
