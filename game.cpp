@@ -40,7 +40,7 @@
 #include "light_camera.h"
 #include "coin.h"
 #include "CoinScore.h"
-
+#include "enemy_humanoid.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -103,7 +103,9 @@ SetAudioVolume(g_WindSE, 0.15f);
 g_NextWindTime = 5.0f + (rand() % 10);
 
 
-Enemy_Create({6.0f,5.0f,0.0f});
+// In Game_Initialize or wherever you spawn
+Enemy_Create(EnemyType::MUSHROOM, { 5.0f, 0.0f, 5.0f });
+Enemy_Create(EnemyType::MAGE, { -5.0f, 0.0f, -5.0f });
 
 g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
 g_CoinUI->SetCoinCount(g_PlayerCoinScore);
@@ -283,7 +285,10 @@ void Game_Update(double elapsed_time)
         float dy = coin.position.y - playerPos.y;
         float dz = coin.position.z - playerPos.z;
         float distSq = dx * dx + dy * dy + dz * dz;
-
+        if (coin.timer < 1.0f) {
+            ++it;
+            continue;
+        }
         if (!coin.collected && distSq < (collectDistance * collectDistance))
         {
             // 2. IMMEDIATE FEEDBACK: Update score and UI
@@ -358,11 +363,8 @@ void Game_Draw()
     Bullet_Draw();
     Enemy_Draw();
     Player_Draw();
-    Direct3D_SetAlphaBlendState();
-    Direct3D_SetDepthReadOnly(true);
-    Player_DrawHealthUI();
-    Direct3D_SetDepthReadOnly(false);
-    Direct3D_SetDefaultBlendState();
+    Fireball_Draw();     // Draws the actual moving fireball heads
+    Trajetory3d_Draw();  // Draws the trails and flashes
     // --- Draw coins ---
     for (auto& coin : g_Coins)
     {
@@ -377,7 +379,11 @@ void Game_Draw()
     Direct3D_SetDepthReadOnly(false);
     Direct3D_SetDefaultBlendState();
 
-
+    Direct3D_SetAlphaBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    Player_DrawHealthUI();
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
     // --- DEBUG ---
     if (g_IsDebug) {
         Camera_DebugDraw();

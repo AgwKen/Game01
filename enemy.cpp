@@ -10,6 +10,9 @@
 #include "enemy.h"
 #include "enemy_normal.h"
 #include "enemy_mushroom.h"
+#include "Mage.h"
+#include <DirectXMath.h>
+using namespace DirectX;
 
 void Enemy::Update(double elapsed_time)
 {
@@ -78,11 +81,27 @@ void Enemy_Draw()
     }
 }
 
-void Enemy_Create(const DirectX::XMFLOAT3& position)
+void Enemy_Create(EnemyType type, XMFLOAT3 position)
 {
-    //g_Enemies[g_EnemyCount++] = new EnemyNormal(position);
-    g_Enemies[g_EnemyCount++] = new EnemyMushroom(position);
+    if (g_EnemyCount >= MAX_ENEMY) return;
 
+    Enemy* pEnemy = nullptr;
+
+    switch (type)
+    {
+    case EnemyType::MUSHROOM:
+        pEnemy = new EnemyMushroom(position);
+        break;
+    case EnemyType::MAGE:
+        pEnemy = new Mage(position);
+        break;
+    }
+
+    if (pEnemy)
+    {
+        g_Enemies[g_EnemyCount] = pEnemy;
+        g_EnemyCount++;
+    }
 }
 
 int Enemy_GetEnemyCount()

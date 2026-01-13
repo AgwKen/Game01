@@ -18,10 +18,12 @@ void Trajetory3d_Update(double elapsed_time);
 void Trajetory3d_Draw();
 
 void Trajectory3d_Create(const DirectX::XMFLOAT3& position,
-    const DirectX :: XMFLOAT4 & color,
+    const DirectX::XMFLOAT4& color,
     float size,
-    double lifeTime
+    double lifeTime);
 
-);
+// Optional: make the array visible for updating from enemy
+struct Trajectory3d; // forward declaration
+extern Trajectory3d g_Trajectorys[4096];
 
-#endif //TRAJETORY3D_H
+#endif // TRAJETORY3D_H

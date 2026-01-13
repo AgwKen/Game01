@@ -17,7 +17,7 @@ void Coin_Update(Coin& coin, double elapsed)
     SpriteAnim_UpdatePlayer(coin.animPlayId, elapsed);
 
     coin.timer += (float)elapsed;
-    coin.position.y = coin.spawnY + sinf(coin.timer * 5.0f) * 0.1f;
+    coin.position.y = coin.spawnY + sinf(coin.timer * 5.0f) * 0.2f;
 }
 
 void Coin_Draw(const Coin& coin)

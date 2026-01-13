@@ -13,6 +13,7 @@
 #include "coin.h"
 #include <vector>
 #include "texture.h"
+#include "trajetory3d.h"
 
 using namespace DirectX;
 
@@ -20,12 +21,46 @@ static constexpr double HIT_COOLDOWN_TIME = 0.3;
 static constexpr float ATTACK_MOVE_SPEED = 2.0f;
 static constexpr float ATTACK_RANGE = 1.0f;
 static constexpr float ATTACK_TRIGGER_DISTANCE = 1.5f;
-static constexpr float ATTACK_HIT_DISTANCE = 0.8f;
+static constexpr float ATTACK_HIT_DISTANCE = 1.5f;
 
 
 
 extern std::vector<Coin> g_Coins;
 extern int g_PlayerCoinScore; // top-left score
+
+
+// Simple structure for the moving fireball projectile
+struct Fireball {
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT3 direction;
+    float speed;
+    float active;
+};
+
+static std::vector<Fireball> g_Fireballs;
+
+void Fireball_Update(double elapsed) {
+    for (auto& f : g_Fireballs) {
+        if (!f.active) continue;
+
+        // Move the fireball
+        f.position.x += f.direction.x * f.speed * (float)elapsed;
+        f.position.z += f.direction.z * f.speed * (float)elapsed;
+
+        // Visual: Create a particle at the current position for the trail
+        XMFLOAT4 orange = { 1.0f, 0.4f, 0.0f, 1.0f };
+        Trajectory3d_Create(f.position, orange, 0.8f, 0.5);
+
+        // Logic: Simple distance check for player hit
+        XMFLOAT3 pPos = Player_GetPosition();
+        float dx = pPos.x - f.position.x;
+        float dz = pPos.z - f.position.z;
+        if (sqrtf(dx * dx + dz * dz) < 0.5f) {
+            Player_Damage(10, f.direction, 5.0f);
+            f.active = false; // Destroy on hit
+        }
+    }
+}
 
 // ----------------------------------------------------------------
 EnemyHumanoid::EnemyHumanoid(const XMFLOAT3& position)
@@ -45,6 +80,7 @@ void EnemyHumanoid::Update(double elapsed_time)
     // ««« ADD THIS «««
     if (m_NoAttackTimer > 0.0)
         m_NoAttackTimer -= elapsed_time;
+    Fireball_Update(elapsed_time);
 
     if (GetState())
         GetState()->Update(elapsed_time);
@@ -253,6 +289,13 @@ void EnemyHumanoid::StateIdle::Update(double elapsed)
         p->m_MovingRight = !m_FacingRight;
         m_pOwner->ChangeState(p);
     }
+    // Inside EnemyHumanoid::StateIdle::Update
+    if (m_Indefinite && dist > 5.0f && dist < 16.0f && m_pOwner->m_AttackCooldown <= 0.0)
+    {
+        // If player is in "Ranged Zone", switch to shooting state
+        m_pOwner->ChangeState(new StateShoot(m_pOwner, m_FacingRight));
+        return;
+    }
 }
 
 
@@ -316,6 +359,24 @@ EnemyHumanoid::StateDeath::StateDeath(EnemyHumanoid* owner)
 {
     SpriteAnim_SetFrame(m_pOwner->m_AnimDeathPlayId, 0);
     SpriteAnim_Resume(m_pOwner->m_AnimDeathPlayId);
+
+    // DROP COIN IMMEDIATELY HERE
+    if (!m_CoinDropped)
+    {
+        Coin coin{};
+        coin.position = m_pOwner->m_Position;
+        coin.position.y += m_pOwner->m_VisualOffset.y + 0.2f;
+        coin.spawnY = coin.position.y;
+        coin.timer = 0.0f;
+        coin.collected = false;
+
+        int texCoin = Texture_Load(L"Texture/coin.png");
+        int animId = SpriteAnim_RegisterPattern(texCoin, 5, 5, 0.1, { 16,16 }, { 0,0 }, true);
+        coin.animPlayId = SpriteAnim_CreatePlayer(animId);
+
+        g_Coins.push_back(coin);
+        m_CoinDropped = true;
+    }
 }
 
 void EnemyHumanoid::StateDeath::Update(double elapsed)
@@ -362,8 +423,9 @@ void EnemyHumanoid::StateDeath::Draw() const
         { 0.5f,1 });
 }
 
+// ===================== ATTACK =====================
 EnemyHumanoid::StateAttack::StateAttack(EnemyHumanoid* owner, bool facingRight)
-    : m_pOwner(owner), m_FacingRight(facingRight), m_HitDone(false)
+    : m_pOwner(owner), m_FacingRight(facingRight)
 {
     m_pOwner->m_IsInvincible = true; // Set invincibility
     int anim = m_FacingRight ? m_pOwner->m_AnimRightAttackPlayId : m_pOwner->m_AnimLeftAttackPlayId;
@@ -371,7 +433,6 @@ EnemyHumanoid::StateAttack::StateAttack(EnemyHumanoid* owner, bool facingRight)
     SpriteAnim_SetFrame(anim, 0);
     SpriteAnim_Resume(anim);
 }
-
 
 void EnemyHumanoid::StateAttack::Update(double elapsed)
 {
@@ -382,11 +443,6 @@ void EnemyHumanoid::StateAttack::Update(double elapsed)
     SpriteAnim_UpdatePlayer(anim, elapsed);
 
     int frame = SpriteAnim_GetCurrentFrame(anim);
-
-    if (frame < 4)
-    {
-        m_HitDone = false;
-    }
 
     XMFLOAT3& enemyPos = m_pOwner->m_Position;
     XMFLOAT3 playerPos = Player_GetPosition();
@@ -423,7 +479,7 @@ void EnemyHumanoid::StateAttack::Update(double elapsed)
     // --------------------------------------------------
     if ((frame == 5 || frame == 6) && !m_HitDone)
     {
-        const float hitRange = 2.0f; // tighter = fairer
+        const float hitRange = 10.8f; // tighter = fairer
         const float hitRangeSq = hitRange * hitRange;
 
         if (distSq <= hitRangeSq && dist > 0.001f)
@@ -471,4 +527,78 @@ void EnemyHumanoid::StateAttack::Draw() const
     XMFLOAT3 pos = m_pOwner->m_Position;
     pos.y += m_pOwner->m_VisualOffset.y;
     BillboardAnim_Draw(anim, pos, { 2,2 }, { 0.5f,1 });
+}
+
+// ===================== SHOOT =====================
+EnemyHumanoid::StateShoot::StateShoot(EnemyHumanoid* owner, bool facingRight)
+    : m_pOwner(owner), m_FacingRight(facingRight), m_Cooldown(0.0)
+{
+    // If you have a specific shooting animation ID, set it here
+    int anim = m_FacingRight ? m_pOwner->m_AnimRightAttackPlayId : m_pOwner->m_AnimLeftAttackPlayId;
+    SpriteAnim_SetFrame(anim, 0);
+    SpriteAnim_Resume(anim);
+}
+
+void EnemyHumanoid::StateShoot::Update(double elapsed)
+{
+    // 1. Update the billboard animation
+    int anim = m_FacingRight ? m_pOwner->m_AnimRightAttackPlayId : m_pOwner->m_AnimLeftAttackPlayId;
+    SpriteAnim_UpdatePlayer(anim, elapsed);
+
+    XMFLOAT3 playerPos = Player_GetPosition();
+    XMFLOAT3& enemyPos = m_pOwner->m_Position;
+
+    // 2. Calculate direction to player
+    float dx = playerPos.x - enemyPos.x;
+    float dz = playerPos.z - enemyPos.z;
+    float dist = sqrtf(dx * dx + dz * dz);
+
+    m_pOwner->m_FacingRight = (dx > 0);
+
+    // 3. Spawning Logic on Frame 5
+    int frame = SpriteAnim_GetCurrentFrame(anim);
+    if (frame == 5 && m_Cooldown <= 0.0)
+    {
+        XMFLOAT3 spawnPos = enemyPos;
+        spawnPos.y += 1.0f; // Height of the hand/staff
+
+        // Add to our projectile list
+        Fireball f;
+        f.position = spawnPos;
+        f.direction = { dx / dist, 0.0f, dz / dist }; // Normalized direction
+        f.speed = 10.0f;
+        f.active = true;
+        g_Fireballs.push_back(f);
+
+        // Visual flash at the start
+        Trajectory3d_Create(spawnPos, { 1,1,1,1 }, 1.5f, 0.2);
+
+        m_Cooldown = 1.0;
+    }
+
+    // 4. Return to Idle when animation ends
+    if (SpriteAnim_IsStopped(anim))
+    {
+        m_pOwner->m_AttackCooldown = 3.0;
+        m_pOwner->ChangeState(new StateIdle(m_pOwner, m_pOwner->m_FacingRight, true));
+    }
+}
+
+void EnemyHumanoid::StateShoot::Draw() const
+{
+    int anim = m_pOwner->m_FacingRight ? m_pOwner->m_AnimRightAttackPlayId : m_pOwner->m_AnimLeftAttackPlayId;
+    XMFLOAT3 pos = m_pOwner->m_Position;
+    pos.y += m_pOwner->m_VisualOffset.y;
+
+    // Draw the humanoid performing the shoot/attack animation
+    BillboardAnim_Draw(anim, pos, m_pOwner->m_VisualScale, { 0.5f, 1 });
+}
+
+void Fireball_Draw()
+{
+    for (const auto& f : g_Fireballs) {
+        if (!f.active) continue;
+
+        Trajectory3d_Create(f.position, { 1.0f, 0.8f, 0.2f, 1.0f }, 1.2f, 0.01);
+    }
 }

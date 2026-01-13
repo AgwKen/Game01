@@ -197,6 +197,15 @@ void Player_Finalize()
 
 void Player_Update(double elapsed_time)
 {
+    if (g_PlayerInvincible)
+    {
+        g_PlayerInvincibleTimer -= elapsed_time;
+        if (g_PlayerInvincibleTimer <= 0.0)
+        {
+            g_PlayerInvincible = false;
+            g_PlayerInvincibleTimer = 0.0;
+        }
+    }
     // --- Apply knockback ---
     if (g_IsKnockedBack)
     {
@@ -543,6 +552,7 @@ void Player_Update(double elapsed_time)
             g_SwordPlayedThisAttack = true;
         }
     }
+
 
 }
 void Player_DrawHealthUI()

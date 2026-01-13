@@ -12,6 +12,10 @@
 
 #include <DirectXMath.h>
 #include "collision.h"
+enum class EnemyType {
+    MUSHROOM,
+    MAGE
+};
 
 class Enemy
 {
@@ -53,7 +57,7 @@ void Enemy_Initialize();
 void Enemy_Finalize();
 void Enemy_Update(double elapsed_time);
 void Enemy_Draw();
-void Enemy_Create(const DirectX::XMFLOAT3& position);
+void Enemy_Create(EnemyType type, DirectX::XMFLOAT3 position);
 int Enemy_GetEnemyCount();
 Enemy* Enemy_GetEnemy(int index);
 

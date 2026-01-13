@@ -162,6 +162,7 @@
     <ClCompile Include="grid.cpp" />
     <ClCompile Include="light.cpp" />
     <ClCompile Include="light_camera.cpp" />
+    <ClCompile Include="Mage.cpp" />
     <ClCompile Include="map.cpp" />
     <ClCompile Include="rendertextureclass.cpp" />
     <ClCompile Include="shadow.cpp" />
@@ -219,6 +220,7 @@
     <ClCompile Include="sprite_anim.cpp" />
     <ClInclude Include="light.h" />
     <ClInclude Include="light_camera.h" />
+    <ClInclude Include="Mage.h" />
     <ClInclude Include="map.h" />
     <ClInclude Include="rendertextureclass.h" />
     <ClInclude Include="shadow.h" />

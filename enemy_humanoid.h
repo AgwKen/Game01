@@ -10,6 +10,10 @@
 #include "collision.h"
 #include "sprite_anim.h"
 
+
+
+void Fireball_Update(double elapsed);
+
 class EnemyHumanoid : public Enemy
 {
 protected:
@@ -142,6 +146,18 @@ protected:
         void Update(double elapsed_time) override;
         void Draw() const override;
     };
-};
+    class StateShoot : public Enemy::State
+    {
+    protected:
+        EnemyHumanoid* m_pOwner{};
+        double m_Cooldown{};       // Time between shots
+        bool m_FacingRight{};
 
+    public:
+        StateShoot(EnemyHumanoid* owner, bool facingRight);
+        void Update(double elapsed_time) override;
+        void Draw() const override;
+    };
+};
+void Fireball_Draw();
 #endif // ENEMY_HUMANOID_H
