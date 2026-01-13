@@ -114,26 +114,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                 // Update last execution time
                 exec_last_time = current_time;
 
-                KeyLogger_Update(); 
-              //  Mouse_State ms{};
-              //  Mouse_GetState(&ms);
-
-                Scene_Update(elapsed_time);
-
-                SpriteAnim_Update(elapsed_time);
-                Fade_Update(elapsed_time);
-
-                
-                // Clear the screen
-                Direct3D_SetOffscreen();
-                Sprite_Begin();
-                Scene_Draw();
-
-                Direct3D_Clear();
-                Sprite_Begin();
-                Scene_Draw();
-                Fade_Draw();
-
             // Draw FPS counter
 #if defined(DEBUG) || defined(_DEBUG)
                   std::stringstream ss;
@@ -142,19 +122,26 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                   dt.Draw();
                   dt.Clear();
 #endif
+                  KeyLogger_Update();
+                  Scene_Update(elapsed_time);
+                  Scene_Refresh();
+                  SpriteAnim_Update(elapsed_time);
 
+                  Fade_Update(elapsed_time);
 
-                // Present frame
-                Direct3D_Present();
+                  // Clear screen
+                  Direct3D_Clear();
+                  Sprite_Begin();
 
-                Scene_Refresh();
+                  // Draw everything
+                  Scene_Draw();
+                  Fade_Draw();
 
-                // Increment frame count
-                frame_count++;
+                  Direct3D_Present();
+                  frame_count++;
             }
         }
     }
-
 #if defined(DEBUG) || defined(_DEBUG)
     Collision_DebugFinalize();
 #endif

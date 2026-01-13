@@ -13,5 +13,5 @@
 #include <Windows.h>
 
 HWND GameWindow_Create(HINSTANCE hInstance);
-
+HWND GameWindow_GetHandle();
 #endif //GAME_WINDOW_H

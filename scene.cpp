@@ -11,9 +11,10 @@
 #include "scene.h"
 #include "title.h"
 #include "game.h"
+#include "fade.h"
 
-//static Scene g_Scene = SCENE_TITLE;
-static Scene g_Scene = SCENE_GAME;  // starting scene change this
+static Scene g_Scene = SCENE_TITLE;
+//static Scene g_Scene = SCENE_GAME;  // starting scene change this
 static Scene g_SceneNext = g_Scene;
 
 void Scene_Initialize()
@@ -79,13 +80,15 @@ void Scene_Draw()
 void Scene_Refresh()
 {
     if (g_Scene != g_SceneNext) {
-        //present scene finalize å„ï–ïtÇØ
+        // Wait for fade-out to finish
+        if (Fade_GetState() == FADE_STATE_FINISHED_OUT) {
+            Scene_Finalize();
+            g_Scene = g_SceneNext;
+            Scene_Initialize();
 
-        //next sceneèâä˙å^
-
-        g_Scene = g_SceneNext;
-
-        Scene_Initialize();
+            // Start fade-in for new scene
+            Fade_Start(0.7, false, { 0.0f, 0.0f, 0.0f });
+        }
     }
 }
 

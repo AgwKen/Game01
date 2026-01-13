@@ -16,6 +16,7 @@ using namespace DirectX;
 
 static constexpr int TEXTURE_MAX = 1024;//texture generator
 
+
 struct Texture
 {
     std::wstring filename;

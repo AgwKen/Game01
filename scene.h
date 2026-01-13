@@ -18,12 +18,9 @@ void Scene_Refresh();
 
 enum Scene
 {
-
     SCENE_TITLE,
     SCENE_GAME,
     SCENE_RESULT,
-    SCENE_MAX
-
 };
 
 void Scene_Change(Scene scene);

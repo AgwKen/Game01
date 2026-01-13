@@ -20,6 +20,12 @@ static constexpr char TITLE[] = "Game";
 static const constexpr int SCREEN_WIDTH = 1023;  // Windowed mode size
 static const constexpr int SCREEN_HEIGHT = 576;
 
+static HWND g_hWnd = nullptr;
+
+HWND GameWindow_GetHandle()
+{
+    return g_hWnd;
+}
 
 HWND GameWindow_Create(HINSTANCE hInstance)
 {
@@ -39,45 +45,22 @@ HWND GameWindow_Create(HINSTANCE hInstance)
     int desktop_width = GetSystemMetrics(SM_CXSCREEN);
     int desktop_height = GetSystemMetrics(SM_CYSCREEN);
 
-    HWND hWnd;
-
-    // =====================================================
-    // Toggle between FULLSCREEN and WINDOWED by commenting
-    // =====================================================
-
-    // --- FULLSCREEN MODE ---
+    // --- FULLSCREEN ---
     DWORD style = WS_POPUP;  // No title bar, no borders
-     hWnd = CreateWindow(
-        WINDOW_CLASS,
-        TITLE,
-         style,
-         0,
-         0,
-         desktop_width,
-         desktop_height,
-         nullptr, nullptr, hInstance, nullptr);
-
-  //   --- WINDOWED MODE ---
-    /*
-    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-    // Standard window with borders
-    hWnd = CreateWindow(
+    g_hWnd = CreateWindow(
         WINDOW_CLASS,
         TITLE,
         style,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        SCREEN_WIDTH,
-       SCREEN_HEIGHT,
-       nullptr, nullptr, hInstance, nullptr);
-       */
+        0, 0,
+        desktop_width,
+        desktop_height,
+        nullptr, nullptr, hInstance, nullptr);
 
-    ShowWindow(hWnd, SW_SHOW);
-    SetForegroundWindow(hWnd);
-    SetFocus(hWnd);
+    ShowWindow(g_hWnd, SW_SHOW);
+    SetForegroundWindow(g_hWnd);
+    SetFocus(g_hWnd);
 
-    return hWnd;
-    
+    return g_hWnd;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

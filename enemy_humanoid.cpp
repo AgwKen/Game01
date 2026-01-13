@@ -19,7 +19,7 @@ using namespace DirectX;
 static constexpr double HIT_COOLDOWN_TIME = 0.3;
 static constexpr float ATTACK_MOVE_SPEED = 2.0f;
 static constexpr float ATTACK_RANGE = 1.0f;
-static constexpr float ATTACK_TRIGGER_DISTANCE = 0.75f;
+static constexpr float ATTACK_TRIGGER_DISTANCE = 1.0f;
 static constexpr float ATTACK_HIT_DISTANCE = 0.8f;
 
 
@@ -42,7 +42,6 @@ void EnemyHumanoid::Update(double elapsed_time)
     if (m_AttackCooldown > 0.0)
         m_AttackCooldown -= elapsed_time;
 
-    // ««« ADD THIS «««
     if (m_NoAttackTimer > 0.0)
         m_NoAttackTimer -= elapsed_time;
 
