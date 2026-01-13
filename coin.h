@@ -11,6 +11,7 @@ struct Coin
     float timer = 0.0f;      // bounce animation
     float spawnY = 0.0f;
     float collectTimer = 0.0f; // NEW: counts time after collection
+
 };
 
 

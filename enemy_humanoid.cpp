@@ -19,7 +19,7 @@ using namespace DirectX;
 static constexpr double HIT_COOLDOWN_TIME = 0.3;
 static constexpr float ATTACK_MOVE_SPEED = 2.0f;
 static constexpr float ATTACK_RANGE = 1.0f;
-static constexpr float ATTACK_TRIGGER_DISTANCE = 1.0f;
+static constexpr float ATTACK_TRIGGER_DISTANCE = 0.75f;
 static constexpr float ATTACK_HIT_DISTANCE = 0.8f;
 
 
@@ -42,6 +42,7 @@ void EnemyHumanoid::Update(double elapsed_time)
     if (m_AttackCooldown > 0.0)
         m_AttackCooldown -= elapsed_time;
 
+    // ««« ADD THIS «««
     if (m_NoAttackTimer > 0.0)
         m_NoAttackTimer -= elapsed_time;
 
@@ -319,31 +320,33 @@ EnemyHumanoid::StateDeath::StateDeath(EnemyHumanoid* owner)
 
 void EnemyHumanoid::StateDeath::Update(double elapsed)
 {
+    // Update death animation
     SpriteAnim_UpdatePlayer(m_pOwner->m_AnimDeathPlayId, elapsed);
 
-    // spawn coin once, BEFORE destroying enemy
-    if (!m_CoinDropped)
-    {
-        Coin coin{};
-        coin.position = m_pOwner->m_Position;
-        coin.position.y += m_pOwner->m_VisualOffset.y;
-        coin.spawnY = coin.position.y;
-        coin.timer = 0.0f;
-        coin.collected = false; // important
-
-        int texCoin = Texture_Load(L"Texture/coin.png");
-        int animId = SpriteAnim_RegisterPattern(texCoin, 5, 5, 0.1, { 16,16 }, { 0,0 }, true);
-        coin.animPlayId = SpriteAnim_CreatePlayer(animId);
-
-        g_Coins.push_back(coin);
-
-        m_CoinDropped = true;
-    }
-
-    // let the death animation finish first
+    // Only spawn coin and mark for destruction after animation is fully stopped
     if (SpriteAnim_IsStopped(m_pOwner->m_AnimDeathPlayId))
     {
-        m_pOwner->ChangeState(nullptr); // now safe to destroy
+        // Spawn coin **once**
+        if (!m_CoinDropped)
+        {
+            Coin coin{};
+            coin.position = m_pOwner->m_Position;
+            coin.position.y += m_pOwner->m_VisualOffset.y;
+            coin.spawnY = coin.position.y;
+            coin.timer = 0.0f;
+            coin.collected = false;
+
+            int texCoin = Texture_Load(L"Texture/coin.png");
+            int animId = SpriteAnim_RegisterPattern(texCoin, 5, 5, 0.1, { 16,16 }, { 0,0 }, true);
+            coin.animPlayId = SpriteAnim_CreatePlayer(animId);
+
+            g_Coins.push_back(coin);
+
+            m_CoinDropped = true;
+        }
+
+        // Now mark enemy state for destruction
+        m_pOwner->ChangeState(nullptr);
     }
 }
 
