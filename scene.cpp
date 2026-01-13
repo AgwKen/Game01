@@ -13,8 +13,8 @@
 #include "game.h"
 #include "fade.h"
 
-static Scene g_Scene = SCENE_TITLE;
-//static Scene g_Scene = SCENE_GAME;  // starting scene change this
+//static Scene g_Scene = SCENE_TITLE;
+static Scene g_Scene = SCENE_GAME;  // starting scene change this
 static Scene g_SceneNext = g_Scene;
 
 void Scene_Initialize()

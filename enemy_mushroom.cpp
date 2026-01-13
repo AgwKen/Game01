@@ -19,6 +19,9 @@ EnemyMushroom::EnemyMushroom(const XMFLOAT3& position)
 
     int texDeath = Texture_Load(L"sprites/mushroom/mushroom_death.png");
 
+    int texLeftAttack = Texture_Load(L"sprites/mushroom/mushroom_left_attack.png");
+    int texRightAttack = Texture_Load(L"sprites/mushroom/mushroom_right_attack.png");
+
     // ---------------- WALK ----------------
     m_AnimLeftPlayId = SpriteAnim_CreatePlayer(
         SpriteAnim_RegisterPattern(texLeftWalk, 8, 8, 0.2f, { 80,64 }, { 0,0 }, true));    
@@ -43,6 +46,13 @@ EnemyMushroom::EnemyMushroom(const XMFLOAT3& position)
     // ---------------- DEATH ----------------
     m_AnimDeathPlayId = SpriteAnim_CreatePlayer(
         SpriteAnim_RegisterPattern(texDeath, 15, 15, 0.3f, { 80,64 }, { 0,0 }, false));
+
+
+    m_AnimLeftAttackPlayId = SpriteAnim_CreatePlayer(
+        SpriteAnim_RegisterPattern(texLeftAttack, 10, 10, 0.3f, { 80,64 }, { 0,0 }, false));
+
+    m_AnimRightAttackPlayId = SpriteAnim_CreatePlayer(
+        SpriteAnim_RegisterPattern(texRightAttack, 10, 10, 0.3f, { 80,64 }, { 0,0 }, false));
 
     // ---------------- STATS ----------------
     m_Hp = 500;

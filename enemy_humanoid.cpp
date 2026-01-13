@@ -19,7 +19,7 @@ using namespace DirectX;
 static constexpr double HIT_COOLDOWN_TIME = 0.3;
 static constexpr float ATTACK_MOVE_SPEED = 2.0f;
 static constexpr float ATTACK_RANGE = 1.0f;
-static constexpr float ATTACK_TRIGGER_DISTANCE = 0.75f;
+static constexpr float ATTACK_TRIGGER_DISTANCE = 1.5f;
 static constexpr float ATTACK_HIT_DISTANCE = 0.8f;
 
 
@@ -362,9 +362,8 @@ void EnemyHumanoid::StateDeath::Draw() const
         { 0.5f,1 });
 }
 
-// ===================== ATTACK =====================
 EnemyHumanoid::StateAttack::StateAttack(EnemyHumanoid* owner, bool facingRight)
-    : m_pOwner(owner), m_FacingRight(facingRight)
+    : m_pOwner(owner), m_FacingRight(facingRight), m_HitDone(false)
 {
     m_pOwner->m_IsInvincible = true; // Set invincibility
     int anim = m_FacingRight ? m_pOwner->m_AnimRightAttackPlayId : m_pOwner->m_AnimLeftAttackPlayId;
@@ -372,6 +371,7 @@ EnemyHumanoid::StateAttack::StateAttack(EnemyHumanoid* owner, bool facingRight)
     SpriteAnim_SetFrame(anim, 0);
     SpriteAnim_Resume(anim);
 }
+
 
 void EnemyHumanoid::StateAttack::Update(double elapsed)
 {
@@ -382,6 +382,11 @@ void EnemyHumanoid::StateAttack::Update(double elapsed)
     SpriteAnim_UpdatePlayer(anim, elapsed);
 
     int frame = SpriteAnim_GetCurrentFrame(anim);
+
+    if (frame < 4)
+    {
+        m_HitDone = false;
+    }
 
     XMFLOAT3& enemyPos = m_pOwner->m_Position;
     XMFLOAT3 playerPos = Player_GetPosition();
@@ -418,7 +423,7 @@ void EnemyHumanoid::StateAttack::Update(double elapsed)
     // --------------------------------------------------
     if ((frame == 5 || frame == 6) && !m_HitDone)
     {
-        const float hitRange = 0.8f; // tighter = fairer
+        const float hitRange = 2.0f; // tighter = fairer
         const float hitRangeSq = hitRange * hitRange;
 
         if (distSq <= hitRangeSq && dist > 0.001f)

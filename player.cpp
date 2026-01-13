@@ -77,7 +77,7 @@ static bool g_SwordPlayedThisAttack = false;
 //getting attacked
 static int   g_PlayerHP = 100;
 static bool  g_PlayerInvincible = false;
-static double g_PlayerInvincibleTimer = 0.0;
+static double g_PlayerInvincibleTimer = 0.1;
 static bool g_IsKnockedBack = false;
 static double g_KnockbackTimer = 0.0;
 static double hitStop = 0.0;
@@ -85,7 +85,7 @@ static double hitStop = 0.0;
 
 static int g_HealthTex = -1;
 static int g_HealthPatternId = -1;
-static int g_HealthAnimId = -1; // <--- Add this line
+static int g_HealthAnimId = -1;
 
 void Player_Initialize(const XMFLOAT3& position, const XMFLOAT3& front)
 {
@@ -197,6 +197,33 @@ void Player_Finalize()
 
 void Player_Update(double elapsed_time)
 {
+    // --- Apply knockback ---
+    if (g_IsKnockedBack)
+    {
+        g_KnockbackTimer -= elapsed_time;
+        if (g_KnockbackTimer <= 0.0)
+        {
+            g_IsKnockedBack = false;
+        }
+        else
+        {
+            // Directly apply velocity during knockback
+            XMVECTOR kbVel = XMLoadFloat3(&g_PlayerVelocity);
+            XMVECTOR pos = XMLoadFloat3(&g_PlayerPosition);
+
+            pos += kbVel * (float)elapsed_time;
+            XMStoreFloat3(&g_PlayerPosition, pos);
+
+            // Apply slight damping so knockback slows naturally
+            g_PlayerVelocity.x *= 0.95f;
+            g_PlayerVelocity.z *= 0.95f;
+            g_PlayerVelocity.y -= 9.8f * 15.0f * (float)elapsed_time; // gravity
+
+            // Skip normal input movement while in knockback
+            return;
+        }
+    }
+
     XMVECTOR old_position = XMLoadFloat3(&g_PlayerPosition);
     XMVECTOR velocity = XMLoadFloat3(&g_PlayerVelocity);
     AABB old_player_aabb = Player_GetAABB();
@@ -530,21 +557,19 @@ void Player_DrawHealthUI()
     SpriteAnim_SetFrame(g_HealthAnimId, frameIndex);
 
     // --- Health UI size ---
-    float healthWidth = 80.0f; // Adjust based on your sprite
+    float healthWidth = 80.0f;
     float healthHeight = 80.0f;
 
-    // --- Truly center bottom ---
-    float screenWidth = 1023.0f;
-    float screenHeight = 576.0f;
+    // --- Center bottom of screen ---
+    float screenWidth = 150.0f; // changed to 1024 for clarity
+    float screenHeight = 120.0f;
 
-    // Center horizontally
-    float posX = (screenWidth - healthWidth);
-
-    // Position at bottom with small margin
-    float posY = screenHeight - healthHeight + 400.0f; // 10px margin from bottom
+    float posX = (screenWidth - healthWidth) * 0.5f; // center horizontally
+    float posY = screenHeight - healthHeight - 10.0f; // bottom with 10px margin
 
     SpriteAnim_Draw(g_HealthAnimId, posX, posY, healthWidth, healthHeight);
 }
+
 void Player_Draw()
 {
     if (animPlayerId >= 0)
@@ -558,7 +583,6 @@ void Player_Draw()
         BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });
         CircleShadow_Draw(g_PlayerPosition);
     }
-
 }
 
 int Player_GetAnimId()

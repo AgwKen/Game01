@@ -17,7 +17,7 @@ CoinScoreUI::CoinScoreUI(
         L"consolab_ascii_512.png",
         screenWidth,
         screenHeight,
-        68.0f, 20.0f,   // number position (right of coin)
+        120.0f, 160.0f,   // number position (right of coin)
         1, 8,
         20.0f, 16.0f
     );
@@ -66,7 +66,7 @@ void CoinScoreUI::Draw()
     // draw animated coin icon
     SpriteAnim_Draw(
         m_CoinAnimPlay,
-        12.0f, 12.0f,   // screen position
+        50.0f, 150.0f,   // screen position
         48.0f, 48.0f    // size
     );
 

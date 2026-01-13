@@ -358,31 +358,17 @@ void Game_Draw()
     Bullet_Draw();
     Enemy_Draw();
     Player_Draw();
+    Direct3D_SetAlphaBlendState();
+    Direct3D_SetDepthReadOnly(true);
+    Player_DrawHealthUI();
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
     // --- Draw coins ---
     for (auto& coin : g_Coins)
     {
         BillboardAnim_Draw(coin.animPlayId, coin.position, { 0.15f, 0.15f }, { 0.5f, 1.0f });
     }
 
-
-    // --- EFFECTS ---
-    Direct3D_SetAlphaBlendState();
-    Direct3D_SetDepthReadOnly(true);
-    //Fog_Draw();
-    Direct3D_SetDepthReadOnly(false);
-    Direct3D_SetDefaultBlendState();
-
-    Direct3D_SetAlphaBlendState();
-    Direct3D_SetDepthReadOnly(true);
-    BulletHitEffect_Draw();
-    Direct3D_SetDepthReadOnly(false);
-    Direct3D_SetDefaultBlendState();
-
-    Direct3D_SetSubtractiveBlendState();
-    Direct3D_SetDepthReadOnly(true);
-    Trajetory3d_Draw();
-    Direct3D_SetDepthReadOnly(false);
-    Direct3D_SetDefaultBlendState();
 
     Direct3D_SetAlphaBlendState();
     Direct3D_SetDepthReadOnly(true);
