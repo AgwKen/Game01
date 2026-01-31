@@ -46,7 +46,7 @@ HWND GameWindow_Create(HINSTANCE hInstance)
     int desktop_height = GetSystemMetrics(SM_CYSCREEN);
 
     // --- FULLSCREEN ---
-    DWORD style = WS_POPUP;  // No title bar, no borders
+    DWORD style = WS_POPUP;
     g_hWnd = CreateWindow(
         WINDOW_CLASS,
         TITLE,

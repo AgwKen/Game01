@@ -78,6 +78,16 @@ void Fade_Start(double time, bool isFadeOut, DirectX::XMFLOAT3 color)
     g_Alpha = isFadeOut ? 0.0f : 1.0f;
 }
 
+void Fade_Reset()
+{
+    g_FadeTime = 0.0f;
+    g_FadeStartTime = 0.0f;
+    g_AccumulatedTime = 0.0f;
+    g_Color = { 0.0f, 0.0f, 0.0f };
+    g_Alpha = 0.0f;
+    g_State = FADE_STATE_NONE;
+}
+
 FadeState Fade_GetState()
 {
     return g_State;

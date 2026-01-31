@@ -52,8 +52,11 @@ static D3D11_VIEWPORT g_OffscreenViewport{};
 static bool configureOffscreenBuffer();
 static void releaseOffscreenBuffer();
 
+static HWND g_hWnd = NULL;
+
 bool Direct3D_Initialize(HWND hWnd)
 {
+	g_hWnd = hWnd;
 	/* デバイス、スワップチェーン、コンテキスト生成 */
 	DXGI_SWAP_CHAIN_DESC swap_chain_desc{};
 	swap_chain_desc.Windowed = TRUE;
@@ -355,6 +358,10 @@ void Direct3D_SetRenderTarget()
 {
 	g_pDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 	g_pDeviceContext->RSSetViewports(1, &g_Viewport);
+}
+HWND Direct3D_GetWindowHandle()
+{
+	return g_hWnd;
 }
 void Direct3D_SetDepthWriteDisable()
 {

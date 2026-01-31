@@ -126,8 +126,14 @@ unsigned int Texture_Height(int texid)
 
     return g_Textures[texid].height;
 }
-ID3D11ShaderResourceView* Texture_GetSRV(int texid)
+ID3D11ShaderResourceView* Texture_Get(int texid)
 {
     if (texid < 0 || texid >= TEXTURE_MAX) return nullptr;
     return g_Textures[texid].pTextureView;
+}
+
+ID3D11ShaderResourceView* Texture_GetSRV(int id)
+{
+    if (id < 0) return nullptr;
+    return Texture_Get(id);
 }

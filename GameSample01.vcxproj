@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="..\GameSample\mouse.cpp" />
     <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="BallPlayer.cpp" />
     <ClCompile Include="billboard.cpp" />
     <ClCompile Include="bullet.cpp" />
     <ClCompile Include="bullet_hit_effect.cpp" />
@@ -154,6 +155,7 @@
     <ClCompile Include="coinScore.cpp" />
     <ClCompile Include="cube.cpp" />
     <ClCompile Include="depthShader.cpp" />
+    <ClCompile Include="EasingTest.cpp" />
     <ClCompile Include="enemy.cpp" />
     <ClCompile Include="enemy_humanoid.cpp" />
     <ClCompile Include="enemy_mushroom.cpp" />
@@ -165,6 +167,7 @@
     <ClCompile Include="Mage.cpp" />
     <ClCompile Include="map.cpp" />
     <ClCompile Include="rendertextureclass.cpp" />
+    <ClCompile Include="Result.cpp" />
     <ClCompile Include="shadow.cpp" />
     <ClCompile Include="terrain.cpp" />
     <ClCompile Include="model.cpp" />
@@ -196,6 +199,7 @@
     </ClCompile>
     <ClInclude Include="..\..\Users\pyaes\Downloads\モデル描画_学生配布用\モデル描画_学生配布用\Assimp\assimp\anim.h" />
     <ClInclude Include="..\GameSample\mouse.h" />
+    <ClInclude Include="BallPlayer.h" />
     <ClInclude Include="billboard.h" />
     <ClInclude Include="bullet.h" />
     <ClInclude Include="bullet_hit_effect.h" />
@@ -205,6 +209,7 @@
     <ClInclude Include="coinScore.h" />
     <ClInclude Include="cube.h" />
     <ClInclude Include="depthShader.h" />
+    <ClInclude Include="EasingTest.h" />
     <ClInclude Include="enemy.h" />
     <ClInclude Include="enemy_humanoid.h" />
     <ClInclude Include="enemy_mushroom.h" />
@@ -223,6 +228,7 @@
     <ClInclude Include="Mage.h" />
     <ClInclude Include="map.h" />
     <ClInclude Include="rendertextureclass.h" />
+    <ClInclude Include="Result.h" />
     <ClInclude Include="shadow.h" />
     <ClInclude Include="terrain.h" />
     <ClInclude Include="model.h" />

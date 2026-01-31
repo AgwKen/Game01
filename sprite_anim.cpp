@@ -272,3 +272,17 @@ int SpriteAnim_GetCurrentFrame(int playid)
     return g_AnimPlay[playid].m_PatternNum;
 }
 
+ID3D11ShaderResourceView* SpriteAnim_GetTexture(int playid)
+{
+    if (playid < 0 || playid >= ANIM_PLAY_MAX) return nullptr;
+
+    int patternId = g_AnimPlay[playid].m_PatternId;
+    if (patternId < 0) return nullptr;
+
+    // We get the integer ID from our pattern data
+    int textureId = g_AnimPattern[patternId].m_TextureId;
+
+    // Then we convert that integer ID into a real DirectX pointer
+    // Note: This assumes your texture.h has a Texture_Get function
+    return Texture_Get(textureId);
+}

@@ -18,6 +18,7 @@ void Texture_SetTexture(int texid, int slot = 0);
 unsigned int Texture_Width(int texid);
 unsigned int Texture_Height(int texid);
 
-ID3D11ShaderResourceView* Texture_GetSRV(int texid);
+ID3D11ShaderResourceView* Texture_Get(int texid);
+ID3D11ShaderResourceView* Texture_GetSRV(int id);
 
 #endif // TEXTURE_H

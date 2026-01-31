@@ -35,6 +35,9 @@ protected:
     double m_AttackCooldown{ 0.0 };
     double m_NoAttackTimer{ 0.0 };
 
+    double m_PreAttackTimer = 0.0; // New: delay before attacking
+
+
     // ---------------- ANIMATION PLAYERS ----------------
     int m_AnimLeftPlayId{ -1 };
     int m_AnimRightPlayId{ -1 };

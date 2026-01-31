@@ -10,12 +10,11 @@
 #include "player_camera.h"
 #include <DirectXMath.h>
 using namespace DirectX;
-
-#include "player.h"
 #include "key_logger.h"
 #include "pad_logger.h"
 #include "direct3d.h"
 #include <algorithm>
+#include "BallPlayer.h"
 
 
 // Camera State
@@ -47,12 +46,13 @@ static constexpr float CAMERA_FOLLOW_SPEED = 3.0f; // smaller = slower, heavier 
 
 void PlayerCamera_Initialize()
 {
-    XMVECTOR playerPos = XMLoadFloat3(&Player_GetPosition());
+    XMFLOAT3 playerPosFloat = BallPlayer_GetPosition();
+    XMVECTOR playerPos = XMLoadFloat3(&playerPosFloat);
+
     XMVECTOR offset = XMVectorSet(0.0f, CAMERA_HEIGHT, CAMERA_DISTANCE, 0.0f);
     XMVECTOR startPos = playerPos + offset;
 
     XMStoreFloat3(&g_PlayerCameraPosition, startPos);
-
 }
 
 void PlayerCamera_Finalize()
@@ -109,7 +109,8 @@ void PlayerCamera_Update(double elapsed_time)
 
 
     //CAMERA POSITION (FOLLOW PLAYER
-    XMVECTOR playerPos = XMLoadFloat3(&Player_GetPosition());
+    XMFLOAT3 playerPosFloat = BallPlayer_GetPosition();
+    XMVECTOR playerPos = XMLoadFloat3(&playerPosFloat);
 
     XMVECTOR cameraOffset = XMVectorSet(
         0.0f,

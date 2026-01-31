@@ -9,6 +9,7 @@
 #ifndef SPRITE_ANIM_H
 #define	SPRITE_ANIM_H
 #include <DirectXMath.h>
+#include <d3d11.h>
 
 void SpriteAnim_Initialize();
 void SpriteAnim_Finalize();
@@ -34,5 +35,7 @@ void SpriteAnim_SetFrame(int playid, int frameIndex);
 void SpriteAnim_Resume(int playid);
 void SpriteAnim_Pause(int playid);
 int SpriteAnim_GetCurrentFrame(int playid);
+
+ID3D11ShaderResourceView* SpriteAnim_GetTexture(int playid);
 
 #endif //SPRITE_ANIM_H

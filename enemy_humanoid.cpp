@@ -24,7 +24,6 @@ static constexpr float ATTACK_TRIGGER_DISTANCE = 1.5f;
 static constexpr float ATTACK_HIT_DISTANCE = 1.5f;
 
 
-
 extern std::vector<Coin> g_Coins;
 extern int g_PlayerCoinScore; // top-left score
 
@@ -77,7 +76,6 @@ void EnemyHumanoid::Update(double elapsed_time)
     if (m_AttackCooldown > 0.0)
         m_AttackCooldown -= elapsed_time;
 
-    // ««« ADD THIS «««
     if (m_NoAttackTimer > 0.0)
         m_NoAttackTimer -= elapsed_time;
     Fireball_Update(elapsed_time);
@@ -95,7 +93,7 @@ void EnemyHumanoid::Damage(int damage)
     m_HitCooldown = HIT_COOLDOWN_TIME;
     m_Hp -= damage;
 
-    m_NoAttackTimer = 1.0; // enemy cannot attack for 1 second after being hit
+    m_NoAttackTimer = 0.5; // enemy cannot attack for 1 second after being hit
 
     if (m_Hp <= 0)
     {
@@ -144,7 +142,7 @@ void EnemyHumanoid::StatePatrol::Update(double elapsed)
     m_pOwner->m_Position.x += (m_MovingRight ? speed : -speed) * (float)elapsed;
     m_pOwner->m_FacingRight = m_MovingRight;
 
-    if (fabs(m_pOwner->m_Position.x - m_StartX) > 6.0f)
+    if (fabs(m_pOwner->m_Position.x - m_StartX) > 1.0f)
         m_pOwner->ChangeState(new StateIdle(m_pOwner, m_MovingRight, false));
 
     m_pOwner->m_Position.y =
@@ -252,7 +250,6 @@ void EnemyHumanoid::StateIdle::Update(double elapsed)
     float dz = player.z - pos.z;
     float dist = sqrtf(dx * dx + dz * dz);
 
-    // 2. Face the player
     m_FacingRight = dx > 0;
 
     if (m_Indefinite &&
@@ -260,10 +257,25 @@ void EnemyHumanoid::StateIdle::Update(double elapsed)
         m_pOwner->m_AttackCooldown <= 0.0 &&
         m_pOwner->m_NoAttackTimer <= 0.0)
     {
-        m_pOwner->ChangeState(new StateAttack(m_pOwner, m_FacingRight));
-        return;
-    }
+        // Start the pre-attack timer if it's not already running
+        if (m_pOwner->m_PreAttackTimer <= 0.0)
+            m_pOwner->m_PreAttackTimer = 2.0; // 3 seconds delay
 
+        // Countdown the timer
+        m_pOwner->m_PreAttackTimer -= (float)elapsed;
+
+        // Only attack when timer finishes
+        if (m_pOwner->m_PreAttackTimer <= 0.0)
+        {
+            m_pOwner->ChangeState(new StateAttack(m_pOwner, m_FacingRight));
+            return;
+        }
+    }
+    else
+    {
+        // Reset the timer if player leaves the range
+        m_pOwner->m_PreAttackTimer = 0.0;
+    }
 
     // If player moves away ¨ chase again
     if (m_Indefinite && dist > ATTACK_TRIGGER_DISTANCE &&

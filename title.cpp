@@ -46,14 +46,20 @@ const float QUIT_OFFSET_Y = -40.0f; // adjust up/down
 
 static int g_BackgroundTexId = -1;
 
+static int g_TitleTexId = -1;
+
+
 
 void Title_Initialize() {
+
     g_BeachTexId = Texture_Load(L"Texture/animated-menu.png");
     g_ButtonTexId = Texture_Load(L"Texture/beach-menu-assets.png");
     g_BGFrameTexId = Texture_Load(L"Texture/BGframe.png");
     g_StartQuitTexId = Texture_Load(L"Texture/StartQuit.png");
     g_HoverBoxTexId = Texture_Load(L"Texture/button.png");
     g_BackgroundTexId = Texture_Load(L"Texture/BG.png");
+    g_TitleTexId = Texture_Load(L"Texture/title.png");
+
 
     g_BeachPatternId = SpriteAnim_RegisterPattern(
         g_BeachTexId, 9, 9, 0.2,
@@ -61,6 +67,8 @@ void Title_Initialize() {
     );
 
     g_BeachPlayerId = SpriteAnim_CreatePlayer(g_BeachPatternId);
+
+    Fade_Reset();
 }
 
 void Title_Finalize() 
@@ -87,11 +95,17 @@ void Title_Update(double elapsed_time)
         mouse.y > QUIT_Y && mouse.y < QUIT_Y + BTN_H;
 
     if (g_HoverStart && mouse.leftButton) {
-        if (Fade_GetState() == FADE_STATE_NONE) {
+        FadeState state = Fade_GetState();
+        if (state == FADE_STATE_NONE ||
+            state == FADE_STATE_FINISHED_IN ||
+            state == FADE_STATE_FINISHED_OUT)
+        {
             Fade_Start(0.7, true, { 0.0f, 0.0f, 0.0f });
             Scene_Change(SCENE_GAME);
         }
     }
+
+
 
 
     // Click QUIT
@@ -103,22 +117,31 @@ void Title_Draw()
 {
     Sampler_SetFilterPoint();
 
-    //Actually window size for background picture
+    // Get actual window size
     RECT rc;
     GetClientRect(GameWindow_GetHandle(), &rc);
     int winWidth = rc.right - rc.left;
     int winHeight = rc.bottom - rc.top;
 
-    int bgW = Texture_Width(g_BackgroundTexId);
-    int bgH = Texture_Height(g_BackgroundTexId);
-
-    // Draw full-screen background with correct UV
+    // --- 1. Draw full-screen background ---
     Sprite_Draw(g_BackgroundTexId, 0, 0, (float)winWidth, (float)winHeight);
 
+    // --- 2. Draw title at top center ---
+    int titleW = Texture_Width(g_TitleTexId);
+    int titleH = Texture_Height(g_TitleTexId);
+
+    // Optional: scale title based on window width
+    float titleScale = 1.0f; // adjust this if needed
+    float drawX = (winWidth - titleW * titleScale) / 2.0f;
+    float drawY = 50.0f; // distance from top
+
+    Sprite_Draw(g_TitleTexId, drawX, drawY, titleW * titleScale, titleH * titleScale);
+
+    // --- 3. Draw animated beach character and frame ---
     SpriteAnim_Draw(g_BeachPlayerId, 420, 160, 480, 480);
     Sprite_Draw(g_BGFrameTexId, 420, 160, 480, 480);
 
-    //for buttons
+    // --- 4. Draw buttons ---
     int texW = Texture_Width(g_StartQuitTexId);
     int texH = Texture_Height(g_StartQuitTexId);
     int cellW = texW / 2;
@@ -142,28 +165,26 @@ void Title_Draw()
         cellW, cellH
     );
 
+    // --- 5. Draw hover boxes ---
     const float BOX_SCALE = 1.3f;
 
-    // --- START Button Hover Box ---
+    // START hover box
     if (g_HoverStart) {
         float boxW = BTN_W * BOX_SCALE;
         float boxH = BTN_H * BOX_SCALE;
         float boxX = START_X + (BTN_W - boxW) / 2.0f + HOVER_OFFSET_X;
         float boxY = START_Y + (BTN_H - boxH) / 2.0f + HOVER_OFFSET_Y;
-
         Sprite_Draw(g_HoverBoxTexId, boxX, boxY, boxW, boxH);
     }
 
-    // --- QUIT Button Hover Box ---
+    // QUIT hover box
     if (g_HoverQuit) {
         float boxW = BTN_W * BOX_SCALE;
         float boxH = BTN_H * BOX_SCALE;
         float boxX = QUIT_X + (BTN_W - boxW) / 2.0f + QUIT_OFFSET_X;
         float boxY = QUIT_Y + (BTN_H - boxH) / 2.0f + QUIT_OFFSET_Y;
-
         Sprite_Draw(g_HoverBoxTexId, boxX, boxY, boxW, boxH);
     }
 
     Sampler_SetFilterLinear();
 }
-

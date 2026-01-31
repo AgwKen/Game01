@@ -80,7 +80,7 @@ float4 main(PS_IN pi) : SV_Target
 
     float lim = 1.0f - max(dot(normalW.xyz, toEye), 0.0f);
     lim = pow(lim, 3.2f);
-    // color += float3(lim, lim, lim);
+   //color += float3(lim, lim, lim);
 
     for (int i = 0; i < point_light_count; i++)
     {

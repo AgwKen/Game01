@@ -133,7 +133,7 @@ ID3D11ShaderResourceView* Map_GetTexture()
     // OR use the internal array if Map has access to it.
     // Since Texture_SetTexture is the only way to bind, 
     // we need to add a getter to texture.cpp first (see step 3).
-    return Texture_GetSRV(1); // We will create this name in step 3
+    return Texture_Get(1); // We will create this name in step 3
 }
 
 int Map_GetIndexCount()
@@ -157,7 +157,7 @@ void Map_Initialize()
     g_Tree2PlayerId = SpriteAnim_CreatePlayer(g_Tree2_animPatternId);
 
     // House
-    g_pModelHouse01 = ModelLoad("Resources/Model/house3.fbx", 0.005f);
+    g_pModelHouse01 = ModelLoad("Resources/Model/sphere_big.fbx", 0.1f);
 
     // Grass
     g_GrassTexId = Texture_Load(L"Texture/TallGrass.png");

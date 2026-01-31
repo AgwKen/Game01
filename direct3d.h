@@ -40,4 +40,6 @@ void Direct3D_SetOffscreen();
 void Direct3D_SetOffscreenTexture(int slot);
 void Direct3D_SetRenderTarget();
 
+HWND Direct3D_GetWindowHandle();
+
 #endif

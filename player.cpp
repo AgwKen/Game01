@@ -580,6 +580,29 @@ void Player_DrawHealthUI()
     SpriteAnim_Draw(g_HealthAnimId, posX, posY, healthWidth, healthHeight);
 }
 
+// Returns the world transformation matrix for the player sprite
+XMMATRIX Player_GetWorldMatrix()
+{
+    // Uses the position and visual offset already defined in your player.cpp
+    XMMATRIX translation = XMMatrixTranslation(
+        g_PlayerPosition.x + g_VisualOffset.x,
+        g_PlayerPosition.y + g_VisualOffset.y,
+        g_PlayerPosition.z + g_VisualOffset.z
+    );
+
+    // Scaling matches the 1.5f size you use in Player_Draw
+    XMMATRIX scaling = XMMatrixScaling(1.5f, 1.5f, 1.0f);
+
+    return scaling * translation;
+}
+
+// Returns the current texture from the animation system
+ID3D11ShaderResourceView* Player_GetTexture()
+{
+    // Uses the animPlayerId defined in your player.cpp
+    return SpriteAnim_GetTexture(animPlayerId);
+}
+
 void Player_Draw()
 {
     if (animPlayerId >= 0)

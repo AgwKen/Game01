@@ -12,6 +12,8 @@
 #include "title.h"
 #include "game.h"
 #include "fade.h"
+#include "result.h"
+
 
 //static Scene g_Scene = SCENE_TITLE;
 static Scene g_Scene = SCENE_GAME;  // starting scene change this
@@ -28,6 +30,7 @@ void Scene_Initialize()
         Game_Initialize();
         break;
     case SCENE_RESULT:
+        Result_Initialize();   // <-- call initialize
         break;
     }
 }
@@ -43,11 +46,12 @@ void Scene_Finalize()
         Game_Finalize();
         break;
     case SCENE_RESULT:
+        Result_Finalize();
         break;
     }
 }
 
-void Scene_Update(double elapsed_time) // increase switch case if u have more scene
+void Scene_Update(double elapsed_time)
 {
     switch (g_Scene)
     {
@@ -58,6 +62,7 @@ void Scene_Update(double elapsed_time) // increase switch case if u have more sc
         Game_Update(elapsed_time);
         break;
     case SCENE_RESULT:
+        Result_Update(elapsed_time);
         break;
     }
 }
@@ -73,6 +78,7 @@ void Scene_Draw()
         Game_Draw();
         break;
     case SCENE_RESULT:
+        Result_Draw();
         break;
     }
 }
@@ -80,15 +86,11 @@ void Scene_Draw()
 void Scene_Refresh()
 {
     if (g_Scene != g_SceneNext) {
-        // Wait for fade-out to finish
-        if (Fade_GetState() == FADE_STATE_FINISHED_OUT) {
-            Scene_Finalize();
-            g_Scene = g_SceneNext;
-            Scene_Initialize();
+        Scene_Finalize();
+        g_Scene = g_SceneNext;
+        Scene_Initialize();
 
-            // Start fade-in for new scene
-            Fade_Start(0.7, false, { 0.0f, 0.0f, 0.0f });
-        }
+        Fade_Start(0.7, false, { 0.0f, 0.0f, 0.0f });
     }
 }
 

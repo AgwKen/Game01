@@ -9,7 +9,7 @@ Mage::Mage(const XMFLOAT3& position)
 {
     // Adjust stats for a Mage
     m_Hp = 500;               // Lower HP than mushroom
-    m_DetectionRadius = 10.0f; // Sees further
+    m_DetectionRadius = 5.0f; // Sees further
     m_VisualScale = { 2.0f, 2.0f };
  
     // ---------------- TEXTURES ----------------

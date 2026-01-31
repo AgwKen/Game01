@@ -19,7 +19,6 @@
 #include <DirectXMath.h>
 #include "model.h"
 #include "sampler.h"
-#include "player.h"
 #include "shader_field.h"
 #include "player_camera.h"
 #include "map.h"
@@ -29,8 +28,6 @@
 #include "bullet_hit_effect.h"
 #include "trajetory3d.h"
 #include "sky.h"
-#include "enemy.h"
-//#include "fog.h"
 #include "circle_shadow.h"
 #include "Audio.h"
 #include "shader3d_unlit.h"
@@ -40,7 +37,7 @@
 #include "light_camera.h"
 #include "coin.h"
 #include "CoinScore.h"
-#include "enemy_humanoid.h"
+#include "BallPlayer.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -79,9 +76,8 @@ XMFLOAT3 lightDir = { -0.5f, -1.0f, -0.5f };
 LightCamera_Initialize(lightDir, lightPos);
 
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
-Player_Initialize({ 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f });
+
 PadLogger_Initialize();
-Enemy_Initialize();
 Bullet_Initialize();
 Sky_Initialize();
 PlayerCamera_Initialize();
@@ -91,6 +87,8 @@ BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
 //Fog_Initialize();
 CircleShadow_Initialize();
+BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
+
 
 g_BGM = LoadAudio("Sounds/bg.wav");
 //PlayAudio(g_BGM, true);
@@ -102,10 +100,6 @@ SetAudioVolume(g_WindSE, 0.15f);
 // First wind after random delay (5?15 sec)
 g_NextWindTime = 5.0f + (rand() % 10);
 
-
-// In Game_Initialize or wherever you spawn
-Enemy_Create(EnemyType::MUSHROOM, { 5.0f, 0.0f, 5.0f });
-Enemy_Create(EnemyType::MAGE, { -5.0f, 0.0f, -5.0f });
 
 g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
 g_CoinUI->SetCoinCount(g_PlayerCoinScore);
@@ -131,18 +125,15 @@ void Game_Finalize()
         UnloadAudio(g_WindSE);
         g_WindSE = -1;
     }
-
-    // --- Player unloads its own sounds ---
-    Player_Finalize();
-
     // --- Now audio system shutdown ---
     UninitAudio();
+
+    BallPlayer_Finalize();
 
     // --- Rest ---
     CircleShadow_Finalize();
     Billboard_Finalize();
     Map_Finalize();
-    Enemy_Finalize();
     Sky_Finalize();
     Bullet_Finalize();
     Mesh_Finalize();
@@ -158,104 +149,31 @@ void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
 
-    /*
-   if (!bgmStarted)
-   {
-       bgmDelayTimer += (float)elapsed_time;
-       if (bgmDelayTimer >= 7.0f)
-       {
-           PlayAudio(g_BGM, true);
-           SetAudioVolume(g_BGM, 0.08f);
-           bgmStarted = true;
-       }
-   }
-   */
-
-
     if (KeyLogger_IsTrigger(KK_F1)) {
         g_IsDebug = !g_IsDebug;
     }
 
-    // === HIT STOP ===
-    if (g_HitStopTime > 0.0f)
-    {
-        g_HitStopTime -= (float)elapsed_time;
-        if (g_HitStopTime < 0.0f)
-            g_HitStopTime = 0.0f;
-
-        SpriteAnim_Update(elapsed_time * 0.2f);
-        return;
-    }
     g_AccumulatedTime += elapsed_time;
 
-    SpriteAnim_Update(elapsed_time);
     PlayerCamera_Update(elapsed_time);
+
+    BallPlayer_Update(elapsed_time);
+
+
+    /*
+    SpriteAnim_Update(elapsed_time);
     Bullet_Update(elapsed_time);
     BulletHitEffect_Update();
     Trajetory3d_Update(elapsed_time);
-
+    */
     //can change debug Camera and player camera
     if (g_IsDebug) {
         Camera_Update(elapsed_time);
     }
     else {
-        Player_Update(elapsed_time);
+       // Player_Update(elapsed_time);
     }
 
-    Enemy_Update(elapsed_time);
-
-    //Fog_Update(elapsed_time);
-
-
-    //Bullet Collision
-    /*
-    for (int j = 0; j < Map_GetObjectCount(); j++)
-    {
-        auto* obj = Map_GetObject(j);
-        if (!obj) continue;
-
-        for (int i = Bullet_GetBulletsCount() - 1; i >= 0; i--)
-        {
-            AABB bullet = Bullet_GetAABB(i);
-            AABB object = obj->Aabb;
-
-            if (Collision_IsOverlapAABB(bullet, object))
-            {
-                BulletHitEffect_Create(Bullet_GetPosition(i));
-                Bullet_Destroy(i);
-            }
-        }
-    }
-
-    for (int j = 0; j < Enemy_GetEnemyCount(); j++) {
-        for (int i = Bullet_GetBulletsCount() - 1; i >= 0; i--) {
-            Sphere bullet = Bullet_GetSphere(i);
-            Sphere enemy = Enemy_GetEnemy(j)->GetCollision();
-
-            if (Collision_IsOverlapSphere(bullet, enemy)) {
-                BulletHitEffect_Create(Bullet_GetPosition(i));
-                Bullet_Destroy(i);
-                Enemy_GetEnemy(j)->Damage(50);
-            }
-        }
-    }
-    */
-    /*
-    // TEST SPAWN FOG EVERY SECOND
-    static float fogTimer = 0;
-    fogTimer += (float)elapsed_time;
-
-    if (fogTimer > 1.0f)
-    {
-        XMFLOAT3 pos = Player_GetPosition();
-        pos.x += (rand() % 100 - 50) * 0.1f;
-        pos.z += (rand() % 100 - 50) * 0.1f;
-        pos.y += 0.5f;
-
-        Fog_Spawn(pos, 2.5f, 3.0f);
-        fogTimer = 0;
-    }
-    */
     // === WIND AMBIENCE ===
     g_WindTimer += (float)elapsed_time;
 
@@ -275,10 +193,8 @@ void Game_Update(double elapsed_time)
         Coin& coin = *it;
         Coin_Update(coin, elapsed_time);
 
-        XMFLOAT3 playerPos = Player_GetPosition();
+        XMFLOAT3 playerPos = BallPlayer_GetPosition();
 
-        // 1. INCREASE DISTANCE: 1.0f might be too small for the visual size. 
-        // Try 1.5f or 2.0f for a better "snag" feel.
         float collectDistance = 1.5f;
 
         float dx = coin.position.x - playerPos.x;
@@ -305,16 +221,6 @@ void Game_Update(double elapsed_time)
         ++it;
     }
 
-    // DELETE THIS BLOCK BELOW in your game.cpp:
-    // This block is redundant and causing confusion because 'collected' 
-    // is never set to true in your current logic.
-    /*
-    g_Coins.erase(
-        std::remove_if(g_Coins.begin(), g_Coins.end(),
-            [](const Coin& c) { return c.collected && c.collectTimer > 0.01f; }),
-        g_Coins.end()
-    );
-    */
     if (g_CoinUI)
         g_CoinUI->Update(elapsed_time);
 
@@ -330,10 +236,7 @@ void Game_Draw()
         XMLoadFloat4x4(&PlayerCamera_GetPerspectiveMatrix());
     Camera_SetMatrix(view, proj);
 
-    Billboard_SetViewMatrix(mtxView);
-    Shader3dUnlit_Begin();
-
-    // --- SKY ---
+    //skybox
     XMFLOAT3 camPos = g_IsDebug
         ? Camera_GetPosition()
         : PlayerCamera_GetPosition();
@@ -353,25 +256,30 @@ void Game_Draw()
     Light_SetDirectionalWorld(dir, dirColor);
     ShaderField_SetDirectionalLight(dir, dirColor);
 
-
     Light_SetSpecularWorld(Camera_GetPosition(), 1.0f, { 0.1f, 0.1f, 0.1f, 1.0f });
     Light_SetPointLightCount(0);
 
-    // --- DRAW SCENE ---
-    Grid_Draw();
     Map_Draw();
+    BallPlayer_Draw();
+
+
+    // --- DRAW SCENE ---
+    /*
+    Grid_Draw();
     Bullet_Draw();
     Enemy_Draw();
     Player_Draw();
-    Fireball_Draw();     // Draws the actual moving fireball heads
+    Fireball_Draw();
     Trajetory3d_Draw();  // Draws the trails and flashes
+    */
     // --- Draw coins ---
+
     for (auto& coin : g_Coins)
     {
         BillboardAnim_Draw(coin.animPlayId, coin.position, { 0.15f, 0.15f }, { 0.5f, 1.0f });
     }
 
-
+    //UI
     Direct3D_SetAlphaBlendState();
     Direct3D_SetDepthReadOnly(true);
     if (g_CoinUI)
@@ -381,9 +289,9 @@ void Game_Draw()
 
     Direct3D_SetAlphaBlendState();
     Direct3D_SetDepthReadOnly(true);
-    Player_DrawHealthUI();
     Direct3D_SetDepthReadOnly(false);
     Direct3D_SetDefaultBlendState();
+
     // --- DEBUG ---
     if (g_IsDebug) {
         Camera_DebugDraw();

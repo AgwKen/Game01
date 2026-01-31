@@ -1,6 +1,8 @@
 #include "CoinScore.h"
 #include <cstdio>  // for sprintf_s
 #include "texture.h"
+#include "coin.h"
+#include "scene.h"
 
 CoinScoreUI::CoinScoreUI(
     ID3D11Device* device,
@@ -17,7 +19,7 @@ CoinScoreUI::CoinScoreUI(
         L"consolab_ascii_512.png",
         screenWidth,
         screenHeight,
-        120.0f, 160.0f,   // number position (right of coin)
+        80.0f, 100.0f,   // number position (right of coin)
         1, 8,
         20.0f, 16.0f
     );
@@ -54,13 +56,13 @@ void CoinScoreUI::SetCoinCount(int count)
 {
     m_CoinCount = count;
 
+    // update the text
     char buf[16];
     sprintf_s(buf, "%d", m_CoinCount);
 
     m_DebugText->Clear();
     m_DebugText->SetText(buf, XMFLOAT4(1, 1, 1, 1));
 }
-
 void CoinScoreUI::Draw()
 {
     // draw animated coin icon

@@ -29,7 +29,8 @@ void Player_Damage(int damage, const XMFLOAT3& knockDir, float knockPower);
 bool Player_IsInvincible();
 void Player_DrawHealthUI();
 
-
+DirectX::XMMATRIX Player_GetWorldMatrix();
+ID3D11ShaderResourceView* Player_GetTexture();
 
 
 #endif // PLAYER_H

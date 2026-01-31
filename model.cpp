@@ -7,6 +7,7 @@
 #include "shader3d.h"
 using namespace DirectX;
 #include "shader3d_unlit.h"
+#include "sampler.h"
 
 // 3D’¸“_\‘¢‘Ì
 struct Vertex3d
@@ -261,6 +262,8 @@ void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 	Shader3d_Begin();
 	Direct3D_GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Shader3d_SetWorldMatrix(mtxWorld);
+	Shader3d_SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+	Sampler_SetFilterLinear();
 
 	static ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
 
@@ -275,6 +278,7 @@ void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 
 		// 1) Try classic diffuse
 		if (AI_SUCCESS == aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) && texPath.length != 0)
+
 		{
 			std::string key = texPath.C_Str();
 			if (model->Texture.count(key))
@@ -317,16 +321,19 @@ void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 		if (foundTexture && texSRV)
 		{
 			Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, &texSRV);
+
+			Sampler_SetFilterLinear();
+
 			Shader3d_SetColor({ 1,1,1,1 });
 		}
 		else
 		{
-			Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, nullSRV);
-			Texture_SetTexture(g_TextureWhite);
-			aiColor3D diffuse(1, 1, 1);
-			aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-			Shader3d_SetColor({ diffuse.r, diffuse.g, diffuse.b, 1 });
+			ID3D11ShaderResourceView* whiteSRV = Texture_GetSRV(g_TextureWhite);
+			Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, &whiteSRV);
+
+			Shader3d_SetColor({ 1,1,1,1 }); // FORCE WHITE
 		}
+
 
 		UINT stride = sizeof(Vertex3d);
 		UINT offset = 0;
