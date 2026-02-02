@@ -57,7 +57,7 @@ void Title_Initialize() {
     g_BGFrameTexId = Texture_Load(L"Texture/BGframe.png");
     g_StartQuitTexId = Texture_Load(L"Texture/StartQuit.png");
     g_HoverBoxTexId = Texture_Load(L"Texture/button.png");
-    g_BackgroundTexId = Texture_Load(L"Texture/BG.png");
+    g_BackgroundTexId = Texture_Load(L"Texture/GameTitle.png");
     g_TitleTexId = Texture_Load(L"Texture/title.png");
 
 
@@ -131,9 +131,9 @@ void Title_Draw()
     int titleH = Texture_Height(g_TitleTexId);
 
     // Optional: scale title based on window width
-    float titleScale = 1.0f; // adjust this if needed
+    float titleScale = 0.4f; // adjust this if needed
     float drawX = (winWidth - titleW * titleScale) / 2.0f;
-    float drawY = 50.0f; // distance from top
+    float drawY = 0.5f; // distance from top
 
     Sprite_Draw(g_TitleTexId, drawX, drawY, titleW * titleScale, titleH * titleScale);
 

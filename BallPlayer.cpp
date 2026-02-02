@@ -5,6 +5,7 @@
 #include "terrain.h"
 #include <DirectXMath.h>
 #include <algorithm>
+#include <cmath>
 
 using namespace DirectX;
 
@@ -25,21 +26,27 @@ static XMVECTOR g_AngularVelocity = XMVectorZero();
 // PHYSICS CONSTANTS
 // ============================================================================
 static constexpr float BALL_RADIUS = 0.4f;
-static constexpr float BALL_SCALE = 0.05f;
-static constexpr float GRAVITY = -25.0f;
+static constexpr float BALL_SCALE  = 0.05f;
+static constexpr float GRAVITY     = -25.0f;
 
-// Ground behavior
+// Ground
 static constexpr float BASE_FRICTION = 6.0f;
-static constexpr float STOP_SPEED = 0.15f;
-static constexpr float STOP_SPIN = 0.2f;
+static constexpr float STOP_SPEED    = 0.15f;
+static constexpr float STOP_SPIN     = 0.2f;
 
 // Bounce
 static constexpr float BOUNCE_RESTITUTION = 0.35f;
-static constexpr float BOUNCE_MIN_Y = 2.2f;
 static constexpr float SPIN_LOSS_ON_BOUNCE = 0.7f;
 
 // ============================================================================
-// KICK SYSTEM
+// DRIBBLE
+// ============================================================================
+static constexpr float MAX_DRIBBLE_SPEED = 5.0f;
+static constexpr float DRIBBLE_ACCEL     = 25.0f;
+static constexpr float DRIBBLE_DAMPING   = 8.0f;
+
+// ============================================================================
+// KICK
 // ============================================================================
 static bool  g_IsKicked = false;
 static bool  g_IsChargingKick = false;
@@ -47,11 +54,15 @@ static float g_KickCharge = 0.0f;
 
 static constexpr float KICK_MIN_POWER = 8.0f;
 static constexpr float KICK_MAX_POWER = 30.0f;
-static constexpr float KICK_CHARGE_SPEED = 100.0f;
+static constexpr float KICK_CHARGE_SPEED = 50.0f;
 
-// Air curve (one-time)
+static constexpr float FREEKICK_UP_ANGLE   = 0.55f;
+static constexpr float FREEKICK_LIFT_EXP   = 0.01f;
+static constexpr float AIR_GRAVITY_SCALE   = 0.85f;
+
+// Air curve
 static bool  g_AirCurveUsed = false;
-static float g_AirCurveDir = 0.0f;
+static float g_AirCurveDir  = 0.0f;
 static float g_AirCurveTime = 0.0f;
 static constexpr float AIR_CURVE_DURATION = 0.35f;
 
@@ -84,21 +95,28 @@ static XMFLOAT3 GetTerrainNormal(float x, float z)
 // ============================================================================
 void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
 {
-    XMVECTOR forward = XMVector3Normalize(XMVectorSet(dir.x, 0, dir.z, 0));
+    XMVECTOR fwd = XMVector3Normalize(XMVectorSet(dir.x, 0, dir.z, 0));
 
-    g_Velocity.x += XMVectorGetX(forward) * power;
-    g_Velocity.z += XMVectorGetZ(forward) * power;
-    g_Velocity.y += lift;
+    float p01 = power / KICK_MAX_POWER;
+    float liftBoost = powf(p01, FREEKICK_LIFT_EXP);
+
+    XMVECTOR kickDir =
+        XMVector3Normalize(
+            fwd * (1.0f - FREEKICK_UP_ANGLE) +
+            XMVectorSet(0, FREEKICK_UP_ANGLE, 0, 0)
+        );
+
+    g_Velocity.x += XMVectorGetX(kickDir) * power;
+    g_Velocity.y += lift * (1.0f + liftBoost * 1.8f);
+    g_Velocity.z += XMVectorGetZ(kickDir) * power;
 
     XMVECTOR side = XMVector3Normalize(
-        XMVector3Cross(forward, XMVectorSet(0, 1, 0, 0))
+        XMVector3Cross(fwd, XMVectorSet(0, 1, 0, 0))
     );
-
     g_AngularVelocity += side * curve;
 
     g_IsKicked = true;
     g_AirCurveUsed = false;
-    g_AirCurveDir = 0.0f;
     g_AirCurveTime = 0.0f;
 }
 
@@ -130,8 +148,14 @@ void BallPlayer_Update(double elapsedTime)
 {
     float dt = (float)elapsedTime;
 
+    bool hasInput =
+        KeyLogger_IsPressed(KK_W) ||
+        KeyLogger_IsPressed(KK_A) ||
+        KeyLogger_IsPressed(KK_S) ||
+        KeyLogger_IsPressed(KK_D);
+
     // ------------------------------------------------------------------------
-    // DRIBBLE CONTROL (GROUND, BEFORE KICK)
+    // DRIBBLE (GROUND CONTROL)
     // ------------------------------------------------------------------------
     if (!g_IsKicked)
     {
@@ -141,17 +165,35 @@ void BallPlayer_Update(double elapsedTime)
         if (KeyLogger_IsPressed(KK_A)) in.x -= 1;
         if (KeyLogger_IsPressed(KK_D)) in.x += 1;
 
-        XMVECTOR dir = XMVectorSet(in.x, 0, in.z, 0);
+        XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
+        XMVECTOR dir   = XMVectorSet(in.x, 0, in.z, 0);
+
+        float speed = XMVectorGetX(XMVector3Length(velXZ));
+
         if (XMVectorGetX(XMVector3LengthSq(dir)) > 0.001f)
         {
             dir = XMVector3Normalize(dir);
-            g_Velocity.x += XMVectorGetX(dir) * 18.0f * dt;
-            g_Velocity.z += XMVectorGetZ(dir) * 18.0f * dt;
+            velXZ += dir * DRIBBLE_ACCEL * dt;
         }
+        else
+        {
+            float damp = std::exp(-DRIBBLE_DAMPING * dt);
+            velXZ *= damp;
+        }
+
+        speed = XMVectorGetX(XMVector3Length(velXZ));
+        if (speed > MAX_DRIBBLE_SPEED)
+            velXZ = XMVector3Normalize(velXZ) * MAX_DRIBBLE_SPEED;
+
+        if (speed < 0.05f)
+            velXZ = XMVectorZero();
+
+        g_Velocity.x = XMVectorGetX(velXZ);
+        g_Velocity.z = XMVectorGetZ(velXZ);
     }
 
     // ------------------------------------------------------------------------
-    // KICK CHARGING
+    // KICK CHARGE
     // ------------------------------------------------------------------------
     if (!g_IsKicked)
     {
@@ -164,16 +206,17 @@ void BallPlayer_Update(double elapsedTime)
         else if (g_IsChargingKick)
         {
             float power = std::max(g_KickCharge, KICK_MIN_POWER);
-            BallPlayer_Kick({ 0,0,1 }, power, power * 0.35f, power * 0.3f);
-            g_KickCharge = 0.0f;
+            BallPlayer_Kick({ 0,0,1 }, power, power * 0.35f, power * 0.15f);
             g_IsChargingKick = false;
+            g_KickCharge = 0.0f;
         }
     }
 
     // ------------------------------------------------------------------------
     // GRAVITY
     // ------------------------------------------------------------------------
-    g_Velocity.y += GRAVITY * dt;
+    float gravityScale = (g_Velocity.y > 0.0f && g_IsKicked) ? AIR_GRAVITY_SCALE : 1.0f;
+    g_Velocity.y += GRAVITY * gravityScale * dt;
 
     // ------------------------------------------------------------------------
     // MOVE
@@ -183,15 +226,13 @@ void BallPlayer_Update(double elapsedTime)
     g_Position.y += g_Velocity.y * dt;
     g_Position.z += g_Velocity.z * dt;
 
- 
     // ------------------------------------------------------------------------
-    // TERRAIN COLLISION (REAL PHYSICS)
+    // TERRAIN COLLISION
     // ------------------------------------------------------------------------
     float ground = Mesh_GetHeightAt(g_Position.x, g_Position.z);
-    float bottom = g_Position.y - BALL_RADIUS;
     bool onGround = false;
 
-    if (bottom < ground)
+    if (g_Position.y - BALL_RADIUS < ground)
     {
         g_Position.y = ground + BALL_RADIUS;
 
@@ -201,17 +242,87 @@ void BallPlayer_Update(double elapsedTime)
 
         float vn = XMVectorGetX(XMVector3Dot(vel, normal));
         if (vn < 0.0f)
-            vel -= normal * vn;
+        {
+            vel -= normal * (1.0f + BOUNCE_RESTITUTION) * vn;
+            g_AngularVelocity *= SPIN_LOSS_ON_BOUNCE;
+        }
 
         XMStoreFloat3(&g_Velocity, vel);
-
         if (n.y > 0.4f) onGround = true;
+    }
+
+    // ------------------------------------------------------------------------
+    // MAGNUS (ONLY WHEN KICKED)
+    // ------------------------------------------------------------------------
+    if (g_IsKicked)
+    {
+        XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
+        if (XMVectorGetX(XMVector3Length(g_AngularVelocity)) > 0.01f)
+        {
+            XMVECTOR mag = XMVector3Cross(g_AngularVelocity, velXZ) * 0.015f;
+            g_Velocity.x += XMVectorGetX(mag);
+            g_Velocity.z += XMVectorGetZ(mag);
+            g_AngularVelocity *= 0.99f;
+        }
+    }
+    // ------------------------------------------------------------------------
+// GROUND FRICTION (AFTER KICK)
+// ------------------------------------------------------------------------
+    if (onGround && g_IsKicked)
+    {
+        XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
+        float speed = XMVectorGetX(XMVector3Length(velXZ));
+
+        if (speed > 0.0f)
+        {
+            // light rolling friction (tuned for slopes)
+            float friction = 3.5f;
+            speed = std::max(0.0f, speed - friction * dt);
+
+            if (speed > 0.01f)
+            {
+                velXZ = XMVector3Normalize(velXZ) * speed;
+                g_Velocity.x = XMVectorGetX(velXZ);
+                g_Velocity.z = XMVectorGetZ(velXZ);
+            }
+            else
+            {
+                g_Velocity.x = 0.0f;
+                g_Velocity.z = 0.0f;
+            }
+        }
     }
 
 
     // ------------------------------------------------------------------------
-    // AIR CURVE (ONE-TIME)
+    // STOP
     // ------------------------------------------------------------------------
+    XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
+    float speed = XMVectorGetX(XMVector3Length(velXZ));
+
+    if (onGround && !g_IsKicked && !hasInput && speed < STOP_SPEED)
+    {
+        g_Velocity = { 0,0,0 };
+        g_AngularVelocity = XMVectorZero();
+    }
+
+    // ------------------------------------------------------------------------
+    // VISUAL ROLL
+    // ------------------------------------------------------------------------
+    if (speed > 0.05f)
+    {
+        XMVECTOR axis = XMVector3Normalize(
+            XMVector3Cross(XMVector3Normalize(velXZ), XMVectorSet(0,1,0,0))
+        );
+
+        g_Rotation *= XMMatrixRotationAxis(
+            axis,
+            speed * dt / BALL_RADIUS
+        );
+    }
+    // ------------------------------------------------------------------------
+// AIR CURVE (ONE-TIME)
+// ------------------------------------------------------------------------
     if (!onGround)
     {
         if (!g_AirCurveUsed)
@@ -235,62 +346,6 @@ void BallPlayer_Update(double elapsedTime)
                 g_Velocity.z = XMVectorGetZ(vel);
             }
         }
-    }
-
-    // ------------------------------------------------------------------------
-    // MAGNUS + SPIN DAMP
-    // ------------------------------------------------------------------------
-    XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
-    if (XMVectorGetX(XMVector3Length(g_AngularVelocity)) > 0.01f)
-    {
-        XMVECTOR mag = XMVector3Cross(g_AngularVelocity, velXZ) * 0.015f;
-        g_Velocity.x += XMVectorGetX(mag);
-        g_Velocity.z += XMVectorGetZ(mag);
-        g_AngularVelocity *= 0.99f;
-    }
-
-    // ------------------------------------------------------------------------
-    // GROUND FRICTION + STOP
-    // ------------------------------------------------------------------------
-    if (onGround)
-    {
-        float speed = XMVectorGetX(XMVector3Length(velXZ));
-        float spin = XMVectorGetX(XMVector3Length(g_AngularVelocity));
-
-        XMFLOAT3 normal = GetTerrainNormal(g_Position.x, g_Position.z);
-        float slope = 1.0f - normal.y;
-
-        float friction = BASE_FRICTION * (1.0f - slope * 0.8f);
-        speed = std::max(0.0f, speed - friction * dt);
-
-        if (speed > 0.0f)
-        {
-            velXZ = XMVector3Normalize(velXZ) * speed;
-            g_Velocity.x = XMVectorGetX(velXZ);
-            g_Velocity.z = XMVectorGetZ(velXZ);
-        }
-
-        if (spin < STOP_SPIN && speed < STOP_SPEED)
-        {
-            g_Velocity = { 0,0,0 };
-            g_AngularVelocity = XMVectorZero();
-            g_IsKicked = false;
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // VISUAL ROLL
-    // ------------------------------------------------------------------------
-    if (XMVectorGetX(XMVector3Length(velXZ)) > 0.001f)
-    {
-        XMVECTOR axis = XMVector3Normalize(
-            XMVector3Cross(XMVector3Normalize(velXZ), XMVectorSet(0, 1, 0, 0))
-        );
-
-        g_Rotation *= XMMatrixRotationAxis(
-            axis,
-            XMVectorGetX(XMVector3Length(velXZ)) * dt / BALL_RADIUS
-        );
     }
 
     // ------------------------------------------------------------------------
