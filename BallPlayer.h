@@ -12,6 +12,7 @@ void BallPlayer_Kick(
     float lift,
     float curve
 );
+void BallPlayer_Reset();
 void BallPlayer_Initialize(const XMFLOAT3& startPos, float radius);
 void BallPlayer_Update(double elapsedTime);
 void BallPlayer_Draw();

@@ -20,13 +20,15 @@ static MODEL* g_BallModel = nullptr;
 static XMFLOAT3 g_Position = { 0,5,0 };
 static XMFLOAT3 g_PrevPosition = { 0,5,0 };
 static XMFLOAT3 g_Velocity = { 0,0,0 };
+static XMFLOAT3 g_StartPosition = { 0,5,0 };
+
 static XMVECTOR g_AngularVelocity = XMVectorZero();
 
 // ============================================================================
 // PHYSICS CONSTANTS
 // ============================================================================
 static constexpr float BALL_RADIUS = 0.4f;
-static constexpr float BALL_SCALE  = 0.05f;
+static constexpr float BALL_SCALE  = 0.08f;
 static constexpr float GRAVITY     = -25.0f;
 
 // Ground
@@ -119,15 +121,35 @@ void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
     g_AirCurveUsed = false;
     g_AirCurveTime = 0.0f;
 }
+void BallPlayer_Reset()
+{
+    g_Position = g_StartPosition;
+    g_PrevPosition = g_StartPosition;
+
+    g_Velocity = { 0,0,0 };
+    g_AngularVelocity = XMVectorZero();
+
+    g_IsKicked = false;
+    g_IsChargingKick = false;
+    g_KickCharge = 0.0f;
+
+    g_AirCurveUsed = false;
+    g_AirCurveTime = 0.0f;
+
+    g_Rotation = XMMatrixIdentity();
+}
 
 // ============================================================================
 // INIT
 // ============================================================================
 void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
 {
-    g_Position = startPos;
-    g_Position.y = 5.0f;
+    g_StartPosition = startPos;
+    g_StartPosition.y = 5.0f;
+
+    g_Position = g_StartPosition;
     g_PrevPosition = g_Position;
+
 
     g_Velocity = { 0,0,0 };
     g_AngularVelocity = XMVectorZero();
@@ -138,7 +160,7 @@ void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
 
     g_Rotation = XMMatrixIdentity();
 
-    g_BallModel = ModelLoad("Resources/Model/work3.fbx", 1.0f);
+    g_BallModel = ModelLoad("Resources/Model/ball.fbx", 1.0f);
 }
 
 // ============================================================================
@@ -300,11 +322,23 @@ void BallPlayer_Update(double elapsedTime)
     XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
     float speed = XMVectorGetX(XMVector3Length(velXZ));
 
-    if (onGround && !g_IsKicked && !hasInput && speed < STOP_SPEED)
+    if (onGround && speed < STOP_SPEED)
     {
-        g_Velocity = { 0,0,0 };
-        g_AngularVelocity = XMVectorZero();
+        // If ball was kicked and has now completely settled -> RESET
+        if (g_IsKicked)
+        {
+            BallPlayer_Reset();
+            return;
+        }
+
+        // Normal stop logic when just dribbling
+        if (!hasInput)
+        {
+            g_Velocity = { 0,0,0 };
+            g_AngularVelocity = XMVectorZero();
+        }
     }
+
 
     // ------------------------------------------------------------------------
     // VISUAL ROLL

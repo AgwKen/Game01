@@ -166,6 +166,7 @@
     <ClCompile Include="light_camera.cpp" />
     <ClCompile Include="Mage.cpp" />
     <ClCompile Include="map.cpp" />
+    <ClCompile Include="particle.cpp" />
     <ClCompile Include="rendertextureclass.cpp" />
     <ClCompile Include="Result.cpp" />
     <ClCompile Include="shadow.cpp" />
@@ -227,6 +228,7 @@
     <ClInclude Include="light_camera.h" />
     <ClInclude Include="Mage.h" />
     <ClInclude Include="map.h" />
+    <ClInclude Include="particle.h" />
     <ClInclude Include="rendertextureclass.h" />
     <ClInclude Include="Result.h" />
     <ClInclude Include="shadow.h" />
