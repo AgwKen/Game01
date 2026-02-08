@@ -6,8 +6,7 @@
 #include <DirectXMath.h>
 #include <algorithm>
 #include <cmath>
-
-using namespace DirectX;
+#include "dust_particle.h"
 
 // ============================================================================
 // RENDER
@@ -74,6 +73,9 @@ static constexpr float AIR_CURVE_DURATION = 0.35f;
 static XMMATRIX g_Rotation = XMMatrixIdentity();
 static XMMATRIX g_ModelCorrection = XMMatrixRotationY(XM_PI);
 static XMMATRIX g_World = XMMatrixIdentity();
+
+static DustEmitter* g_DustEmitter = nullptr;
+
 
 // ============================================================================
 // TERRAIN NORMAL
@@ -161,6 +163,10 @@ void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
     g_Rotation = XMMatrixIdentity();
 
     g_BallModel = ModelLoad("Resources/Model/ball.fbx", 1.0f);
+
+    g_DustEmitter = new DustEmitter(4000, XMVectorZero(), 160.0);
+
+
 }
 
 // ============================================================================
@@ -271,6 +277,36 @@ void BallPlayer_Update(double elapsedTime)
 
         XMStoreFloat3(&g_Velocity, vel);
         if (n.y > 0.4f) onGround = true;
+
+        // ----- DUST EFFECT LOGIC -----
+        if (onGround)
+        {
+            float moveSpeed = sqrtf(
+                g_Velocity.x * g_Velocity.x +
+                g_Velocity.z * g_Velocity.z
+            );
+
+            if (moveSpeed > 1.2f)
+            {
+                g_DustEmitter->SetPosition(
+                    DirectX::XMVectorSet(
+                        g_Position.x,
+                        ground + 0.02f,
+                        g_Position.z,
+                        0));
+
+                g_DustEmitter->Emmit(true);
+            }
+            else
+            {
+                g_DustEmitter->Emmit(false);
+            }
+        }
+        else
+        {
+            g_DustEmitter->Emmit(false);
+        }
+
     }
 
     // ------------------------------------------------------------------------
@@ -390,6 +426,11 @@ void BallPlayer_Update(double elapsedTime)
         g_Rotation *
         g_ModelCorrection *
         XMMatrixTranslation(g_Position.x, g_Position.y, g_Position.z);
+
+    // update dust particles
+    if (g_DustEmitter)
+        g_DustEmitter->Update(dt);
+
 }
 
 // ============================================================================
@@ -397,11 +438,19 @@ void BallPlayer_Update(double elapsedTime)
 // ============================================================================
 void BallPlayer_Draw()
 {
-    if (g_BallModel) ModelDraw(g_BallModel, g_World);
+    if (g_BallModel)
+        ModelDraw(g_BallModel, g_World);
+
+    // draw dust after ball
+    if (g_DustEmitter)
+        g_DustEmitter->Render();
 }
 
 void BallPlayer_Finalize()
 {
+    delete g_DustEmitter;
+    g_DustEmitter = nullptr;
+
     if (g_BallModel) ModelRelease(g_BallModel);
     g_BallModel = nullptr;
 }

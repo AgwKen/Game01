@@ -151,4 +151,6 @@ void ShaderBillBoard_Begin()
 
     // bind pixel shader tint (b0)
     Direct3D_GetDeviceContext()->PSSetConstantBuffers(0, 1, &g_pPSConstantBuffer0);
+
+    Sampler_SetFilterPoint();
 }

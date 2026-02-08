@@ -155,6 +155,7 @@
     <ClCompile Include="coinScore.cpp" />
     <ClCompile Include="cube.cpp" />
     <ClCompile Include="depthShader.cpp" />
+    <ClCompile Include="dust_particle.cpp" />
     <ClCompile Include="EasingTest.cpp" />
     <ClCompile Include="enemy.cpp" />
     <ClCompile Include="enemy_humanoid.cpp" />
@@ -167,6 +168,7 @@
     <ClCompile Include="Mage.cpp" />
     <ClCompile Include="map.cpp" />
     <ClCompile Include="particle.cpp" />
+    <ClCompile Include="particle_test.cpp" />
     <ClCompile Include="rendertextureclass.cpp" />
     <ClCompile Include="Result.cpp" />
     <ClCompile Include="shadow.cpp" />
@@ -210,6 +212,7 @@
     <ClInclude Include="coinScore.h" />
     <ClInclude Include="cube.h" />
     <ClInclude Include="depthShader.h" />
+    <ClInclude Include="dust_particle.h" />
     <ClInclude Include="EasingTest.h" />
     <ClInclude Include="enemy.h" />
     <ClInclude Include="enemy_humanoid.h" />
@@ -229,6 +232,7 @@
     <ClInclude Include="Mage.h" />
     <ClInclude Include="map.h" />
     <ClInclude Include="particle.h" />
+    <ClInclude Include="particle_test.h" />
     <ClInclude Include="rendertextureclass.h" />
     <ClInclude Include="Result.h" />
     <ClInclude Include="shadow.h" />

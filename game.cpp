@@ -38,6 +38,7 @@
 #include "coin.h"
 #include "CoinScore.h"
 #include "BallPlayer.h"
+#include "particle_test.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -56,6 +57,9 @@ static bool bgmStarted = false;
 
 static RenderTextureClass* g_pRenderTexture = nullptr;
 static DepthShaderClass* g_pDepthShader = nullptr;
+
+//testing pparticle effect 
+static NormalEmitter* g_Emitter;
 
 //coin
 static CoinScoreUI* g_CoinUI = nullptr;
@@ -85,10 +89,11 @@ Map_Initialize();
 Billboard_Initialize();
 BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
-//Fog_Initialize();
+//Fog_Initialize();x
 CircleShadow_Initialize();
 BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
 
+g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
 
 g_BGM = LoadAudio("Sounds/bg.wav");
 //PlayAudio(g_BGM, true);
@@ -110,6 +115,8 @@ g_CoinUI->SetCoinCount(g_PlayerCoinScore);
 
 void Game_Finalize()
 {
+	delete g_Emitter;
+	g_Emitter = nullptr;
     // --- Stop & unload BGM ---
     if (g_BGM >= 0)
     {
@@ -223,6 +230,10 @@ void Game_Update(double elapsed_time)
 
     if (g_CoinUI)
         g_CoinUI->Update(elapsed_time);
+    // --- PARTICLE FIX ---
+
+    g_Emitter->Emmit(true);
+    g_Emitter->Update(elapsed_time);
 
 }
 
@@ -263,6 +274,10 @@ void Game_Draw()
     BallPlayer_Draw();
 
 
+    Billboard_SetViewMatrix(g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix());
+    g_Emitter->Render();
+
+
     // --- DRAW SCENE ---
     /*
     Grid_Draw();
@@ -284,11 +299,6 @@ void Game_Draw()
     Direct3D_SetDepthReadOnly(true);
     if (g_CoinUI)
         g_CoinUI->Draw();
-    Direct3D_SetDepthReadOnly(false);
-    Direct3D_SetDefaultBlendState();
-
-    Direct3D_SetAlphaBlendState();
-    Direct3D_SetDepthReadOnly(true);
     Direct3D_SetDepthReadOnly(false);
     Direct3D_SetDefaultBlendState();
 

@@ -12,18 +12,32 @@ struct PS_IN
     float2 uv : TEXCOORD0;
 };
 
-Texture2D tex; // テクスチャ
-SamplerState samp; //
+// ===== ADD THIS BLOCK (THIS IS THE MISSING PART) =====
+cbuffer PS_COLOR : register(b0)
+{
+    float4 g_TintColor;
+};
+// =====================================================
+
+Texture2D tex;
+SamplerState samp;
 
 float4 main(PS_IN pi) : SV_TARGET
 {
-    float4 color = tex.Sample(samp, pi.uv) * pi.color;
+    float4 texColor = tex.Sample(samp, pi.uv);
 
-    // Alpha cutout: discard fully transparent pixels
-    if (color.a < 0.5f)
+    // MULTIPLY BY:
+    //  - texture color
+    //  - vertex color (usually white)
+    //  - C++ particle tint color
+    float4 finalColor = texColor * pi.color * g_TintColor;
+
+    // Alpha cutout
+    if (finalColor.a < 0.5f)
     {
         discard;
     }
 
-    return color;
+    return finalColor;
 }
+

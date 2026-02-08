@@ -104,28 +104,38 @@ void Billboard_Draw(
 {
     ShaderBillBoard_Begin();
 
+    // 1. Calculate UVs
     float uv_x = (float)tex_cut.x / Texture_Width(texId);
     float uv_y = (float)tex_cut.y / Texture_Height(texId);
     float uv_w = (float)tex_cut.z / Texture_Width(texId);
     float uv_h = (float)tex_cut.w / Texture_Height(texId);
 
     ShaderBillBoard_SetUVParameter({ {uv_w, uv_h}, {uv_x, uv_y} });
-
     ShaderBillBoard_SetColor(color);
-
     Texture_SetTexture(texId);
 
+    // 2. Set Vertex Buffer
     UINT stride = sizeof(Vertex3d);
     UINT offset = 0;
     Direct3D_GetDeviceContext()->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
     Direct3D_GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-    XMMATRIX iv = XMMatrixTranspose(XMLoadFloat4x4(&g_mtxView));
+    // 3. Prepare the Billboard Matrix (Facing the camera)
+    XMMATRIX v = XMLoadFloat4x4(&g_mtxView);
+
+    // This is the trick: We transpose the View Matrix to get the Rotation,
+    // but we MUST ensure the translation (row 3) is 0,0,0 so it stays in the world.
+    v.r[3] = XMVectorSet(0, 0, 0, 1);
+    XMMATRIX iv = XMMatrixTranspose(v);
+
+    // 4. Combine Transformations
     XMMATRIX pivot_offset = XMMatrixTranslation(-pivot.x, -pivot.y, 0.0f);
     XMMATRIX s = XMMatrixScaling(scale.x, scale.y, 1.0f);
     XMMATRIX t = XMMatrixTranslation(position.x, position.y, position.z);
+
+    // Order: Scale -> Pivot -> Rotation(IV) -> World Position(T)
     ShaderBillBoard_SetWorldMatrix(s * pivot_offset * iv * t);
 
+    // 5. Draw
     Direct3D_GetDeviceContext()->Draw(NUM_VERTEX, 0);
-
 }
