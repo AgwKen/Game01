@@ -163,6 +163,7 @@
     <ClCompile Include="enemy_normal.cpp" />
     <ClCompile Include="fog.cpp" />
     <ClCompile Include="goal.cpp" />
+    <ClCompile Include="GoalCollision.cpp" />
     <ClCompile Include="grid.cpp" />
     <ClCompile Include="light.cpp" />
     <ClCompile Include="light_camera.cpp" />
@@ -221,6 +222,7 @@
     <ClInclude Include="enemy_normal.h" />
     <ClInclude Include="fog.h" />
     <ClInclude Include="goal.h" />
+    <ClInclude Include="GoalCollision.h" />
     <ClInclude Include="grid.h" />
     <ClInclude Include="key_logger.h" />
     <ClCompile Include="main.cpp" />

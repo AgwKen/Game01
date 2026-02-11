@@ -338,7 +338,7 @@ void Game_Draw()
 
     Map_Draw();
     BallPlayer_Draw();
-    Goal_Draw();
+    Goal_Render();
 
 
     Billboard_SetViewMatrix(g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix());
