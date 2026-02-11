@@ -30,10 +30,14 @@ static float g_ModelHeightOffset = 1.0f;
 // Physics parameters
 static float GOAL_BOUNCE = 0.8f;
 
-// Debug
-static bool g_ShowGoalDebug = true;
+// DEBUG FLAGS (THIS IS WHAT YOU WANTED)
+static bool g_ShowPoleDebug = true;   // show poles
+static bool g_ShowNetDebug = false;  // hide nets
 
-// ------------------------------------------------------------
+// Back net tuning
+static float g_BackNetOffsetX = -2.5f;
+static float g_BackNetOffsetZ = 2.4f;
+static float g_BackNetWidth = 5.0f;
 
 void Goal_Initialize()
 {
@@ -69,7 +73,6 @@ static void GetGoalCollisionBoxes(std::vector<AABB>& out)
     float height = 8.2f * scale;
 
     float depth = 0.3f * scale;
-    float netDepth = 16.2f * scale;
 
     // FRONT POSTS
     AABB left;
@@ -84,15 +87,57 @@ static void GetGoalCollisionBoxes(std::vector<AABB>& out)
     top.min = { g_GoalCollisionPosition.x - width / 2, baseY + height - depth / 2, g_GoalCollisionPosition.z - depth / 2 };
     top.max = { g_GoalCollisionPosition.x + width / 2, baseY + height + depth / 2, g_GoalCollisionPosition.z + depth / 2 };
 
-    // SIMPLE BACK WALL FOR NET
-    AABB BackNet;
-    BackNet.min = { g_GoalCollisionPosition.x - 2.4f, baseY, g_GoalCollisionPosition.z + width / 2 - depth };
-    BackNet.max = { g_GoalCollisionPosition.x + netDepth - 2.6f, baseY + height, g_GoalCollisionPosition.z + width / 2 };
+    float space = 0.2f;   // move nets outward
 
+    AABB LeftNet;
+    LeftNet.min = {
+        g_GoalCollisionPosition.x - (width / 2) - space,
+        baseY,
+        g_GoalCollisionPosition.z
+    };
+
+    LeftNet.max = {
+        g_GoalCollisionPosition.x - (width / 2) + depth - space,
+        baseY + height,
+        g_GoalCollisionPosition.z + g_BackNetOffsetZ
+    };
+
+    AABB RightNet;
+    RightNet.min = {
+        g_GoalCollisionPosition.x + (width / 2) - depth + space,
+        baseY,
+        g_GoalCollisionPosition.z
+    };
+
+    RightNet.max = {
+        g_GoalCollisionPosition.x + (width / 2) + space,
+        baseY + height,
+        g_GoalCollisionPosition.z + g_BackNetOffsetZ
+    };
+
+    // BACK NET
+    AABB BackNet;
+    BackNet.min = {
+        g_GoalCollisionPosition.x + g_BackNetOffsetX,
+        baseY,
+        g_GoalCollisionPosition.z + g_BackNetOffsetZ
+    };
+
+    BackNet.max = {
+        g_GoalCollisionPosition.x + g_BackNetOffsetX + g_BackNetWidth,
+        baseY + height,
+        g_GoalCollisionPosition.z + g_BackNetOffsetZ + depth
+    };
+
+    // ORDER MATTERS (FIRST 3 ARE POLES)
     out.push_back(left);
     out.push_back(right);
     out.push_back(top);
+
+    // LAST 3 ARE NETS
     out.push_back(BackNet);
+    out.push_back(LeftNet);
+    out.push_back(RightNet);
 }
 
 // ------------------------------------------------------------
@@ -199,7 +244,6 @@ void Goal_Draw()
         g_GoalModelPosition.z
     );
 
-    // THIS LINE ENSURES MODEL NEVER SINKS
     float finalY = terrainY + (g_ModelHeightOffset * g_GoalModelScale);
 
     XMMATRIX world =
@@ -215,26 +259,55 @@ void Goal_Draw()
 
 #if defined(DEBUG) || defined(_DEBUG)
 
-    if (g_ShowGoalDebug)
-    {
-        std::vector<AABB> boxes;
-        GetGoalCollisionBoxes(boxes);
+    std::vector<AABB> boxes;
+    GetGoalCollisionBoxes(boxes);
 
-        for (auto& box : boxes)
+    // ----- DRAW POLES ONLY -----
+    if (g_ShowPoleDebug)
+    {
+        for (int i = 0; i < 3; i++)
         {
-            XMFLOAT3 min = box.min;
-            XMFLOAT3 max = box.max;
+            AABB& box = boxes[i];
 
             XMFLOAT3 center = {
-                (min.x + max.x) * 0.5f,
-                (min.y + max.y) * 0.5f,
-                (min.z + max.z) * 0.5f
+                (box.min.x + box.max.x) * 0.5f,
+                (box.min.y + box.max.y) * 0.5f,
+                (box.min.z + box.max.z) * 0.5f
             };
 
             XMFLOAT3 size = {
-                max.x - min.x,
-                max.y - min.y,
-                max.z - min.z
+                box.max.x - box.min.x,
+                box.max.y - box.min.y,
+                box.max.z - box.min.z
+            };
+
+            XMMATRIX debugWorld =
+                XMMatrixScaling(size.x, size.y, size.z) *
+                XMMatrixTranslation(center.x, center.y, center.z);
+
+            Direct3D_SetAlphaBlendState();
+            CUBE_Draw(-1, debugWorld);
+            Direct3D_SetDefaultBlendState();
+        }
+    }
+
+    // ----- DRAW NETS ONLY IF ENABLED -----
+    if (g_ShowNetDebug)
+    {
+        for (int i = 3; i < boxes.size(); i++)
+        {
+            AABB& box = boxes[i];
+
+            XMFLOAT3 center = {
+                (box.min.x + box.max.x) * 0.5f,
+                (box.min.y + box.max.y) * 0.5f,
+                (box.min.z + box.max.z) * 0.5f
+            };
+
+            XMFLOAT3 size = {
+                box.max.x - box.min.x,
+                box.max.y - box.min.y,
+                box.max.z - box.min.z
             };
 
             XMMATRIX debugWorld =
@@ -249,8 +322,6 @@ void Goal_Draw()
 
 #endif
 }
-
-// ------------------------------------------------------------
 
 bool Goal_CheckScored(const XMFLOAT3& ballPos, float ballRadius)
 {
