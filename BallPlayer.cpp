@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include "dust_particle.h"
+#include "Goal.h"
 
 // ============================================================================
 // RENDER
@@ -253,6 +254,8 @@ void BallPlayer_Update(double elapsedTime)
     g_Position.x += g_Velocity.x * dt;
     g_Position.y += g_Velocity.y * dt;
     g_Position.z += g_Velocity.z * dt;
+    // ---- GOAL PHYSICAL COLLISION ----
+
 
     // ------------------------------------------------------------------------
     // TERRAIN COLLISION
@@ -308,6 +311,7 @@ void BallPlayer_Update(double elapsedTime)
         }
 
     }
+    Goal_HandleBallCollision(g_Position, g_Velocity, BALL_RADIUS);
 
     // ------------------------------------------------------------------------
     // MAGNUS (ONLY WHEN KICKED)

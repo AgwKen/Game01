@@ -39,6 +39,8 @@
 #include "CoinScore.h"
 #include "BallPlayer.h"
 #include "particle_test.h"
+#include "Goal.h"
+
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -64,6 +66,17 @@ static NormalEmitter* g_Emitter;
 //coin
 static CoinScoreUI* g_CoinUI = nullptr;
 
+static XMFLOAT3 g_TestLightPos = { 0.0f, 3.0f, 0.0f };
+
+static float g_LightMoveTime = 0.0f;
+
+static float g_DiscoSpeed = 3.0f;     // fast rotation
+static float g_DiscoRadius = 4.0f;    // bigger circle
+
+static XMFLOAT3 g_DiscoColor = { 1,1,1 };
+
+
+static float g_AmbientLevel = 0.58f;   // default brightness
 
 void Game_Initialize()
 {
@@ -92,6 +105,8 @@ Trajetory3d_Initialize();
 //Fog_Initialize();x
 CircleShadow_Initialize();
 BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
+Goal_Initialize();
+
 
 g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
 
@@ -134,7 +149,7 @@ void Game_Finalize()
     }
     // --- Now audio system shutdown ---
     UninitAudio();
-
+    Goal_Finalize();
     BallPlayer_Finalize();
 
     // --- Rest ---
@@ -155,6 +170,23 @@ void Game_Finalize()
 void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
+
+    // Increase ambient light with F2
+    if (KeyLogger_IsTrigger(KK_F2))
+    {
+        g_AmbientLevel += 0.05f;
+        if (g_AmbientLevel > 1.0f)
+            g_AmbientLevel = 1.0f;
+    }
+
+    // Decrease ambient light with F3
+    if (KeyLogger_IsTrigger(KK_F3))
+    {
+        g_AmbientLevel -= 0.05f;
+        if (g_AmbientLevel < 0.0f)
+            g_AmbientLevel = 0.0f;
+    }
+
 
     if (KeyLogger_IsTrigger(KK_F1)) {
         g_IsDebug = !g_IsDebug;
@@ -235,6 +267,22 @@ void Game_Update(double elapsed_time)
     g_Emitter->Emmit(true);
     g_Emitter->Update(elapsed_time);
 
+
+    // === DISCO LIGHT MOVEMENT ===
+    g_LightMoveTime += (float)elapsed_time * g_DiscoSpeed;
+
+    // Circle movement like disco ball
+    g_TestLightPos.x = sinf(g_LightMoveTime) * g_DiscoRadius;
+    g_TestLightPos.z = cosf(g_LightMoveTime) * g_DiscoRadius;
+    g_TestLightPos.y = 3.0f + sinf(g_LightMoveTime * 2.0f); // small up/down bounce
+
+    // Color cycling (RGB rainbow effect)
+    g_DiscoColor.x = (sinf(g_LightMoveTime) + 1.0f) * 0.5f;
+    g_DiscoColor.y = (sinf(g_LightMoveTime + 2.0f) + 1.0f) * 0.5f;
+    g_DiscoColor.z = (sinf(g_LightMoveTime + 4.0f) + 1.0f) * 0.5f;
+
+
+
 }
 
 void Game_Draw()
@@ -255,8 +303,14 @@ void Game_Draw()
     Sky_Draw(camPos);
 
     // --- LIGHTING ---
-    Light_SetAmbient({ 0.15f, 0.15f, 0.15f });
-    ShaderField_SetAmbientColor({ 0.08f, 0.08f, 0.08f, 1.0f });
+    Light_SetAmbient({ 0.55f, 0.55f, 0.55f });
+    ShaderField_SetAmbientColor({
+    g_AmbientLevel,
+    g_AmbientLevel,
+    g_AmbientLevel,
+    1.0f
+        });
+
 
     XMVECTOR dirVec = XMVector3Normalize({ 0.6f, -1.0f, -0.4f });
     XMFLOAT4 dir;
@@ -267,11 +321,24 @@ void Game_Draw()
     Light_SetDirectionalWorld(dir, dirColor);
     ShaderField_SetDirectionalLight(dir, dirColor);
 
-    Light_SetSpecularWorld(Camera_GetPosition(), 1.0f, { 0.1f, 0.1f, 0.1f, 1.0f });
-    Light_SetPointLightCount(0);
+    Light_SetSpecularWorld(Camera_GetPosition(), 16.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    /*
+    // Enable disco point light
+    Light_SetPointLightCount(1);
+    Light_SetPointLight(
+        0,
+        g_TestLightPos,
+        8.0f,   // bigger range for disco effect
+        g_DiscoColor
+    );
+ */
+
+
 
     Map_Draw();
     BallPlayer_Draw();
+    Goal_Draw();
 
 
     Billboard_SetViewMatrix(g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix());

@@ -275,7 +275,7 @@ void Map_Draw()
         );
     }
 
-    
+    /*
     Billboard_SetViewMatrix(PlayerCamera_GetViewMatrix());
     Sampler_SetFilterPoint();
 
@@ -290,6 +290,7 @@ void Map_Draw()
             { 1, 1, 1, 1 }
         );
     }
+    */
 }
 
 int Map_GetObjectCount()

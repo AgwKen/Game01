@@ -78,3 +78,19 @@ void Sampler_SetFilterAnisotropic()
 {
     g_pContext->PSSetSamplers(0, 1, &g_pSamplerFilterAnisotropic);
 }
+
+void Sampler_SetClamp()
+{
+    D3D11_SAMPLER_DESC desc = {};
+
+    desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+    ID3D11SamplerState* state;
+    Direct3D_GetDevice()->CreateSamplerState(&desc, &state);
+
+    Direct3D_GetDeviceContext()->PSSetSamplers(0, 1, &state);
+}
+

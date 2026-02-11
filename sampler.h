@@ -23,5 +23,7 @@ void Sampler_SetFilterAnisotropic();
 // NEW: Retrieval functions for Shadow Shader
 ID3D11SamplerState* Sampler_GetClamp();
 ID3D11SamplerState* Sampler_GetWrap();
+void Sampler_SetClamp();
+
 
 #endif // SAMPLER_H

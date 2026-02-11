@@ -74,5 +74,7 @@ void Collision_DebugInitialized(ID3D11Device* pDevice, ID3D11DeviceContext* pCon
 void Collision_DebugFinalize();
 void Collision_DebugDraw(const Circle& circle,const DirectX::XMFLOAT4 color = {1.0f,1.0f,0.0f,1.0f});
 void Collision_DebugDraw(const Box& box, const  DirectX::XMFLOAT4 color);
+void Collision_DebugDrawAABB(const AABB& aabb, const DirectX::XMFLOAT4 color);
+
 
 #endif // BULLET_H

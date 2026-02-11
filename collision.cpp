@@ -280,3 +280,64 @@ void Collision_DebugDraw(const Box& box, const  DirectX::XMFLOAT4 color)
 
 	
 }
+
+void Collision_DebugDrawAABB(const AABB& aabb, const DirectX::XMFLOAT4 color)
+{
+	// Make sure debug system is initialized
+	if (!g_pContext || !g_pVertexBuffer)
+		return;
+
+	Shader_Begin();
+
+	D3D11_MAPPED_SUBRESOURCE msr;
+	g_pContext->Map(g_pVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+
+	Vertex* v = (Vertex*)msr.pData;
+
+	XMFLOAT3 min = aabb.min;
+	XMFLOAT3 max = aabb.max;
+
+	// 8 corners of the box
+	XMFLOAT3 p[8] =
+	{
+		{ min.x, min.y, min.z },
+		{ max.x, min.y, min.z },
+		{ max.x, max.y, min.z },
+		{ min.x, max.y, min.z },
+
+		{ min.x, min.y, max.z },
+		{ max.x, min.y, max.z },
+		{ max.x, max.y, max.z },
+		{ min.x, max.y, max.z }
+	};
+
+	// Lines that connect the corners (12 edges)
+	int indices[24] =
+	{
+		0,1, 1,2, 2,3, 3,0,    // front face
+		4,5, 5,6, 6,7, 7,4,    // back face
+		0,4, 1,5, 2,6, 3,7     // connections
+	};
+
+	for (int i = 0; i < 24; i++)
+	{
+		v[i].position = p[indices[i]];
+		v[i].color = color;
+		v[i].uv = { 0.0f, 0.0f };
+	}
+
+	g_pContext->Unmap(g_pVertexBuffer, 0);
+
+	Shader_SetWorldMatrix(XMMatrixIdentity());
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	g_pContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+
+	g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
+	Texture_SetTexture(g_WhiteTexId);
+
+	g_pContext->Draw(24, 0);
+}
