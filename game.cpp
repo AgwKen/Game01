@@ -40,7 +40,7 @@
 #include "BallPlayer.h"
 #include "particle_test.h"
 #include "Goal.h"
-
+#include "GoalCollision.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -339,6 +339,8 @@ void Game_Draw()
     Map_Draw();
     BallPlayer_Draw();
     Goal_Render();
+   
+
 
 
     Billboard_SetViewMatrix(g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix());

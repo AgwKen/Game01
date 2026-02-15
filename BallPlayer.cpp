@@ -8,6 +8,11 @@
 #include <cmath>
 #include "dust_particle.h"
 #include "Goal.h"
+#include <ctime>
+#include "GoalCollision.h"
+#include "pad_logger.h"
+#include "player_camera.h"
+
 
 // ============================================================================
 // RENDER
@@ -28,7 +33,7 @@ static XMVECTOR g_AngularVelocity = XMVectorZero();
 // PHYSICS CONSTANTS
 // ============================================================================
 static constexpr float BALL_RADIUS = 0.4f;
-static constexpr float BALL_SCALE  = 0.08f;
+static constexpr float BALL_SCALE  = 0.05f;
 static constexpr float GRAVITY     = -25.0f;
 
 // Ground
@@ -118,7 +123,8 @@ void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
     XMVECTOR side = XMVector3Normalize(
         XMVector3Cross(fwd, XMVectorSet(0, 1, 0, 0))
     );
-    g_AngularVelocity += side * curve;
+    float spinScale = power / KICK_MAX_POWER;   // 0 → 1 range
+    g_AngularVelocity += side * (curve * spinScale);
 
     g_IsKicked = true;
     g_AirCurveUsed = false;
@@ -126,6 +132,9 @@ void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
 }
 void BallPlayer_Reset()
 {
+    float z = 1.0f + (rand() / (float)RAND_MAX) * 19.0f;
+    GoalCollision_SetOffset({ 0,0,z });
+
     g_Position = g_StartPosition;
     g_PrevPosition = g_StartPosition;
 
@@ -147,6 +156,8 @@ void BallPlayer_Reset()
 // ============================================================================
 void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
 {
+    srand((unsigned)time(NULL));
+
     g_StartPosition = startPos;
     g_StartPosition.y = 5.0f;
 
@@ -189,10 +200,23 @@ void BallPlayer_Update(double elapsedTime)
     if (!g_IsKicked)
     {
         XMFLOAT3 in = { 0,0,0 };
-        if (KeyLogger_IsPressed(KK_W)) in.z += 1;
-        if (KeyLogger_IsPressed(KK_S)) in.z -= 1;
-        if (KeyLogger_IsPressed(KK_A)) in.x -= 1;
-        if (KeyLogger_IsPressed(KK_D)) in.x += 1;
+
+        XMFLOAT2 stick = PadLogger_GetLeftThumbStick(0);
+
+        if (fabs(stick.x) > 0.05f || fabs(stick.y) > 0.05f)
+        {
+            in.x = stick.x;
+            in.z = stick.y;
+        }
+        else
+        {
+            // ⌨ Keyboard fallback
+            if (KeyLogger_IsPressed(KK_W)) in.z += 1;
+            if (KeyLogger_IsPressed(KK_S)) in.z -= 1;
+            if (KeyLogger_IsPressed(KK_A)) in.x -= 1;
+            if (KeyLogger_IsPressed(KK_D)) in.x += 1;
+        }
+
 
         XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
         XMVECTOR dir   = XMVectorSet(in.x, 0, in.z, 0);
@@ -222,20 +246,54 @@ void BallPlayer_Update(double elapsedTime)
     }
 
     // ------------------------------------------------------------------------
-    // KICK CHARGE
+    // KICK CHARGE (KEYBOARD + CONTROLLER HYBRID)
     // ------------------------------------------------------------------------
     if (!g_IsKicked)
     {
-        if (KeyLogger_IsPressed(KK_SPACE))
+        bool keyboardCharging = KeyLogger_IsPressed(KK_SPACE);
+        float triggerValue = PadLogger_GetRightTrigger(0);
+        bool controllerCharging = triggerValue > 0.1f;
+
+        // If either input is charging
+        if (keyboardCharging || controllerCharging)
         {
             g_IsChargingKick = true;
-            g_KickCharge += KICK_CHARGE_SPEED * dt;
+
+            float chargeAmount = 0.0f;
+
+            if (keyboardCharging)
+                chargeAmount = KICK_CHARGE_SPEED * dt;
+
+            if (controllerCharging)
+                chargeAmount = triggerValue * KICK_CHARGE_SPEED * dt * 2.0f;
+
+            g_KickCharge += chargeAmount;
             g_KickCharge = std::min(g_KickCharge, KICK_MAX_POWER);
         }
+        // Release when BOTH are not charging
         else if (g_IsChargingKick)
         {
             float power = std::max(g_KickCharge, KICK_MIN_POWER);
-            BallPlayer_Kick({ 0,0,1 }, power, power * 0.35f, power * 0.15f);
+
+            // ============================
+            // DIRECTION FROM CAMERA
+            // ============================
+
+            XMFLOAT3 camFront = PlayerCamera_GetFront();
+
+            XMVECTOR dirVec = XMVectorSet(camFront.x, 0.0f, camFront.z, 0.0f);
+            dirVec = XMVector3Normalize(dirVec);
+
+            XMFLOAT3 shootDir;
+            XMStoreFloat3(&shootDir, dirVec);
+
+            BallPlayer_Kick(
+                shootDir,
+                power,
+                power * 0.18f,
+                power * 0.06f
+            );
+
             g_IsChargingKick = false;
             g_KickCharge = 0.0f;
         }
@@ -321,7 +379,7 @@ void BallPlayer_Update(double elapsedTime)
         XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
         if (XMVectorGetX(XMVector3Length(g_AngularVelocity)) > 0.01f)
         {
-            XMVECTOR mag = XMVector3Cross(g_AngularVelocity, velXZ) * 0.015f;
+            XMVECTOR mag = XMVector3Cross(g_AngularVelocity, velXZ) * 0.0045f;
             g_Velocity.x += XMVectorGetX(mag);
             g_Velocity.z += XMVectorGetZ(mag);
             g_AngularVelocity *= 0.99f;
@@ -395,27 +453,57 @@ void BallPlayer_Update(double elapsedTime)
         );
     }
     // ------------------------------------------------------------------------
-// AIR CURVE (ONE-TIME)
-// ------------------------------------------------------------------------
-    if (!onGround)
+    // AIR CURVE (ONE-TIME HYBRID)
+    // ------------------------------------------------------------------------
+    if (!onGround && g_IsKicked)
     {
         if (!g_AirCurveUsed)
         {
-            if (KeyLogger_IsPressed(KK_A)) { g_AirCurveUsed = true; g_AirCurveDir = -1; }
-            if (KeyLogger_IsPressed(KK_D)) { g_AirCurveUsed = true; g_AirCurveDir = 1; }
+            float curveDir = 0.0f;
+
+            // Keyboard arrows for curve
+            if (KeyLogger_IsPressed(KK_LEFT))  curveDir -= 1.0f;
+            if (KeyLogger_IsPressed(KK_RIGHT)) curveDir += 1.0f;
+
+            XMFLOAT2 leftStick = PadLogger_GetLeftThumbStick(0);
+            curveDir += leftStick.x;
+
+
+            if (fabs(curveDir) > 0.2f) // threshold so tiny stick doesn't trigger
+            {
+                g_AirCurveUsed = true;
+                g_AirCurveDir = (curveDir > 0.0f) ? 1.0f : -1.0f;
+                g_AirCurveTime = 0.0f;
+            }
         }
 
         if (g_AirCurveUsed && g_AirCurveTime < AIR_CURVE_DURATION)
         {
             g_AirCurveTime += dt;
+
             XMVECTOR vel = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
             float speed = XMVectorGetX(XMVector3Length(vel));
 
             if (speed > 0.01f)
             {
-                XMMATRIX turn = XMMatrixRotationY(g_AirCurveDir * 2.0f * dt);
-                vel = XMVector3TransformNormal(vel, turn);
+                float curveStrength = 0.6f;
+
+                // Get horizontal direction
+                XMVECTOR dir = XMVector3Normalize(vel);
+
+                // Side direction relative to movement
+                XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+                XMVECTOR side = XMVector3Cross(up, dir);  // perpendicular
+
+                float curveAmount = g_AirCurveDir * curveStrength * dt;
+
+                // Add sideways force relative to shot direction
+                vel += side * curveAmount * speed;
+
+                // Keep original speed
                 vel = XMVector3Normalize(vel) * speed;
+
+
                 g_Velocity.x = XMVectorGetX(vel);
                 g_Velocity.z = XMVectorGetZ(vel);
             }

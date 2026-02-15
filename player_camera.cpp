@@ -30,12 +30,12 @@ static XMFLOAT2 g_PeekOffset = { 0.0f, 0.0f };
 static XMFLOAT2 g_TargetPeekOffset = { 0.0f, 0.0f };
 
 // Tunable Parameters
-static constexpr float CAMERA_HEIGHT = 1.8f;
+static constexpr float CAMERA_HEIGHT = 1.2f;
 static constexpr float CAMERA_DISTANCE = -4.0f;
 
 static constexpr float PEEK_DISTANCE = 2.0f;
 static constexpr float PEEK_SPEED = 3.0f;
-static constexpr float PEEK_RETURN_SPEED = 0.5f;
+static constexpr float PEEK_RETURN_SPEED = 0.1f;
 static constexpr float PEEK_DEADZONE = 0.2f;
 
 static constexpr float PEEK_Y_SCALE = 1.0f;   //  no more than 1
@@ -75,7 +75,7 @@ void PlayerCamera_Update(double elapsed_time)
     if (KeyLogger_IsPressed(KK_DOWN))  inputY -= 1.0f;
 
     //controller
-    XMFLOAT2 stick = PadLogger_GetLeftThumbStick(0);
+    XMFLOAT2 stick = PadLogger_GetRightThumbStick(0);
     inputX += stick.x;
     inputY += stick.y;
 

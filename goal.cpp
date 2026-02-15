@@ -22,6 +22,9 @@ static float g_ModelHeightOffset = 1.0f;
 static bool g_ShowPoleDebug = true;
 static bool g_ShowNetDebug = true;
 
+extern XMFLOAT3 g_GoalWorldOffset;
+
+
 void Goal_Initialize()
 {
     g_GoalModel = ModelLoad("Resources/Model/goal.fbx", 1.0f);
@@ -54,20 +57,22 @@ void Goal_Render()
         return;
 
     float terrainY = Mesh_GetHeightAt(
-        g_GoalModelPosition.x,
-        g_GoalModelPosition.z
+        g_GoalModelPosition.x + g_GoalWorldOffset.x,
+        g_GoalModelPosition.z + g_GoalWorldOffset.z
     );
 
     float finalY = terrainY + (g_ModelHeightOffset * g_GoalModelScale);
+    g_GoalWorldBaseY = finalY - (g_ModelHeightOffset * g_GoalModelScale);
 
     XMMATRIX world =
         XMMatrixScaling(g_GoalModelScale, g_GoalModelScale, g_GoalModelScale) *
         XMMatrixRotationY(g_ModelRotationY) *
         XMMatrixTranslation(
-            g_GoalModelPosition.x,
+            g_GoalModelPosition.x + g_GoalWorldOffset.x,
             finalY,
-            g_GoalModelPosition.z
+            g_GoalModelPosition.z + g_GoalWorldOffset.z
         );
+
 
     ModelDraw(g_GoalModel, world);
 
