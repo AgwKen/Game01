@@ -12,6 +12,7 @@
 #include "GoalCollision.h"
 #include "pad_logger.h"
 #include "player_camera.h"
+#include "AirCurveChallenge.h"
 
 
 // ============================================================================
@@ -127,6 +128,7 @@ void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
     g_AngularVelocity += side * (curve * spinScale);
 
     g_IsKicked = true;
+
     g_AirCurveUsed = false;
     g_AirCurveTime = 0.0f;
 }

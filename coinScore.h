@@ -20,6 +20,7 @@ public:
     void SetCoinCount(int count);
     void Update(double elapsed);
     void Draw();
+    int GetCoinPattern() const { return m_CoinAnimPattern; }
 
 private:
     ID3D11Device* m_Device;

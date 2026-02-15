@@ -27,7 +27,7 @@ void Coin_Draw(const Coin& coin)
     BillboardAnim_Draw(
         coin.animPlayId,
         coin.position,
-        { 1.5f, 1.5f },  // scale
+        { 0.5f, 0.5f },  // scale
         { 0.5f, 0.5f }   // pivot
     );
 }

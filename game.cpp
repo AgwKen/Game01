@@ -41,6 +41,7 @@
 #include "particle_test.h"
 #include "Goal.h"
 #include "GoalCollision.h"
+#include "AirCurveChallenge.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -63,8 +64,8 @@ static DepthShaderClass* g_pDepthShader = nullptr;
 //testing pparticle effect 
 static NormalEmitter* g_Emitter;
 
-//coin
-static CoinScoreUI* g_CoinUI = nullptr;
+CoinScoreUI* g_CoinUI = nullptr;
+
 
 static XMFLOAT3 g_TestLightPos = { 0.0f, 3.0f, 0.0f };
 
@@ -107,7 +108,6 @@ CircleShadow_Initialize();
 BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
 Goal_Initialize();
 
-
 g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
 
 g_BGM = LoadAudio("Sounds/bg.wav");
@@ -123,6 +123,25 @@ g_NextWindTime = 5.0f + (rand() % 10);
 
 g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
 g_CoinUI->SetCoinCount(g_PlayerCoinScore);
+
+AirCurveChallenge::Initialize();
+
+// ==============================
+// TEST: Spawn one world coin
+// ==============================
+
+Coin testCoin;
+
+testCoin.position = { 0.0f, 3.0f, 5.0f };  // in front of player
+testCoin.spawnY = testCoin.position.y;
+testCoin.collected = false;
+testCoin.timer = 0.0f;
+
+// IMPORTANT: use SAME pattern as UI
+int coinPattern = g_CoinUI->GetCoinPattern();
+testCoin.animPlayId = SpriteAnim_CreatePlayer(coinPattern);
+
+g_Coins.push_back(testCoin);
 
 
 
@@ -344,6 +363,13 @@ void Game_Draw()
 
 
     Billboard_SetViewMatrix(g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix());
+
+    // DRAW COINS
+    for (auto& coin : g_Coins)
+    {
+        Coin_Draw(coin);  // use your function instead
+    }
+
     g_Emitter->Render();
 
 
@@ -358,10 +384,6 @@ void Game_Draw()
     */
     // --- Draw coins ---
 
-    for (auto& coin : g_Coins)
-    {
-        BillboardAnim_Draw(coin.animPlayId, coin.position, { 0.15f, 0.15f }, { 0.5f, 1.0f });
-    }
 
     //UI
     Direct3D_SetAlphaBlendState();
