@@ -229,3 +229,47 @@
         Texture_SetTexture(texid);
         g_pContext->Draw(NUM_VERTEX, 0);
     }
+
+    //==============================================================================
+ // Draw using currently bound SRV (no Texture_SetTexture call)
+ //==============================================================================
+    void Sprite_DrawRaw(float dx, float dy, float dw, float dh)
+    {
+        D3D11_MAPPED_SUBRESOURCE msr;
+        g_pContext->Map(g_pVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &msr);
+
+        Vertex* v = static_cast<Vertex*>(msr.pData);
+
+        // Screen space positions
+        v[0].position = { dx,      dy,      0.0f };
+        v[1].position = { dx + dw, dy,      0.0f };
+        v[2].position = { dx,      dy + dh, 0.0f };
+        v[3].position = { dx + dw, dy + dh, 0.0f };
+
+        for (int i = 0; i < 4; i++)
+            v[i].color = { 1,1,1,1 };
+
+        // Full texture UV
+        v[0].uv = { 0.0f, 0.0f };
+        v[1].uv = { 1.0f, 0.0f };
+        v[2].uv = { 0.0f, 1.0f };
+        v[3].uv = { 1.0f, 1.0f };
+
+        g_pContext->Unmap(g_pVertexBuffer, 0);
+
+        // Identity world
+        Shader_SetWorldMatrix(XMMatrixIdentity());
+        Shader_Begin();
+
+        UINT stride = sizeof(Vertex);
+        UINT offset = 0;
+
+        g_pContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+        g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+        // IMPORTANT:
+        // DO NOT call Texture_SetTexture here.
+        // We assume SRV is already bound externally.
+
+        g_pContext->Draw(NUM_VERTEX, 0);
+    }

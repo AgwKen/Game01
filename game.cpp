@@ -42,6 +42,7 @@
 #include "Goal.h"
 #include "GoalCollision.h"
 #include "AirCurveChallenge.h"
+#include "sprite.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -81,6 +82,21 @@ static float g_AmbientLevel = 0.58f;   // default brightness
 
 void Game_Initialize()
 {
+
+    // ==========================================
+    // CREATE RENDER TEXTURE (IMPORTANT)
+    // ==========================================
+    g_pRenderTexture = new RenderTextureClass();
+
+    g_pRenderTexture->Initialize(
+        Direct3D_GetDevice(),
+        Direct3D_GetBackBufferWidth(),
+        Direct3D_GetBackBufferHeight(),
+        1000.0f,   // screen depth
+        0.1f,      // near plane
+        1          // format
+    );
+
 InitAudio();
 Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 0.5f });
 
@@ -149,6 +165,13 @@ g_Coins.push_back(testCoin);
 
 void Game_Finalize()
 {
+    if (g_pRenderTexture)
+    {
+        g_pRenderTexture->Shutdown();
+        delete g_pRenderTexture;
+        g_pRenderTexture = nullptr;
+    }
+
 	delete g_Emitter;
 	g_Emitter = nullptr;
     // --- Stop & unload BGM ---
@@ -229,7 +252,7 @@ void Game_Update(double elapsed_time)
         Camera_Update(elapsed_time);
     }
     else {
-       // Player_Update(elapsed_time);
+        // Player_Update(elapsed_time);
     }
 
     // === WIND AMBIENCE ===
@@ -300,103 +323,120 @@ void Game_Update(double elapsed_time)
     g_DiscoColor.y = (sinf(g_LightMoveTime + 2.0f) + 1.0f) * 0.5f;
     g_DiscoColor.z = (sinf(g_LightMoveTime + 4.0f) + 1.0f) * 0.5f;
 
-
-
 }
-
-void Game_Draw()
+void RenderPass_Offscreen()
 {
+    ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
+
+    g_pRenderTexture->SetRenderTarget(context);
+    g_pRenderTexture->ClearRenderTarget(context, 0.1f, 0.1f, 0.1f, 1.0f);
+
     // --- CAMERA ---
     XMFLOAT4X4 mtxView = g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix();
     XMMATRIX view = XMLoadFloat4x4(&mtxView);
     XMMATRIX proj = g_IsDebug ?
         XMLoadFloat4x4(&Camera_GetPerspectiveMatrix()) :
         XMLoadFloat4x4(&PlayerCamera_GetPerspectiveMatrix());
+
     Camera_SetMatrix(view, proj);
 
-    //skybox
-    XMFLOAT3 camPos = g_IsDebug
-        ? Camera_GetPosition()
-        : PlayerCamera_GetPosition();
-
+    // --- SKY ---
+    XMFLOAT3 camPos = g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition();
     Sky_Draw(camPos);
 
     // --- LIGHTING ---
     Light_SetAmbient({ 0.55f, 0.55f, 0.55f });
-    ShaderField_SetAmbientColor({
-    g_AmbientLevel,
-    g_AmbientLevel,
-    g_AmbientLevel,
-    1.0f
-        });
 
+    ShaderField_SetAmbientColor({
+        g_AmbientLevel,
+        g_AmbientLevel,
+        g_AmbientLevel,
+        1.0f
+        });
 
     XMVECTOR dirVec = XMVector3Normalize({ 0.6f, -1.0f, -0.4f });
     XMFLOAT4 dir;
     XMStoreFloat4(&dir, dirVec);
 
-    XMFLOAT4 dirColor = { 0.85f, 0.85f, 0.85f, 1.0f }; // not pure white
+    XMFLOAT4 dirColor = { 0.85f, 0.85f, 0.85f, 1.0f };
 
     Light_SetDirectionalWorld(dir, dirColor);
     ShaderField_SetDirectionalLight(dir, dirColor);
 
-    Light_SetSpecularWorld(Camera_GetPosition(), 16.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
-
-    /*
-    // Enable disco point light
-    Light_SetPointLightCount(1);
-    Light_SetPointLight(
-        0,
-        g_TestLightPos,
-        8.0f,   // bigger range for disco effect
-        g_DiscoColor
+    Light_SetSpecularWorld(
+        g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition(),
+        16.0f,
+        { 1.0f, 1.0f, 1.0f, 1.0f }
     );
- */
 
-
-
+    // --- WORLD ---
     Map_Draw();
     BallPlayer_Draw();
     Goal_Render();
-   
 
+    // --- BILLBOARDS (TREES) ---
+    Billboard_SetViewMatrix(mtxView);
 
-
-    Billboard_SetViewMatrix(g_IsDebug ? Camera_GetMatrix() : PlayerCamera_GetViewMatrix());
-
-    // DRAW COINS
+    // --- COINS ---
     for (auto& coin : g_Coins)
-    {
-        Coin_Draw(coin);  // use your function instead
-    }
+        Coin_Draw(coin);
 
     g_Emitter->Render();
 
+}
+    
+void RenderPass_Main()
+{
+    Direct3D_SetRenderTarget();
+    Direct3D_Clear();
 
-    // --- DRAW SCENE ---
-    /*
-    Grid_Draw();
-    Bullet_Draw();
-    Enemy_Draw();
-    Player_Draw();
-    Fireball_Draw();
-    Trajetory3d_Draw();  // Draws the trails and flashes
-    */
-    // --- Draw coins ---
+    // DISABLE DEPTH HERE
+    Direct3D_SetDepthEnable(false);
+
+    ID3D11ShaderResourceView* srv = g_pRenderTexture->GetShaderResourceView();
+    Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, &srv);
+
+    Sprite_Begin();
+
+    float screenW = (float)Direct3D_GetBackBufferWidth();
+    float screenH = (float)Direct3D_GetBackBufferHeight();
+
+    Sprite_DrawRaw(0, 0, screenW, screenH);
+
+    // UNBIND
+    ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+    Direct3D_GetDeviceContext()->PSSetShaderResources(0, 1, nullSRV);
+
+    // RE-ENABLE DEPTH
+    Direct3D_SetDepthEnable(true);
+}
 
 
-    //UI
+
+void RenderPass_UI()
+{
     Direct3D_SetAlphaBlendState();
     Direct3D_SetDepthReadOnly(true);
+
     if (g_CoinUI)
         g_CoinUI->Draw();
-    Direct3D_SetDepthReadOnly(false);
-    Direct3D_SetDefaultBlendState();
 
-    // --- DEBUG ---
-    if (g_IsDebug) {
+    if (g_IsDebug)
+    {
         Camera_DebugDraw();
     }
+
+
+    Direct3D_SetDepthReadOnly(false);
+    Direct3D_SetDefaultBlendState();
+}
+
+
+void Game_Draw()
+{
+    RenderPass_Offscreen();   // Pass 1
+    RenderPass_Main();        // Pass 2
+    RenderPass_UI();          // UI
 }
 
 

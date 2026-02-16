@@ -125,13 +125,17 @@ bool Direct3D_Initialize(HWND hWnd)
 	// Additive Blend State
 	D3D11_BLEND_DESC additiveBlendDesc = {};
 	additiveBlendDesc.RenderTarget[0].BlendEnable = TRUE;
-	additiveBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+
+	additiveBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 	additiveBlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
 	additiveBlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
 	additiveBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-	additiveBlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	additiveBlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
 	additiveBlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+
 	additiveBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
 	g_pDevice->CreateBlendState(&additiveBlendDesc, &g_pAdditiveBlendState);
 
 	// Front-face culling rasterizer (for skybox)
