@@ -40,7 +40,7 @@ DirectX::XMMATRIX LightCamera_GetViewMatrix()
 DirectX::XMMATRIX LightCamera_GetProjectionMatrix()
 {
 	// Directional lights use Orthographic projection for shadows
-	float size = 30.0f;
+	float size = 120.0f;
 	return XMMatrixOrthographicLH(size, size, 0.1f, 1000.0f);
 }
 

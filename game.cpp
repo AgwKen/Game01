@@ -337,19 +337,23 @@ void Game_Update(double elapsed_time)
 }
 void RenderPass_Shadow()
 {
+    ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
+
+    // 1?? Set shadow map as render target (depth only)
     Shadow_SetRenderTarget();
     Shadow_Clear();
 
+    // 2?? Get light camera matrices
     XMMATRIX lightView = LightCamera_GetViewMatrix();
     XMMATRIX lightProj = LightCamera_GetProjectionMatrix();
 
+    // 3?? Get Ball model + world matrix
     MODEL* model = BallPlayer_GetModel();
-    XMMATRIX world = BallPlayer_GetWorldMatrix();
-
     if (!model) return;
 
-    ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
+    XMMATRIX world = BallPlayer_GetWorldMatrix();
 
+    // 4?? Render each mesh using depth shader
     for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
     {
         UINT stride = 48;
@@ -371,10 +375,7 @@ void RenderPass_Shadow()
         );
     }
 
-    // Restore backbuffer render target
-    Direct3D_SetRenderTarget();
-
-    // Restore viewport
+    // 5?? Restore viewport to screen size
     D3D11_VIEWPORT vp;
     vp.Width = (float)Direct3D_GetBackBufferWidth();
     vp.Height = (float)Direct3D_GetBackBufferHeight();
