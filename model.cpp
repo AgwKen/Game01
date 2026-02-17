@@ -8,6 +8,8 @@
 using namespace DirectX;
 #include "shader3d_unlit.h"
 #include "sampler.h"
+#include "shadow.h"
+
 
 // 3D’¸“_\‘¢‘Ì
 struct Vertex3d
@@ -339,6 +341,12 @@ void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 		UINT offset = 0;
 		Direct3D_GetDeviceContext()->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
 		Direct3D_GetDeviceContext()->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
+		ID3D11ShaderResourceView* shadowSRV = Shadow_GetShadowMap();
+		Direct3D_GetDeviceContext()->PSSetShaderResources(2, 1, &shadowSRV);
+
+		ID3D11SamplerState* shadowSampler = Shadow_GetSampler();
+		Direct3D_GetDeviceContext()->PSSetSamplers(1, 1, &shadowSampler);
+
 		Direct3D_GetDeviceContext()->DrawIndexed(model->AiScene->mMeshes[m]->mNumFaces * 3, 0, 0);
 	}
 }
@@ -421,6 +429,28 @@ void ModelUnlitDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld)
 		Direct3D_GetDeviceContext()->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
 		Direct3D_GetDeviceContext()->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
 		Direct3D_GetDeviceContext()->DrawIndexed(model->AiScene->mMeshes[m]->mNumFaces * 3, 0, 0);
+	}
+}
+void ModelDrawDepth(MODEL* model)
+{
+	if (!model || !model->AiScene) return;
+
+	ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
+	{
+		UINT stride = sizeof(Vertex3d);
+		UINT offset = 0;
+
+		context->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
+		context->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
+
+		context->DrawIndexed(
+			model->AiScene->mMeshes[m]->mNumFaces * 3,
+			0,
+			0
+		);
 	}
 }
 

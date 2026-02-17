@@ -26,6 +26,12 @@ struct DirectionalLightBuffer
 	DirectX::XMFLOAT4 directional_world_vector;
 	DirectX::XMFLOAT4 directional_color;
 };
+// NEW: Shadow matrices (b5)
+struct ShadowBuffer
+{
+	DirectX::XMFLOAT4X4 lightView;
+	DirectX::XMFLOAT4X4 lightProjection;
+};
 
 
 static ID3D11VertexShader* g_pVertexShader = nullptr;
@@ -33,6 +39,13 @@ static ID3D11InputLayout* g_pInputLayout = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer0 = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer3 = nullptr; // NEW: Ambient Light (b3)
 static ID3D11Buffer* g_pVSConstantBuffer4 = nullptr; // NEW: Directional Light (b4)
+
+static ID3D11Buffer* g_pVSConstantBuffer5 = nullptr; // NEW: Shadow buffer (b5)
+
+static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr; // view (b1)
+static ID3D11Buffer* g_pVSConstantBuffer2 = nullptr; // projection (b2)
+
+
 static ID3D11PixelShader* g_pPixelShader = nullptr;
 
 // Note! These are set externally during initialization. No need to release.
@@ -114,6 +127,10 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 
 	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer0);
 
+	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
+	g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
+
+
 	// NEW: Create constant buffer for Ambient Light (b3)
 	D3D11_BUFFER_DESC buffer_desc_b3{};
 	buffer_desc_b3.ByteWidth = sizeof(AmbientLightBuffer);
@@ -125,6 +142,13 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 	buffer_desc_b4.ByteWidth = sizeof(DirectionalLightBuffer);
 	buffer_desc_b4.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	g_pDevice->CreateBuffer(&buffer_desc_b4, nullptr, &g_pVSConstantBuffer4);
+
+	// NEW: Create shadow constant buffer (b5)
+	D3D11_BUFFER_DESC buffer_desc_b5{};
+	buffer_desc_b5.ByteWidth = sizeof(ShadowBuffer);
+	buffer_desc_b5.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	g_pDevice->CreateBuffer(&buffer_desc_b5, nullptr, &g_pVSConstantBuffer5);
+
 
 	// Load precompiled pixel shader
 	// Load precompiled pixel shader
@@ -157,6 +181,9 @@ bool ShaderField_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext
 void ShaderField_Finalize()
 {
 	SAFE_RELEASE(g_pPixelShader);
+	SAFE_RELEASE(g_pVSConstantBuffer2);
+	SAFE_RELEASE(g_pVSConstantBuffer1);
+	SAFE_RELEASE(g_pVSConstantBuffer5);
 	SAFE_RELEASE(g_pVSConstantBuffer4); // NEW: Release directional light buffer
 	SAFE_RELEASE(g_pVSConstantBuffer3); // NEW: Release ambient light buffer
 	SAFE_RELEASE(g_pVSConstantBuffer0);
@@ -179,6 +206,18 @@ void ShaderField_SetDirectionalLight(const DirectX::XMFLOAT4& direction, const D
 	DirectionalLightBuffer buffer = { direction, color };
 	g_pContext->UpdateSubresource(g_pVSConstantBuffer4, 0, nullptr, &buffer, 0, 0);
 }
+// NEW: Setter for shadow matrices
+void ShaderField_SetShadowMatrices(const DirectX::XMMATRIX& lightView,
+	const DirectX::XMMATRIX& lightProjection)
+{
+	ShadowBuffer buffer;
+
+	XMStoreFloat4x4(&buffer.lightView, XMMatrixTranspose(lightView));
+	XMStoreFloat4x4(&buffer.lightProjection, XMMatrixTranspose(lightProjection));
+
+	g_pContext->UpdateSubresource(g_pVSConstantBuffer5, 0, nullptr, &buffer, 0, 0);
+}
+
 
 void ShaderField_SetWorldMatrix(const DirectX::XMMATRIX& matrix)
 {
@@ -191,6 +230,20 @@ void ShaderField_SetWorldMatrix(const DirectX::XMMATRIX& matrix)
 	// Set matrix into constant buffer
 	g_pContext->UpdateSubresource(g_pVSConstantBuffer0, 0, nullptr, &transpose, 0, 0);
 }
+void ShaderField_SetViewMatrix(const DirectX::XMMATRIX& matrix)
+{
+	XMFLOAT4X4 t;
+	XMStoreFloat4x4(&t, XMMatrixTranspose(matrix));
+	g_pContext->UpdateSubresource(g_pVSConstantBuffer1, 0, nullptr, &t, 0, 0);
+}
+
+void ShaderField_SetProjectionMatrix(const DirectX::XMMATRIX& matrix)
+{
+	XMFLOAT4X4 t;
+	XMStoreFloat4x4(&t, XMMatrixTranspose(matrix));
+	g_pContext->UpdateSubresource(g_pVSConstantBuffer2, 0, nullptr, &t, 0, 0);
+}
+
 
 void ShaderField_Begin()
 {
@@ -203,8 +256,12 @@ void ShaderField_Begin()
 
 	// Set constant buffers into the rendering pipeline
 	g_pContext->VSSetConstantBuffers(0, 1, &g_pVSConstantBuffer0);
-	g_pContext->VSSetConstantBuffers(3, 1, &g_pVSConstantBuffer3); // NEW: Bind Ambient Light (b3)
-	g_pContext->VSSetConstantBuffers(4, 1, &g_pVSConstantBuffer4); // NEW: Bind Directional Light (b4)
+	g_pContext->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
+	g_pContext->VSSetConstantBuffers(2, 1, &g_pVSConstantBuffer2);
+	g_pContext->VSSetConstantBuffers(3, 1, &g_pVSConstantBuffer3);
+	g_pContext->VSSetConstantBuffers(4, 1, &g_pVSConstantBuffer4);
+	g_pContext->VSSetConstantBuffers(5, 1, &g_pVSConstantBuffer5);
+
 
 	// Set sampler state into the rendering pipeline
 	Sampler_SetFilterAnisotropic();

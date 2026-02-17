@@ -8,21 +8,21 @@ cbuffer MatrixBuffer : register(b0)
 
 struct VS_IN
 {
-    float4 posL : POSITION;
+    float3 posL : POSITION;
 };
 
 struct VS_OUT
 {
     float4 posH : SV_POSITION;
-    float4 depthPos : TEXCOORD0;
 };
 
 VS_OUT main(VS_IN vi)
 {
     VS_OUT vo;
-    float4 posW = mul(vi.posL, worldMatrix);
+
+    float4 posW = mul(float4(vi.posL, 1.0f), worldMatrix);
     float4 posV = mul(posW, viewMatrix);
     vo.posH = mul(posV, projectionMatrix);
-    vo.depthPos = vo.posH; // Store for pixel shader
+
     return vo;
 }

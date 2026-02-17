@@ -21,7 +21,10 @@ static ID3D11VertexShader* g_pVertexShader = nullptr;
 static ID3D11InputLayout* g_pInputLayout = nullptr;
 static ID3D11Buffer* g_pVSConstantBuffer0 = nullptr;
 static ID3D11Buffer* g_pPSConstantBuffer0 = nullptr;
+static ID3D11Buffer* g_pVSConstantBuffer5 = nullptr;
 static ID3D11PixelShader* g_pPixelShader = nullptr;
+static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr; // view
+static ID3D11Buffer* g_pVSConstantBuffer2 = nullptr; // projection
 
 // 注意！初期化で外部から設定されるもの。Release不要。
 static ID3D11Device* g_pDevice = nullptr;
@@ -88,6 +91,16 @@ bool Shader3d_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
     //g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
     //g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
 
+    g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer1);
+    g_pDevice->CreateBuffer(&buffer_desc, nullptr, &g_pVSConstantBuffer2);
+
+    D3D11_BUFFER_DESC buffer_desc_b5{};
+    buffer_desc_b5.ByteWidth = sizeof(XMFLOAT4X4) * 2;
+    buffer_desc_b5.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+    g_pDevice->CreateBuffer(&buffer_desc_b5, nullptr, &g_pVSConstantBuffer5);
+
+
     // ピクセルシェーダー読み込み
     std::ifstream ifs_ps("shader_pixel_3d.cso", std::ios::binary);
     if (!ifs_ps) {
@@ -122,10 +135,14 @@ void Shader3d_Finalize()
 {
     SAFE_RELEASE(g_pPixelShader);
     SAFE_RELEASE(g_pPSConstantBuffer0);
+    SAFE_RELEASE(g_pVSConstantBuffer5);
+    SAFE_RELEASE(g_pVSConstantBuffer2);
+    SAFE_RELEASE(g_pVSConstantBuffer1);
     SAFE_RELEASE(g_pVSConstantBuffer0);
     SAFE_RELEASE(g_pInputLayout);
     SAFE_RELEASE(g_pVertexShader);
 }
+
 
 void Shader3d_SetWorldMatrix(const DirectX::XMMATRIX& matrix)
 {
@@ -138,6 +155,36 @@ void Shader3d_SetColor(const XMFLOAT4& color)
 {
     g_pContext->UpdateSubresource(g_pPSConstantBuffer0, 0, nullptr, &color, 0, 0);
 }
+void Shader3d_SetViewMatrix(const XMMATRIX& matrix)
+{
+    XMFLOAT4X4 transpose;
+    XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
+    g_pContext->UpdateSubresource(g_pVSConstantBuffer1, 0, nullptr, &transpose, 0, 0);
+}
+
+void Shader3d_SetProjectionMatrix(const XMMATRIX& matrix)
+{
+    XMFLOAT4X4 transpose;
+    XMStoreFloat4x4(&transpose, XMMatrixTranspose(matrix));
+    g_pContext->UpdateSubresource(g_pVSConstantBuffer2, 0, nullptr, &transpose, 0, 0);
+}
+
+void Shader3d_SetShadowMatrices(const XMMATRIX& lightView,
+    const XMMATRIX& lightProjection)
+{
+    struct ShadowBuffer
+    {
+        XMFLOAT4X4 lightView;
+        XMFLOAT4X4 lightProjection;
+    };
+
+    ShadowBuffer buffer;
+
+    XMStoreFloat4x4(&buffer.lightView, XMMatrixTranspose(lightView));
+    XMStoreFloat4x4(&buffer.lightProjection, XMMatrixTranspose(lightProjection));
+
+    g_pContext->UpdateSubresource(g_pVSConstantBuffer5, 0, nullptr, &buffer, 0, 0);
+}
 
 void Shader3d_Begin()
 {
@@ -147,6 +194,9 @@ void Shader3d_Begin()
 
     g_pContext->VSSetConstantBuffers(0, 1, &g_pVSConstantBuffer0);
     g_pContext->PSSetConstantBuffers(0, 1, &g_pPSConstantBuffer0);
+    g_pContext->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
+    g_pContext->VSSetConstantBuffers(2, 1, &g_pVSConstantBuffer2);
+    g_pContext->VSSetConstantBuffers(5, 1, &g_pVSConstantBuffer5);
 
     Sampler_SetFilterAnisotropic();
 }

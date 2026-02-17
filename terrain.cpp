@@ -16,6 +16,7 @@ using namespace DirectX;
 #include <cmath>
 #include <cstdlib>
 #include <algorithm>
+#include "shadow.h"
 
 
 static constexpr float FIELD_MESH_SIZE = 1.0f;
@@ -347,6 +348,16 @@ void Mesh_Draw(int repeatX, int repeatZ, float heightOffset, float offsetX, floa
     ShaderField_Begin();
     Texture_SetTexture(g_Tex0Id, 0);
     Texture_SetTexture(g_Tex1Id, 1);
+ 
+    // Bind shadow map to t2
+    ID3D11ShaderResourceView* shadowSRV = Shadow_GetShadowMap();
+    g_pContext->PSSetShaderResources(2, 1, &shadowSRV);
+
+    // Bind shadow sampler to s1
+    ID3D11SamplerState* shadowSampler = Shadow_GetSampler();
+    g_pContext->PSSetSamplers(1, 1, &shadowSampler);
+
+
 
     UINT stride = sizeof(Vertex3d);
     UINT offset = 0;

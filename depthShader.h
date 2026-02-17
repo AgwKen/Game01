@@ -25,6 +25,11 @@ public:
 	void Shutdown();
 	bool Render(ID3D11DeviceContext*, int, XMMATRIX, XMMATRIX, XMMATRIX, ID3D11ShaderResourceView*);
 
+	ID3D11VertexShader* GetVertexShader() const { return m_vertexShader; }
+	ID3D11PixelShader* GetPixelShader()  const { return m_pixelShader; }
+	ID3D11InputLayout* GetInputLayout()  const { return m_layout; }
+
+
 private:
 	bool SetShaderParameters(ID3D11DeviceContext*, XMMATRIX, XMMATRIX, XMMATRIX);
 	void RenderShader(ID3D11DeviceContext*, int);
@@ -35,5 +40,6 @@ private:
 	ID3D11InputLayout* m_layout;
 	ID3D11Buffer* m_matrixBuffer;
 };
+
 
 #endif

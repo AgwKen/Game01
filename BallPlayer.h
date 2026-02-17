@@ -1,5 +1,6 @@
 #pragma once
 #include <DirectXMath.h>
+#include "model.h"
 
 using namespace DirectX;
 
@@ -22,3 +23,5 @@ void BallPlayer_Finalize();
 XMFLOAT3 BallPlayer_GetPosition();
 void BallPlayer_SetPosition(const XMFLOAT3& pos);
 
+DirectX::XMMATRIX BallPlayer_GetWorldMatrix();
+MODEL* BallPlayer_GetModel();

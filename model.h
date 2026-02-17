@@ -28,5 +28,5 @@ void ModelRelease(MODEL* model);
 
 void ModelDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld);
 void ModelUnlitDraw(MODEL* model, const DirectX::XMMATRIX& mtxWorld);
-
+void ModelDrawDepth(MODEL* model);
 AABB Model_GetAABB(MODEL* model, const DirectX::XMFLOAT3& position);

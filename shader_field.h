@@ -20,6 +20,11 @@ void ShaderField_SetWorldMatrix(const DirectX::XMMATRIX& matrix);
 void ShaderField_SetAmbientColor(const DirectX::XMFLOAT4& color);
 
 void ShaderField_SetDirectionalLight(const DirectX::XMFLOAT4& direction, const DirectX::XMFLOAT4& color);
+void ShaderField_SetShadowMatrices(const DirectX::XMMATRIX& lightView,
+	const DirectX::XMMATRIX& lightProjection);
+void ShaderField_SetViewMatrix(const DirectX::XMMATRIX& matrix);
+void ShaderField_SetProjectionMatrix(const DirectX::XMMATRIX& matrix);
+
 
 void ShaderField_Begin();
 

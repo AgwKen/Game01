@@ -550,4 +550,17 @@ void BallPlayer_Finalize()
 }
 
 XMFLOAT3 BallPlayer_GetPosition() { return g_Position; }
-float BallPlayer_GetRadius() { return BALL_RADIUS; }
+void BallPlayer_SetPosition(const XMFLOAT3& pos)
+{
+    g_Position = pos;
+}
+
+XMMATRIX BallPlayer_GetWorldMatrix()
+{
+    return g_World;
+}
+
+MODEL* BallPlayer_GetModel()
+{
+    return g_BallModel;
+}

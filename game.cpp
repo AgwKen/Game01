@@ -103,6 +103,9 @@ Camera_Initialize({ 8.2f, 8.4f, -12.7f }, { -0.5f, -0.3f, 0.7f }, { 0.8f, 0.0f, 
 // 3. Initialize the Shadow Shader (for drawing the final scene)
 Shadow_Initialize();
 
+g_pDepthShader = new DepthShaderClass();
+g_pDepthShader->Initialize(Direct3D_GetDevice(), nullptr);
+
 // 4. Initialize Light Camera (Position the "Sun")
 // Looking from (10, 20, 10) down towards the center (0,0,0)
 XMFLOAT3 lightPos = { 10.0f, 20.0f, 10.0f };
@@ -165,6 +168,14 @@ g_Coins.push_back(testCoin);
 
 void Game_Finalize()
 {
+
+    if (g_pDepthShader)
+    {
+        g_pDepthShader->Shutdown();
+        delete g_pDepthShader;
+        g_pDepthShader = nullptr;
+    }
+
     if (g_pRenderTexture)
     {
         g_pRenderTexture->Shutdown();
@@ -324,6 +335,57 @@ void Game_Update(double elapsed_time)
     g_DiscoColor.z = (sinf(g_LightMoveTime + 4.0f) + 1.0f) * 0.5f;
 
 }
+void RenderPass_Shadow()
+{
+    Shadow_SetRenderTarget();
+    Shadow_Clear();
+
+    XMMATRIX lightView = LightCamera_GetViewMatrix();
+    XMMATRIX lightProj = LightCamera_GetProjectionMatrix();
+
+    MODEL* model = BallPlayer_GetModel();
+    XMMATRIX world = BallPlayer_GetWorldMatrix();
+
+    if (!model) return;
+
+    ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
+
+    for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
+    {
+        UINT stride = 48;
+        UINT offset = 0;
+
+        context->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
+        context->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
+
+        UINT indexCount =
+            model->AiScene->mMeshes[m]->mNumFaces * 3;
+
+        g_pDepthShader->Render(
+            context,
+            indexCount,
+            world,
+            lightView,
+            lightProj,
+            nullptr
+        );
+    }
+
+    // Restore backbuffer render target
+    Direct3D_SetRenderTarget();
+
+    // Restore viewport
+    D3D11_VIEWPORT vp;
+    vp.Width = (float)Direct3D_GetBackBufferWidth();
+    vp.Height = (float)Direct3D_GetBackBufferHeight();
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+
+    context->RSSetViewports(1, &vp);
+}
+
 void RenderPass_Offscreen()
 {
     ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
@@ -343,6 +405,20 @@ void RenderPass_Offscreen()
     // --- SKY ---
     XMFLOAT3 camPos = g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition();
     Sky_Draw(camPos);
+
+    // --- SHADOW MATRICES ---
+    XMMATRIX lightView = LightCamera_GetViewMatrix();
+    XMMATRIX lightProj = LightCamera_GetProjectionMatrix();
+
+    ShaderField_SetShadowMatrices(lightView, lightProj);
+    Shader3d_SetShadowMatrices(lightView, lightProj);
+
+    ShaderField_SetViewMatrix(view);
+    ShaderField_SetProjectionMatrix(proj);
+
+    Shader3d_SetViewMatrix(view);
+    Shader3d_SetProjectionMatrix(proj);
+
 
     // --- LIGHTING ---
     Light_SetAmbient({ 0.55f, 0.55f, 0.55f });
@@ -421,11 +497,6 @@ void RenderPass_UI()
     if (g_CoinUI)
         g_CoinUI->Draw();
 
-    if (g_IsDebug)
-    {
-        Camera_DebugDraw();
-    }
-
 
     Direct3D_SetDepthReadOnly(false);
     Direct3D_SetDefaultBlendState();
@@ -434,6 +505,7 @@ void RenderPass_UI()
 
 void Game_Draw()
 {
+    RenderPass_Shadow();
     RenderPass_Offscreen();   // Pass 1
     RenderPass_Main();        // Pass 2
     RenderPass_UI();          // UI

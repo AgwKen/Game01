@@ -53,10 +53,16 @@ struct PS_IN
     float4 normalW : NORMAL0;
     float4 color : COLOR0;
     float2 uv : TEXCOORD0;
+    float4 lightViewPos : TEXCOORD1;
+
 };
 
 Texture2D tex;
 SamplerState samp;
+
+Texture2D shadowMap : register(t2);
+SamplerState shadowSampler : register(s1);
+
 
 float4 main(PS_IN pi) : SV_Target
 {
@@ -77,6 +83,25 @@ float4 main(PS_IN pi) : SV_Target
     
     
     float3 color = ambient + diffuse + specular;
+    
+    float shadow = 1.0f;
+
+    float2 shadowUV;
+    shadowUV.x = pi.lightViewPos.x / pi.lightViewPos.w * 0.5f + 0.5f;
+    shadowUV.y = -pi.lightViewPos.y / pi.lightViewPos.w * 0.5f + 0.5f;
+
+    float lightDepth = pi.lightViewPos.z / pi.lightViewPos.w;
+
+    if (shadowUV.x >= 0 && shadowUV.x <= 1 &&
+    shadowUV.y >= 0 && shadowUV.y <= 1)
+    {
+        float shadowDepth = shadowMap.Sample(shadowSampler, shadowUV).r;
+        float bias = 0.002f;
+
+        if (lightDepth > shadowDepth + bias)
+            shadow = 0.4f;
+    }
+
 
     float lim = 1.0f - max(dot(normalW.xyz, toEye), 0.0f);
     lim = pow(lim, 3.2f);
@@ -97,5 +122,5 @@ float4 main(PS_IN pi) : SV_Target
         color += point_light[i].color.rgb * t;
     }
 
-    return float4(color, alpha);
+    return float4(color * shadow, alpha);
 }

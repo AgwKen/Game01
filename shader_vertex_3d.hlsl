@@ -22,6 +22,11 @@ cbuffer VS_CONSTANT_BUFFER : register(b2)
 {
     float4x4 projection;
 };
+cbuffer SHADOW_BUFFER : register(b5)
+{
+    float4x4 lightView;
+    float4x4 lightProjection;
+};
 
 struct VS_IN
 {
@@ -38,6 +43,8 @@ struct VS_OUT
     float4 normalW : NORMAL0;
     float4 color : COLOR0;// its zero not O
     float2 uv : TEXCOORD0;
+    float4 lightViewPos : TEXCOORD1;
+
 };
 
 //=============================================================================
@@ -58,6 +65,10 @@ VS_OUT main(VS_IN vi)
     vo.normalW = normalize(normalW);
 
     vo.posW = mul(vi.posL, world);
+    float4 lightPos = mul(vo.posW, lightView);
+    lightPos = mul(lightPos, lightProjection);
+    vo.lightViewPos = lightPos;
+
     
     vo.color = vi.color;
     vo.uv = vi.uv;

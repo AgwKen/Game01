@@ -1,39 +1,10 @@
-/*==============================================================================
-  Shadow Shader [shadow.cpp]
-                                                         Author : PYAE SONE THANT
---------------------------------------------------------------------------------
-==============================================================================*/
 #include "shadow.h"
 #include "direct3d.h"
-#include "sampler.h"
-#include <fstream>
-#include <vector>
-#include <cassert>
 
-// --- D3D objects ---
-static ID3D11VertexShader* g_pVertexShader = nullptr;
-static ID3D11PixelShader* g_pPixelShader = nullptr;
-static ID3D11InputLayout* g_pInputLayout = nullptr;
-
-static ID3D11Buffer* g_pVSConstantBuffer0 = nullptr; // MatrixBuffer (b0)
-static ID3D11Buffer* g_pVSConstantBuffer1 = nullptr; // LightPositionBuffer (b1)
-static ID3D11Buffer* g_pPSConstantBuffer0 = nullptr; // LightBuffer (b0)
-
-// --- Helper for creating constant buffers ---
-static HRESULT CreateConstantBuffer(UINT size, ID3D11Buffer** ppBuffer)
-{
-    assert(ppBuffer);
-
-    D3D11_BUFFER_DESC desc{};
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.ByteWidth = (size + 15) & ~15; // 16-byte alignment
-    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-    ID3D11Device* device = Direct3D_GetDevice();
-    assert(device);
-
-    return device->CreateBuffer(&desc, nullptr, ppBuffer);
-}
+static ID3D11Texture2D* g_pShadowTexture = nullptr;
+static ID3D11DepthStencilView* g_pShadowDSV = nullptr;
+static ID3D11ShaderResourceView* g_pShadowSRV = nullptr;
+static ID3D11SamplerState* g_pShadowSampler = nullptr;
 
 bool Shadow_Initialize()
 {
@@ -42,162 +13,93 @@ bool Shadow_Initialize()
 
     HRESULT hr;
 
-    // =========================================================
-    // 1) Load & create vertex shader
-    // =========================================================
-    std::ifstream ifs_vs("shadow_vertex.cso", std::ios::binary);
-    if (!ifs_vs) return false;
+    // Create depth texture
+    D3D11_TEXTURE2D_DESC depthDesc = {};
+    depthDesc.Width = 1024;
+    depthDesc.Height = 1024;
+    depthDesc.MipLevels = 1;
+    depthDesc.ArraySize = 1;
+    depthDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    depthDesc.SampleDesc.Count = 1;
+    depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
-    std::vector<char> vs_data(
-        (std::istreambuf_iterator<char>(ifs_vs)),
-        std::istreambuf_iterator<char>()
-    );
-
-    hr = device->CreateVertexShader(
-        vs_data.data(),
-        vs_data.size(),
-        nullptr,
-        &g_pVertexShader
-    );
+    hr = device->CreateTexture2D(&depthDesc, nullptr, &g_pShadowTexture);
     if (FAILED(hr)) return false;
 
-    // =========================================================
-    // 2) Create input layout (MATCHES VERTEX STRUCT & HLSL)
-    // =========================================================
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
+    // Depth stencil view
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 
-    hr = device->CreateInputLayout(
-        layout,
-        _countof(layout),
-        vs_data.data(),
-        vs_data.size(),
-        &g_pInputLayout
-    );
+    hr = device->CreateDepthStencilView(g_pShadowTexture, &dsvDesc, &g_pShadowDSV);
     if (FAILED(hr)) return false;
 
-    assert(g_pInputLayout);
+    // Shader resource view
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
 
-    // =========================================================
-    // 3) Load & create pixel shader
-    // =========================================================
-    std::ifstream ifs_ps("shadow_pixel.cso", std::ios::binary);
-    if (!ifs_ps) return false;
-
-    std::vector<char> ps_data(
-        (std::istreambuf_iterator<char>(ifs_ps)),
-        std::istreambuf_iterator<char>()
-    );
-
-    hr = device->CreatePixelShader(
-        ps_data.data(),
-        ps_data.size(),
-        nullptr,
-        &g_pPixelShader
-    );
+    hr = device->CreateShaderResourceView(g_pShadowTexture, &srvDesc, &g_pShadowSRV);
     if (FAILED(hr)) return false;
 
-    // =========================================================
-    // 4) Create constant buffers
-    // =========================================================
-    if (FAILED(CreateConstantBuffer(sizeof(ShadowMatrixBuffer), &g_pVSConstantBuffer0)))
-        return false;
+    D3D11_SAMPLER_DESC sampDesc = {};
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-    if (FAILED(CreateConstantBuffer(sizeof(ShadowLightPositionBuffer), &g_pVSConstantBuffer1)))
-        return false;
+    device->CreateSamplerState(&sampDesc, &g_pShadowSampler);
 
-    if (FAILED(CreateConstantBuffer(sizeof(ShadowLightBuffer), &g_pPSConstantBuffer0)))
-        return false;
-
-    assert(g_pVSConstantBuffer0);
-    assert(g_pVSConstantBuffer1);
-    assert(g_pPSConstantBuffer0);
 
     return true;
+
 }
 
 void Shadow_Finalize()
 {
-    if (g_pVSConstantBuffer0) { g_pVSConstantBuffer0->Release(); g_pVSConstantBuffer0 = nullptr; }
-    if (g_pVSConstantBuffer1) { g_pVSConstantBuffer1->Release(); g_pVSConstantBuffer1 = nullptr; }
-    if (g_pPSConstantBuffer0) { g_pPSConstantBuffer0->Release(); g_pPSConstantBuffer0 = nullptr; }
-
-    if (g_pInputLayout) { g_pInputLayout->Release();  g_pInputLayout = nullptr; }
-    if (g_pPixelShader) { g_pPixelShader->Release(); g_pPixelShader = nullptr; }
-    if (g_pVertexShader) { g_pVertexShader->Release();g_pVertexShader = nullptr; }
+    if (g_pShadowSampler) { g_pShadowSampler->Release(); g_pShadowSampler = nullptr; }
+    if (g_pShadowSRV) { g_pShadowSRV->Release(); g_pShadowSRV = nullptr; }
+    if (g_pShadowDSV) { g_pShadowDSV->Release(); g_pShadowDSV = nullptr; }
+    if (g_pShadowTexture) { g_pShadowTexture->Release(); g_pShadowTexture = nullptr; }
 }
 
-// =========================================================
-// Constant buffer updates
-// =========================================================
-void Shadow_SetMatrices(const ShadowMatrixBuffer& matrices)
+ID3D11DepthStencilView* Shadow_GetDSV()
 {
-    assert(g_pVSConstantBuffer0);
-
-    ID3D11DeviceContext* ctx = Direct3D_GetDeviceContext();
-    assert(ctx);
-
-    ShadowMatrixBuffer temp;
-    temp.world = XMMatrixTranspose(matrices.world);
-    temp.view = XMMatrixTranspose(matrices.view);
-    temp.projection = XMMatrixTranspose(matrices.projection);
-    temp.lightView = XMMatrixTranspose(matrices.lightView);
-    temp.lightProjection = XMMatrixTranspose(matrices.lightProjection);
-
-    ctx->UpdateSubresource(g_pVSConstantBuffer0, 0, nullptr, &temp, 0, 0);
+    return g_pShadowDSV;
 }
 
-void Shadow_SetLightPosition(const ShadowLightPositionBuffer& lightPos)
+ID3D11ShaderResourceView* Shadow_GetShadowMap()
 {
-    assert(g_pVSConstantBuffer1);
-
-    ID3D11DeviceContext* ctx = Direct3D_GetDeviceContext();
-    assert(ctx);
-
-    ctx->UpdateSubresource(g_pVSConstantBuffer1, 0, nullptr, &lightPos, 0, 0);
+    return g_pShadowSRV;
 }
 
-void Shadow_SetLightParams(const ShadowLightBuffer& lightParams)
-{
-    assert(g_pPSConstantBuffer0);
-
-    ID3D11DeviceContext* ctx = Direct3D_GetDeviceContext();
-    assert(ctx);
-
-    ctx->UpdateSubresource(g_pPSConstantBuffer0, 0, nullptr, &lightParams, 0, 0);
-}
-
-// =========================================================
-// Bind everything before draw
-// =========================================================
-void Shadow_Begin(ID3D11ShaderResourceView* texture,
-    ID3D11ShaderResourceView* shadowMap)
+void Shadow_SetRenderTarget()
 {
     ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
-    assert(context);
 
-    context->IASetInputLayout(g_pInputLayout);
-    context->VSSetShader(g_pVertexShader, nullptr, 0);
-    context->PSSetShader(g_pPixelShader, nullptr, 0);
+    context->OMSetRenderTargets(0, nullptr, g_pShadowDSV);
 
-    // Constant buffers
-    context->VSSetConstantBuffers(0, 1, &g_pVSConstantBuffer0);
-    context->VSSetConstantBuffers(1, 1, &g_pVSConstantBuffer1);
-    context->PSSetConstantBuffers(0, 1, &g_pPSConstantBuffer0);
+    D3D11_VIEWPORT vp = {};
+    vp.Width = 1024;
+    vp.Height = 1024;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
 
-    // Textures
-    ID3D11ShaderResourceView* srvs[] = { texture, shadowMap };
-    context->PSSetShaderResources(0, 2, srvs);
-
-    // Samplers
-    ID3D11SamplerState* samplers[] =
-    {
-        Sampler_GetClamp(),
-        Sampler_GetWrap()
-    };
-    context->PSSetSamplers(0, 2, samplers);
+    context->RSSetViewports(1, &vp);
 }
+
+void Shadow_Clear()
+{
+    ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
+    context->ClearDepthStencilView(g_pShadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+}
+
+ID3D11SamplerState* Shadow_GetSampler()
+{
+    return g_pShadowSampler;
+}
+
