@@ -74,13 +74,29 @@ float4 main(PS_IN pi) : SV_TARGET
     projCoords.y >= 0.0f && projCoords.y <= 1.0f &&
     lightDepth >= 0.0f && lightDepth <= 1.0f)
     {
-        float bias = 0.002f;
+        float bias = 0.001f;
 
-        shadow = shadowMap.SampleCmpLevelZero(
-        shadowSampler,
-        projCoords.xy,
-        lightDepth - bias
-    );
+        float2 texelSize = 1.0f / float2(4096.0f, 4096.0f);
+
+        float shadowSum = 0.0f;
+
+        for (int x = -2; x <= 2; ++x)
+        {
+            for (int y = -2; y <= 2; ++y)
+            {
+                float2 offset = float2(x, y) * texelSize;
+
+                shadowSum += shadowMap.SampleCmpLevelZero(
+            shadowSampler,
+            projCoords.xy + offset,
+            lightDepth - bias
+        );
+            }
+        }
+
+        shadow = shadowSum / 25.0f;
+
+
     }
     // =========================================
     // LIGHTING

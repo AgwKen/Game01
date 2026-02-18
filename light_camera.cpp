@@ -53,7 +53,7 @@ DirectX::XMMATRIX LightCamera_GetViewMatrix()
 
 DirectX::XMMATRIX LightCamera_GetProjectionMatrix()
 {
-	float size = 150.0f;   // must cover 0-100 terrain
+	float size = 40.0f;   // must cover 0-100 terrain
 	float nearZ = 1.0f;
 	float farZ = 200.0f;
 

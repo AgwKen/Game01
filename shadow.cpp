@@ -15,8 +15,9 @@ bool Shadow_Initialize()
 
     // Create depth texture
     D3D11_TEXTURE2D_DESC depthDesc = {};
-    depthDesc.Width = 1024;
-    depthDesc.Height = 1024;
+    depthDesc.Width = 4096;
+    depthDesc.Height = 4096;
+
     depthDesc.MipLevels = 1;
     depthDesc.ArraySize = 1;
     depthDesc.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -96,8 +97,8 @@ void Shadow_SetRenderTarget()
     context->OMSetRenderTargets(0, nullptr, g_pShadowDSV);
 
     D3D11_VIEWPORT vp = {};
-    vp.Width = 1024;
-    vp.Height = 1024;
+    vp.Width = 4096;
+    vp.Height = 4096;
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
 

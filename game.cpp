@@ -106,9 +106,10 @@ Shadow_Initialize();
 g_pDepthShader = new DepthShaderClass();
 g_pDepthShader->Initialize(Direct3D_GetDevice(), nullptr);
 
-XMFLOAT3 center = { 50.0f, 0.0f, 50.0f }; // center of terrain
+XMFLOAT3 center = { 0.0f, 0.0f, 0.0f }; // center of terrain
 
-XMFLOAT3 lightDir = { 0.6f, -1.0f, -0.4f };
+XMFLOAT3 lightDir = { 0.0f, 1.0f, 0.0f };
+
 XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&lightDir));
 XMStoreFloat3(&lightDir, dir);
 
@@ -233,6 +234,24 @@ void Game_Finalize()
 void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
+
+    // --- Dynamic Shadow Follow ---
+    XMFLOAT3 lightDir = { 0.0f, 1.0f, 0.0f };  // angled sun, pointing DOWN
+
+    XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&lightDir));
+    XMStoreFloat3(&lightDir, dir);
+
+    XMFLOAT3 focus = BallPlayer_GetPosition();
+
+    XMFLOAT3 lightPos = {
+        focus.x - lightDir.x * 80.0f,
+        focus.y - lightDir.y * 80.0f,
+        focus.z - lightDir.z * 80.0f
+    };
+
+    LightCamera_SetPosition(lightPos);
+    LightCamera_SetFront(lightDir);
+
 
     // Increase ambient light with F2
     if (KeyLogger_IsTrigger(KK_F2))
@@ -394,27 +413,6 @@ void RenderPass_Shadow()
 
 
     XMMATRIX world = BallPlayer_GetWorldMatrix();
-
-    for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
-    {
-        UINT stride = 48;
-        UINT offset = 0;
-
-        context->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
-        context->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
-
-        UINT indexCount =
-            model->AiScene->mMeshes[m]->mNumFaces * 3;
-
-        g_pDepthShader->Render(
-            context,
-            indexCount,
-            world,
-            lightView,
-            lightProj,
-            nullptr
-        );
-    }
     D3D11_VIEWPORT vp;
     vp.Width = (FLOAT)Direct3D_GetBackBufferWidth();
     vp.Height = (FLOAT)Direct3D_GetBackBufferHeight();

@@ -33,8 +33,8 @@ static XMVECTOR g_AngularVelocity = XMVectorZero();
 // ============================================================================
 // PHYSICS CONSTANTS
 // ============================================================================
-static constexpr float BALL_RADIUS = 0.4f;
-static constexpr float BALL_SCALE  = 0.05f;
+static constexpr float BALL_RADIUS = 0.3f;
+static constexpr float BALL_SCALE  = 0.07f;
 static constexpr float GRAVITY     = -25.0f;
 
 // Ground
