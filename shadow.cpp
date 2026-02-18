@@ -40,19 +40,31 @@ bool Shadow_Initialize()
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
 
-    hr = device->CreateShaderResourceView(g_pShadowTexture, &srvDesc, &g_pShadowSRV);
+    hr = device->CreateShaderResourceView(
+        g_pShadowTexture,
+        &srvDesc,
+        &g_pShadowSRV
+    );
     if (FAILED(hr)) return false;
 
+
     D3D11_SAMPLER_DESC sampDesc = {};
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+    sampDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+
+sampDesc.BorderColor[0] = 1.0f;
+sampDesc.BorderColor[1] = 1.0f;
+sampDesc.BorderColor[2] = 1.0f;
+sampDesc.BorderColor[3] = 1.0f;
+
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
     sampDesc.MinLOD = 0;
     sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
     device->CreateSamplerState(&sampDesc, &g_pShadowSampler);
+
 
 
     return true;

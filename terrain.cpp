@@ -17,6 +17,7 @@ using namespace DirectX;
 #include <cstdlib>
 #include <algorithm>
 #include "shadow.h"
+#include "depthShader.h"
 
 
 static constexpr float FIELD_MESH_SIZE = 1.0f;
@@ -252,6 +253,34 @@ float Mesh_GetHeightAt(float worldX, float worldZ)
 
     return height;
 }
+
+void Mesh_RenderDepth(
+    DepthShaderClass* depthShader,
+    DirectX::XMMATRIX lightView,
+    DirectX::XMMATRIX lightProj,
+    DirectX::XMMATRIX worldMatrix)
+{
+    if (!depthShader) return;
+
+    UINT stride = sizeof(Vertex3d);
+    UINT offset = 0;
+
+    g_pContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+    g_pContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    DirectX::XMMATRIX world = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    depthShader->Render(
+        g_pContext,
+        NUM_INDEX,
+        worldMatrix,
+        lightView,
+        lightProj,
+        nullptr
+    );
+
+}
+
 
 void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 {

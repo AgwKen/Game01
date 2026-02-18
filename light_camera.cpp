@@ -11,10 +11,12 @@ using namespace DirectX;
 static XMFLOAT3 g_Position{};
 static XMFLOAT3 g_Front{ 0.0f, 1.0f, 0.0f };
 
-void LightCamera_Initialize(const DirectX::XMFLOAT3& world_directional, const DirectX::XMFLOAT3& position)
+void LightCamera_Initialize(const XMFLOAT3& world_directional, const XMFLOAT3& position)
 {
-	g_Front = world_directional;
 	g_Position = position;
+
+	XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&world_directional));
+	XMStoreFloat3(&g_Front, dir);
 }
 
 void LightCamera_Finalize()
@@ -34,15 +36,31 @@ void LightCamera_SetFront(const DirectX::XMFLOAT3& front)
 DirectX::XMMATRIX LightCamera_GetViewMatrix()
 {
 	// Use your existing position and front direction
-	return XMMatrixLookToLH(XMLoadFloat3(&g_Position), XMLoadFloat3(&g_Front), XMVECTOR{ 0.0f, 1.0f, 0.0f, 0.0f });
+	XMVECTOR up;
+
+	if (fabs(g_Front.y) > 0.99f)
+		up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);   // use Z axis as up
+	else
+		up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	return XMMatrixLookToLH(
+		XMLoadFloat3(&g_Position),
+		XMLoadFloat3(&g_Front),
+		up
+	);
+
 }
 
 DirectX::XMMATRIX LightCamera_GetProjectionMatrix()
 {
-	// Directional lights use Orthographic projection for shadows
-	float size = 120.0f;
-	return XMMatrixOrthographicLH(size, size, 0.1f, 1000.0f);
+	float size = 150.0f;   // must cover 0-100 terrain
+	float nearZ = 1.0f;
+	float farZ = 200.0f;
+
+	return XMMatrixOrthographicLH(size, size, nearZ, farZ);
+
 }
+
 
 DirectX::XMFLOAT3 LightCamera_GetPosition()
 {

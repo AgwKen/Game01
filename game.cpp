@@ -1,4 +1,4 @@
-/*========================================================================================
+﻿/*========================================================================================
 
 
     Main Game [game.cpp]									    			PYAE SONE THANT
@@ -106,11 +106,21 @@ Shadow_Initialize();
 g_pDepthShader = new DepthShaderClass();
 g_pDepthShader->Initialize(Direct3D_GetDevice(), nullptr);
 
-// 4. Initialize Light Camera (Position the "Sun")
-// Looking from (10, 20, 10) down towards the center (0,0,0)
-XMFLOAT3 lightPos = { 10.0f, 20.0f, 10.0f };
-XMFLOAT3 lightDir = { -0.5f, -1.0f, -0.5f };
-LightCamera_Initialize(lightDir, lightPos);
+XMFLOAT3 center = { 50.0f, 0.0f, 50.0f }; // center of terrain
+
+XMFLOAT3 lightDir = { 0.6f, -1.0f, -0.4f };
+XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&lightDir));
+XMStoreFloat3(&lightDir, dir);
+
+// move light backward along direction
+XMFLOAT3 lightPos = {
+    center.x - lightDir.x * 80.0f,
+    center.y - lightDir.y * 80.0f,
+    center.z - lightDir.z * 80.0f
+};
+
+LightCamera_SetPosition(lightPos);
+LightCamera_SetFront(lightDir);
 
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 
@@ -247,6 +257,7 @@ void Game_Update(double elapsed_time)
 
     g_AccumulatedTime += elapsed_time;
 
+
     PlayerCamera_Update(elapsed_time);
 
     BallPlayer_Update(elapsed_time);
@@ -339,21 +350,51 @@ void RenderPass_Shadow()
 {
     ID3D11DeviceContext* context = Direct3D_GetDeviceContext();
 
-    // 1?? Set shadow map as render target (depth only)
     Shadow_SetRenderTarget();
     Shadow_Clear();
 
-    // 2?? Get light camera matrices
+    Direct3D_SetDepthEnable(true);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
     XMMATRIX lightView = LightCamera_GetViewMatrix();
     XMMATRIX lightProj = LightCamera_GetProjectionMatrix();
 
-    // 3?? Get Ball model + world matrix
+    //  TERRAIN FIRST
+    XMMATRIX terrainWorld = XMMatrixTranslation(0, 0, 0); // SAME AS Mesh_Draw
+    Mesh_RenderDepth(g_pDepthShader, lightView, lightProj, terrainWorld);
+
+
+    //  THEN BALL
     MODEL* model = BallPlayer_GetModel();
-    if (!model) return;
+    if (model)
+    {
+        XMMATRIX world = BallPlayer_GetWorldMatrix();
+
+        for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
+        {
+            UINT stride = 48;
+            UINT offset = 0;
+
+            context->IASetVertexBuffers(0, 1, &model->VertexBuffer[m], &stride, &offset);
+            context->IASetIndexBuffer(model->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
+
+            UINT indexCount = model->AiScene->mMeshes[m]->mNumFaces * 3;
+
+            g_pDepthShader->Render(
+                context,
+                indexCount,
+                world,
+                lightView,
+                lightProj,
+                nullptr
+            );
+        }
+    }
+
 
     XMMATRIX world = BallPlayer_GetWorldMatrix();
 
-    // 4?? Render each mesh using depth shader
     for (unsigned int m = 0; m < model->AiScene->mNumMeshes; m++)
     {
         UINT stride = 48;
@@ -374,18 +415,19 @@ void RenderPass_Shadow()
             nullptr
         );
     }
-
-    // 5?? Restore viewport to screen size
     D3D11_VIEWPORT vp;
-    vp.Width = (float)Direct3D_GetBackBufferWidth();
-    vp.Height = (float)Direct3D_GetBackBufferHeight();
+    vp.Width = (FLOAT)Direct3D_GetBackBufferWidth();
+    vp.Height = (FLOAT)Direct3D_GetBackBufferHeight();
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
     vp.TopLeftX = 0;
     vp.TopLeftY = 0;
 
     context->RSSetViewports(1, &vp);
+
+    Direct3D_SetRenderTarget();
 }
+
 
 void RenderPass_Offscreen()
 {
@@ -404,8 +446,12 @@ void RenderPass_Offscreen()
     Camera_SetMatrix(view, proj);
 
     // --- SKY ---
+
     XMFLOAT3 camPos = g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition();
+    Direct3D_SetDepthEnable(false);
     Sky_Draw(camPos);
+    Direct3D_SetDepthEnable(true);
+
 
     // --- SHADOW MATRICES ---
     XMMATRIX lightView = LightCamera_GetViewMatrix();
@@ -420,6 +466,12 @@ void RenderPass_Offscreen()
     Shader3d_SetViewMatrix(view);
     Shader3d_SetProjectionMatrix(proj);
 
+    //  BIND SHADOW MAP HERE
+    ID3D11ShaderResourceView* shadowSRV = Shadow_GetShadowMap();
+    context->PSSetShaderResources(2, 1, &shadowSRV);
+
+    ID3D11SamplerState* shadowSampler = Shadow_GetSampler();
+    context->PSSetSamplers(1, 1, &shadowSampler);
 
     // --- LIGHTING ---
     Light_SetAmbient({ 0.55f, 0.55f, 0.55f });
@@ -429,7 +481,7 @@ void RenderPass_Offscreen()
         g_AmbientLevel,
         g_AmbientLevel,
         1.0f
-        });
+    });
 
     XMVECTOR dirVec = XMVector3Normalize({ 0.6f, -1.0f, -0.4f });
     XMFLOAT4 dir;
@@ -451,17 +503,19 @@ void RenderPass_Offscreen()
     BallPlayer_Draw();
     Goal_Render();
 
-    // --- BILLBOARDS (TREES) ---
+    // --- BILLBOARDS ---
     Billboard_SetViewMatrix(mtxView);
 
-    // --- COINS ---
     for (auto& coin : g_Coins)
         Coin_Draw(coin);
 
     g_Emitter->Render();
 
+ 
+    ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+    context->PSSetShaderResources(2, 1, nullSRV);
 }
-    
+
 void RenderPass_Main()
 {
     Direct3D_SetRenderTarget();

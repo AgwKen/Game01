@@ -11,7 +11,15 @@
 #define MESH_H
 
 #include <d3d11.h>
+#include <DirectXMath.h>
 
+class DepthShaderClass;
+
+void Mesh_RenderDepth(
+    DepthShaderClass* depthShader,
+    DirectX::XMMATRIX lightView,
+    DirectX::XMMATRIX lightProj,
+    DirectX::XMMATRIX worldMatrix);
 void Mesh_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext);
 void Mesh_Finalize();
 void Mesh_Draw(int repeatX = 1, int repeatZ = 1, float heightOffset = 0.0f,
