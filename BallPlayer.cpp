@@ -1,6 +1,5 @@
 #include "BallPlayer.h"
 #include "direct3d.h"
-#include "model.h"
 #include "key_logger.h"
 #include "terrain.h"
 #include <DirectXMath.h>
@@ -13,7 +12,7 @@
 #include "pad_logger.h"
 #include "player_camera.h"
 #include "AirCurveChallenge.h"
-
+#include "UI_GoalAnim.h"
 
 // ============================================================================
 // RENDER
@@ -61,7 +60,7 @@ static bool  g_IsChargingKick = false;
 static float g_KickCharge = 0.0f;
 
 static constexpr float KICK_MIN_POWER = 8.0f;
-static constexpr float KICK_MAX_POWER = 30.0f;
+static constexpr float KICK_MAX_POWER = 35.0f;
 static constexpr float KICK_CHARGE_SPEED = 50.0f;
 
 static constexpr float FREEKICK_UP_ANGLE   = 0.55f;
@@ -72,7 +71,7 @@ static constexpr float AIR_GRAVITY_SCALE   = 0.85f;
 static bool  g_AirCurveUsed = false;
 static float g_AirCurveDir  = 0.0f;
 static float g_AirCurveTime = 0.0f;
-static constexpr float AIR_CURVE_DURATION = 0.35f;
+static constexpr float AIR_CURVE_DURATION = 0.5f;
 
 // ============================================================================
 // MATRICES
@@ -82,6 +81,8 @@ static XMMATRIX g_ModelCorrection = XMMatrixRotationY(XM_PI);
 static XMMATRIX g_World = XMMatrixIdentity();
 
 static DustEmitter* g_DustEmitter = nullptr;
+
+static bool g_Scored = false;
 
 
 // ============================================================================
@@ -135,7 +136,9 @@ void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
 void BallPlayer_Reset()
 {
     float z = 1.0f + (rand() / (float)RAND_MAX) * 19.0f;
-    GoalCollision_SetOffset({ 0,0,z });
+    Goal_SetWorldOffset({ 0,0,z });
+
+    GoalCollision_ClearBackNetHit();
 
     g_Position = g_StartPosition;
     g_PrevPosition = g_StartPosition;
@@ -188,6 +191,17 @@ void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
 // ============================================================================
 void BallPlayer_Update(double elapsedTime)
 {
+    // --------------------------------------------------------
+// FORCE SKIP / RESET (Keyboard + Controller B)
+// --------------------------------------------------------
+    if (KeyLogger_IsTrigger(KK_ENTER) ||
+        PadLogger_IsTrigger(0, XINPUT_GAMEPAD_B))
+    {
+        BallPlayer_Reset();
+        g_Scored = false;
+        return;
+    }
+
     float dt = (float)elapsedTime;
 
     bool hasInput =
@@ -372,7 +386,11 @@ void BallPlayer_Update(double elapsedTime)
 
     }
     Goal_HandleBallCollision(g_Position, g_Velocity, BALL_RADIUS);
-
+    if (!g_Scored && GoalCollision_BackNetTouched())
+    {
+        g_Scored = true;
+        UI_GoalAnim_Play();
+    }
     // ------------------------------------------------------------------------
     // MAGNUS (ONLY WHEN KICKED)
     // ------------------------------------------------------------------------
@@ -381,7 +399,7 @@ void BallPlayer_Update(double elapsedTime)
         XMVECTOR velXZ = XMVectorSet(g_Velocity.x, 0, g_Velocity.z, 0);
         if (XMVectorGetX(XMVector3Length(g_AngularVelocity)) > 0.01f)
         {
-            XMVECTOR mag = XMVector3Cross(g_AngularVelocity, velXZ) * 0.0045f;
+            XMVECTOR mag = XMVector3Cross(g_AngularVelocity, velXZ)  * 0.015f;
             g_Velocity.x += XMVectorGetX(mag);
             g_Velocity.z += XMVectorGetZ(mag);
             g_AngularVelocity *= 0.99f;
@@ -424,14 +442,27 @@ void BallPlayer_Update(double elapsedTime)
 
     if (onGround && speed < STOP_SPEED)
     {
-        // If ball was kicked and has now completely settled -> RESET
-        if (g_IsKicked)
+        if (g_Scored)
         {
-            BallPlayer_Reset();
-            return;
+            static float timer = 0;
+            timer += dt;
+
+            if (timer > 1.5f)
+            {
+                BallPlayer_Reset();
+                g_Scored = false;
+                timer = 0;
+            }
+        }
+        else
+        {
+            if (g_IsKicked)
+            {
+                BallPlayer_Reset();
+                return;
+            }
         }
 
-        // Normal stop logic when just dribbling
         if (!hasInput)
         {
             g_Velocity = { 0,0,0 };
@@ -454,6 +485,7 @@ void BallPlayer_Update(double elapsedTime)
             speed * dt / BALL_RADIUS
         );
     }
+
     // ------------------------------------------------------------------------
     // AIR CURVE (ONE-TIME HYBRID)
     // ------------------------------------------------------------------------
@@ -510,6 +542,7 @@ void BallPlayer_Update(double elapsedTime)
                 g_Velocity.z = XMVectorGetZ(vel);
             }
         }
+
     }
 
     // ------------------------------------------------------------------------
@@ -563,4 +596,24 @@ XMMATRIX BallPlayer_GetWorldMatrix()
 MODEL* BallPlayer_GetModel()
 {
     return g_BallModel;
+}
+
+float BallPlayer_GetKickCharge()
+{
+    return g_KickCharge;
+}
+
+bool BallPlayer_IsCharging()
+{
+    return g_IsChargingKick;
+}
+
+float BallPlayer_GetKickMaxPower()
+{
+    return KICK_MAX_POWER;
+}
+
+bool BallPlayer_IsKicked()
+{
+    return g_IsKicked;
 }

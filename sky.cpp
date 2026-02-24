@@ -17,6 +17,7 @@ using namespace DirectX;
 #include "texture.h"
 #include "sampler.h"
 
+
 static int g_SkyTexId = -1;
 
 
@@ -31,6 +32,7 @@ void Sky_Finalize()
 
 void Sky_Draw(const XMFLOAT3& camPos)
 {
+
     if (g_SkyTexId < 0) return;
 
     XMMATRIX world =
@@ -43,7 +45,7 @@ void Sky_Draw(const XMFLOAT3& camPos)
     Direct3D_SetDepthReadOnly(true);
     Direct3D_SetRasterizerCullFront();
 
-    CUBE_Draw(g_SkyTexId, world);
+    CUBE_DrawUnlit(g_SkyTexId, world);
 
     Sampler_SetFilterLinear();
 

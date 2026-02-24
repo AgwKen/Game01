@@ -189,6 +189,8 @@
     <ClCompile Include="Text.cpp" />
     <ClCompile Include="trajetory3d.cpp" />
     <ClCompile Include="UI.cpp" />
+    <ClCompile Include="UI_GoalAnim.cpp" />
+    <ClCompile Include="UI_KickPower.cpp" />
     <ClCompile Include="WICTextureLoader11.cpp" />
     <ClCompile Include="collision.cpp" />
     <ClCompile Include="debug_ostream.cpp" />
@@ -261,6 +263,8 @@
     <ClInclude Include="Text.h" />
     <ClInclude Include="trajetory3d.h" />
     <ClInclude Include="UI.h" />
+    <ClInclude Include="UI_GoalAnim.h" />
+    <ClInclude Include="UI_KickPower.h" />
     <ClInclude Include="WICTextureLoader11.h" />
   </ItemGroup>
   <ItemGroup>

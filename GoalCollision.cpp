@@ -1,5 +1,6 @@
 #include "GoalCollision.h"
 #include "terrain.h"
+#include "Goal.h"
 
 #include <algorithm>
 #include <cmath>
@@ -15,13 +16,32 @@ static float g_GoalCollisionScale = 0.3f;
 // ------------------------------------------------------------
 // GLOBAL OFFSET — MOVES WHOLE GOAL + COLLISION TOGETHER
 // ------------------------------------------------------------
-XMFLOAT3 g_GoalWorldOffset = { 0,0,0 };
 
-void GoalCollision_SetOffset(const XMFLOAT3& pos)
+static XMFLOAT3 g_GoalCollisionBase = { 9.3f, 0.0f, 1.3f };
+static XMFLOAT3 g_GoalModelBase = { 7.0f, 0.0f, 2.5f };
+
+static bool g_BackNetHit = false;
+
+static void BuildGoalCollision(std::vector<AABB>& out);
+
+bool GoalCollision_IsBallInsideGoal(const XMFLOAT3& ballPos, float radius)
 {
-    g_GoalWorldOffset = pos;
-}
+    std::vector<AABB> boxes;
+    BuildGoalCollision(boxes);
 
+    // BackNet is index 3
+    const AABB& back = boxes[3];
+
+    bool inside =
+        ballPos.x > back.min.x - radius &&
+        ballPos.x < back.max.x + radius &&
+        ballPos.y > back.min.y - radius &&
+        ballPos.y < back.max.y + radius &&
+        ballPos.z > back.min.z - radius &&
+        ballPos.z < back.max.z + radius;
+
+    return inside;
+}
 // ------------------------------------------------------------
 // NET TUNING
 // ------------------------------------------------------------
@@ -45,11 +65,22 @@ static void BuildGoalCollision(std::vector<AABB>& out)
     out.clear();
 
     // FINAL WORLD POSITION
+    extern XMFLOAT3 Goal_GetWorldPosition();
+
+    XMFLOAT3 goalPos = Goal_GetWorldPosition();
+
+    XMFLOAT3 delta =
+    {
+        goalPos.x - g_GoalModelBase.x,
+        goalPos.y - g_GoalModelBase.y,
+        goalPos.z - g_GoalModelBase.z
+    };
+
     XMFLOAT3 p =
     {
-        g_GoalCollisionPosition.x + g_GoalWorldOffset.x,
-        g_GoalCollisionPosition.y + g_GoalWorldOffset.y,
-        g_GoalCollisionPosition.z + g_GoalWorldOffset.z
+        g_GoalCollisionBase.x + delta.x,
+        g_GoalCollisionBase.y + delta.y,
+        g_GoalCollisionBase.z + delta.z
     };
 
     float baseY = g_GoalWorldBaseY;
@@ -58,7 +89,7 @@ static void BuildGoalCollision(std::vector<AABB>& out)
     float scale = g_GoalCollisionScale;
 
     float width = 15.2f * scale;
-    float height = 8.2f * scale;
+    float height = 8.0f * scale;
     float depth = 0.3f * scale;
 
     // ---- POLES ----
@@ -221,7 +252,14 @@ bool GoalCollision_HandleBall(
         bool isTopNet = (i == 6);
 
         if (SphereVsAABB(ballPos, ballVelocity, ballRadius, boxes[i], isNet, isTopNet))
+        {
             hit = true;
+
+            if (i == 3) // BackNet index
+            {
+                g_BackNetHit = true;
+            }
+        }
     }
 
     return hit;
@@ -231,4 +269,14 @@ bool GoalCollision_HandleBall(
 void GoalCollision_GetDebugBoxes(std::vector<AABB>& out)
 {
     BuildGoalCollision(out);
+}
+bool GoalCollision_BackNetTouched()
+{
+    bool touched = g_BackNetHit;
+    g_BackNetHit = false;
+    return touched;
+}
+void GoalCollision_ClearBackNetHit()
+{
+    g_BackNetHit = false;
 }

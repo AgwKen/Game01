@@ -1,7 +1,5 @@
 #include "Goal.h"
 #include "GoalCollision.h"
-
-#include "model.h"
 #include "terrain.h"
 #include "cube.h"
 #include "direct3d.h"
@@ -20,10 +18,13 @@ static float g_ModelRotationY = -XM_PIDIV2;
 static float g_ModelHeightOffset = 1.0f;
 
 static bool g_ShowPoleDebug = true;
-static bool g_ShowNetDebug = true;
+static bool g_ShowNetDebug = false;
+
+static XMMATRIX g_GoalWorld;
 
 extern XMFLOAT3 g_GoalWorldOffset;
 
+static XMFLOAT3 g_GoalWorldPos = { 7.0f, 0.0f, 2.5f };
 
 void Goal_Initialize()
 {
@@ -57,24 +58,24 @@ void Goal_Render()
         return;
 
     float terrainY = Mesh_GetHeightAt(
-        g_GoalModelPosition.x + g_GoalWorldOffset.x,
-        g_GoalModelPosition.z + g_GoalWorldOffset.z
+        g_GoalWorldPos.x,
+        g_GoalWorldPos.z
     );
 
     float finalY = terrainY + (g_ModelHeightOffset * g_GoalModelScale);
     g_GoalWorldBaseY = finalY - (g_ModelHeightOffset * g_GoalModelScale);
 
-    XMMATRIX world =
+    g_GoalWorld =
         XMMatrixScaling(g_GoalModelScale, g_GoalModelScale, g_GoalModelScale) *
         XMMatrixRotationY(g_ModelRotationY) *
         XMMatrixTranslation(
-            g_GoalModelPosition.x + g_GoalWorldOffset.x,
+            g_GoalWorldPos.x,
             finalY,
-            g_GoalModelPosition.z + g_GoalWorldOffset.z
+            g_GoalWorldPos.z
         );
 
 
-    ModelDraw(g_GoalModel, world);
+    ModelDraw(g_GoalModel, g_GoalWorld);
 
 #if defined(DEBUG) || defined(_DEBUG)
 
@@ -139,8 +140,29 @@ void Goal_Render()
 
 #endif
 }
-
-bool Goal_CheckScored(const XMFLOAT3&, float)
+bool Goal_CheckScored(const XMFLOAT3& pos, float r)
 {
-    return false;
+    return GoalCollision_IsBallInsideGoal(pos, r);
+}
+
+XMMATRIX Goal_GetWorldMatrix()
+{
+    return g_GoalWorld;
+}
+
+MODEL* Goal_GetModel()
+{
+    return g_GoalModel;
+}
+
+void Goal_SetWorldOffset(const XMFLOAT3& offset)
+{
+    g_GoalWorldPos.x = g_GoalModelPosition.x + offset.x;
+    g_GoalWorldPos.y = g_GoalModelPosition.y + offset.y;
+    g_GoalWorldPos.z = g_GoalModelPosition.z + offset.z;
+}
+
+XMFLOAT3 Goal_GetWorldPosition()
+{
+    return g_GoalWorldPos;
 }

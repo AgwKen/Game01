@@ -28,5 +28,7 @@ void Mesh_Draw(int repeatX = 1, int repeatZ = 1, float heightOffset = 0.0f,
 float  Mesh_GetVertexNoise(float x, float z);
 float Mesh_GetHeightAt(float x, float z);
 void Mesh_SetCollisionParams(int repeatX, int repeatZ, float offsetX, float offsetZ);
+float Mesh_GetWorldWidth();
+float Mesh_GetWorldDepth();
 
 #endif // MESH_H

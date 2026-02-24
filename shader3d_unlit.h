@@ -16,6 +16,8 @@ bool Shader3dUnlit_Initialize();
 void Shader3dUnlit_Finalize();
 
 void Shader3dUnlit_SetWorldMatrix(const DirectX::XMMATRIX& matrix);
+void Shader3dUnlit_SetViewMatrix(const DirectX::XMMATRIX& matrix);
+void Shader3dUnlit_SetProjectionMatrix(const DirectX::XMMATRIX& matrix);
 
 void Shader3dUnlit_SetColor(const DirectX::XMFLOAT4& color);
 

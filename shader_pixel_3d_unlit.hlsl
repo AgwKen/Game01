@@ -1,25 +1,22 @@
-/*==============================================================================
-
-  Skybox Pixel Shader [shader_pixel_skybox.hlsl]
-														 Author : PYAE SONE THANT
-														 Date   : 2025/16/12
---------------------------------------------------------------------------------
-
-==============================================================================*/
-
-TextureCube skyTex : register(t0);
+Texture2D tex : register(t0);
 SamplerState samp : register(s0);
+
+cbuffer PS_CONSTANT_BUFFER : register(b0)
+{
+    float4 color;
+};
 
 struct PS_IN
 {
     float4 posH : SV_POSITION;
-    float3 dir : TEXCOORD0;
+    float4 posW : POSITION0;
+    float4 normalW : NORMAL0;
+    float4 color : COLOR0;
+    float2 uv : TEXCOORD0;
 };
 
-float4 main(PS_IN pi) : SV_Target
+float4 main(PS_IN input) : SV_Target
 {
-    // Sample cubemap using the direction vector
-    float4 color = skyTex.Sample(samp, pi.dir);
-
-    return color; // fully unlit
+    float4 texColor = tex.Sample(samp, input.uv);
+    return texColor * color;
 }

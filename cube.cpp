@@ -10,6 +10,7 @@
 #include <DirectXMath.h>
 #include "shader3d.h"
 #include "texture.h"
+#include "shader3d_unlit.h"
 
 using namespace DirectX;
 static constexpr int NUM_VERTEX = 24;
@@ -20,6 +21,8 @@ static ID3D11Buffer* g_pIndexBuffer = nullptr;
 static ID3D11Device* g_pDevice = nullptr;
 static ID3D11DeviceContext* g_pContext = nullptr;
 
+static constexpr float E = 0.0003f;
+
 static int g_CubeTexId = -1;
 
 struct Vertex3d
@@ -29,45 +32,45 @@ struct Vertex3d
     XMFLOAT4 color;
     XMFLOAT2 texcoord;
 };
+
 static const Vertex3d g_CubeVertex[] =
 {
-    // Front Face (Z-) - Center of the cross
-    {{-0.5f,  0.5f, -0.5f}, {0, 0, -1}, {1,1,1,1}, {0.25f, 0.3333f}},
-    {{ 0.5f,  0.5f, -0.5f}, {0, 0, -1}, {1,1,1,1}, {0.50f, 0.3333f}},
-    {{ 0.5f, -0.5f, -0.5f}, {0, 0, -1}, {1,1,1,1}, {0.50f, 0.6667f}},
-    {{-0.5f, -0.5f, -0.5f}, {0, 0, -1}, {1,1,1,1}, {0.25f, 0.6667f}},
+    // Front (Z-)
+    {{-0.5f,  0.5f, -0.5f}, {0,0,-1}, {1,1,1,1}, {0.25f + E, 0.3333f + E}},
+    {{ 0.5f,  0.5f, -0.5f}, {0,0,-1}, {1,1,1,1}, {0.50f - E, 0.3333f + E}},
+    {{ 0.5f, -0.5f, -0.5f}, {0,0,-1}, {1,1,1,1}, {0.50f - E, 0.6667f - E}},
+    {{-0.5f, -0.5f, -0.5f}, {0,0,-1}, {1,1,1,1}, {0.25f + E, 0.6667f - E}},
 
-    // Back Face (Z+) - Right-most segment
-    {{ 0.5f,  0.5f,  0.5f}, {0, 0,  1}, {1,1,1,1}, {0.75f, 0.3333f}},
-    {{-0.5f,  0.5f,  0.5f}, {0, 0,  1}, {1,1,1,1}, {1.00f, 0.3333f}},
-    {{-0.5f, -0.5f,  0.5f}, {0, 0,  1}, {1,1,1,1}, {1.00f, 0.6667f}},
-    {{ 0.5f, -0.5f,  0.5f}, {0, 0,  1}, {1,1,1,1}, {0.75f, 0.6667f}},
+    // Back (Z+)
+    {{ 0.5f,  0.5f,  0.5f}, {0,0,1}, {1,1,1,1}, {0.75f + E, 0.3333f + E}},
+    {{-0.5f,  0.5f,  0.5f}, {0,0,1}, {1,1,1,1}, {1.00f - E, 0.3333f + E}},
+    {{-0.5f, -0.5f,  0.5f}, {0,0,1}, {1,1,1,1}, {1.00f - E, 0.6667f - E}},
+    {{ 0.5f, -0.5f,  0.5f}, {0,0,1}, {1,1,1,1}, {0.75f + E, 0.6667f - E}},
 
-    // Top Face (Y+) - Top-center segment
-    {{-0.5f,  0.5f,  0.5f}, {0, 1,  0}, {1,1,1,1}, {0.25f, 0.0000f}},
-    {{ 0.5f,  0.5f,  0.5f}, {0, 1,  0}, {1,1,1,1}, {0.50f, 0.0000f}},
-    {{ 0.5f,  0.5f, -0.5f}, {0, 1,  0}, {1,1,1,1}, {0.50f, 0.3333f}},
-    {{-0.5f,  0.5f, -0.5f}, {0, 1,  0}, {1,1,1,1}, {0.25f, 0.3333f}},
+    // Top (Y+)
+    {{-0.5f,  0.5f,  0.5f}, {0,1,0}, {1,1,1,1}, {0.25f + E, 0.0000f + E}},
+    {{ 0.5f,  0.5f,  0.5f}, {0,1,0}, {1,1,1,1}, {0.50f - E, 0.0000f + E}},
+    {{ 0.5f,  0.5f, -0.5f}, {0,1,0}, {1,1,1,1}, {0.50f - E, 0.3333f - E}},
+    {{-0.5f,  0.5f, -0.5f}, {0,1,0}, {1,1,1,1}, {0.25f + E, 0.3333f - E}},
 
-    // Bottom Face (Y-) - Bottom-center segment
-    {{-0.5f, -0.5f, -0.5f}, {0,-1,  0}, {1,1,1,1}, {0.25f, 0.6667f}},
-    {{ 0.5f, -0.5f, -0.5f}, {0,-1,  0}, {1,1,1,1}, {0.50f, 0.6667f}},
-    {{ 0.5f, -0.5f,  0.5f}, {0,-1,  0}, {1,1,1,1}, {0.50f, 1.0000f}},
-    {{-0.5f, -0.5f,  0.5f}, {0,-1,  0}, {1,1,1,1}, {0.25f, 1.0000f}},
+    // Bottom (Y-)
+    {{-0.5f, -0.5f, -0.5f}, {0,-1,0}, {1,1,1,1}, {0.25f + E, 0.6667f + E}},
+    {{ 0.5f, -0.5f, -0.5f}, {0,-1,0}, {1,1,1,1}, {0.50f - E, 0.6667f + E}},
+    {{ 0.5f, -0.5f,  0.5f}, {0,-1,0}, {1,1,1,1}, {0.50f - E, 1.0000f - E}},
+    {{-0.5f, -0.5f,  0.5f}, {0,-1,0}, {1,1,1,1}, {0.25f + E, 1.0000f - E}},
 
-    // Left Face (X-) - Left-most segment
-    {{-0.5f,  0.5f,  0.5f}, {-1, 0, 0}, {1,1,1,1}, {0.00f, 0.3333f}},
-    {{-0.5f,  0.5f, -0.5f}, {-1, 0, 0}, {1,1,1,1}, {0.25f, 0.3333f}},
-    {{-0.5f, -0.5f, -0.5f}, {-1, 0, 0}, {1,1,1,1}, {0.25f, 0.6667f}},
-    {{-0.5f, -0.5f,  0.5f}, {-1, 0, 0}, {1,1,1,1}, {0.00f, 0.6667f}},
+    // Left (X-)
+    {{-0.5f,  0.5f,  0.5f}, {-1,0,0}, {1,1,1,1}, {0.0000f + E, 0.3333f + E}},
+    {{-0.5f,  0.5f, -0.5f}, {-1,0,0}, {1,1,1,1}, {0.25f - E, 0.3333f + E}},
+    {{-0.5f, -0.5f, -0.5f}, {-1,0,0}, {1,1,1,1}, {0.25f - E, 0.6667f - E}},
+    {{-0.5f, -0.5f,  0.5f}, {-1,0,0}, {1,1,1,1}, {0.0000f + E, 0.6667f - E}},
 
-    // Right Face (X+) - Right-center segment
-    {{ 0.5f,  0.5f, -0.5f}, { 1, 0, 0}, {1,1,1,1}, {0.50f, 0.3333f}},
-    {{ 0.5f,  0.5f,  0.5f}, { 1, 0, 0}, {1,1,1,1}, {0.75f, 0.3333f}},
-    {{ 0.5f, -0.5f,  0.5f}, { 1, 0, 0}, {1,1,1,1}, {0.75f, 0.6667f}},
-    {{ 0.5f, -0.5f, -0.5f}, { 1, 0, 0}, {1,1,1,1}, {0.50f, 0.6667f}},
-};
-static const unsigned short g_CubeIndex[] =
+    // Right (X+)
+    {{ 0.5f,  0.5f, -0.5f}, {1,0,0}, {1,1,1,1}, {0.50f + E, 0.3333f + E}},
+    {{ 0.5f,  0.5f,  0.5f}, {1,0,0}, {1,1,1,1}, {0.75f - E, 0.3333f + E}},
+    {{ 0.5f, -0.5f,  0.5f}, {1,0,0}, {1,1,1,1}, {0.75f - E, 0.6667f - E}},
+    {{ 0.5f, -0.5f, -0.5f}, {1,0,0}, {1,1,1,1}, {0.50f + E, 0.6667f - E}},
+}; static const unsigned short g_CubeIndex[] =
 {
      0,  1,  2,  0,  2,  3,
      4,  5,  6,  4,  6,  7,
@@ -118,6 +121,24 @@ void CUBE_Draw(int texId, const DirectX::XMMATRIX& mtxWorld)
     g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     Shader3d_SetWorldMatrix(mtxWorld);
+    g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
+}
+
+void CUBE_DrawUnlit(int texId, const XMMATRIX& mtxWorld)
+{
+    Shader3dUnlit_Begin();
+    Shader3dUnlit_SetColor(XMFLOAT4(1, 1, 1, 1));
+
+    Texture_SetTexture(texId);
+
+    UINT stride = sizeof(Vertex3d);
+    UINT offset = 0;
+    g_pContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+    g_pContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    Shader3dUnlit_SetWorldMatrix(mtxWorld);
+
     g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
 }
 

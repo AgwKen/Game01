@@ -43,6 +43,8 @@
 #include "GoalCollision.h"
 #include "AirCurveChallenge.h"
 #include "sprite.h"
+#include "UI_GoalAnim.h"
+#include "UI_KickPower.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -80,6 +82,11 @@ static XMFLOAT3 g_DiscoColor = { 1,1,1 };
 
 static float g_AmbientLevel = 0.58f;   // default brightness
 
+
+static float g_SunAngle = 0.0f;
+static float g_SunSpeed = 0.2f;   // radians per second
+
+
 void Game_Initialize()
 {
 
@@ -113,6 +120,7 @@ XMFLOAT3 lightDir = { 0.0f, 1.0f, 0.0f };
 XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&lightDir));
 XMStoreFloat3(&lightDir, dir);
 
+
 // move light backward along direction
 XMFLOAT3 lightPos = {
     center.x - lightDir.x * 80.0f,
@@ -122,6 +130,9 @@ XMFLOAT3 lightPos = {
 
 LightCamera_SetPosition(lightPos);
 LightCamera_SetFront(lightDir);
+
+g_SunAngle = XMConvertToRadians(260.0f);
+
 
 Mesh_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 
@@ -136,7 +147,9 @@ Trajetory3d_Initialize();
 //Fog_Initialize();x
 CircleShadow_Initialize();
 BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
+UI_GoalAnim_Initialize();
 Goal_Initialize();
+UI_KickPower_Initialize();
 
 g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
 
@@ -215,6 +228,7 @@ void Game_Finalize()
     UninitAudio();
     Goal_Finalize();
     BallPlayer_Finalize();
+    UI_KickPower_Finalize();
 
     // --- Rest ---
     CircleShadow_Finalize();
@@ -235,19 +249,60 @@ void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
 
-    // --- Dynamic Shadow Follow ---
-    XMFLOAT3 lightDir = { 0.0f, 1.0f, 0.0f };  // angled sun, pointing DOWN
+    float manualSpeed = 0.5f;
 
+    if (KeyLogger_IsPressed(KK_T))
+    {
+        g_SunAngle += manualSpeed * (float)elapsed_time;
+    }
+
+    if (KeyLogger_IsPressed(KK_Y))
+    {
+        g_SunAngle -= manualSpeed * (float)elapsed_time;
+    }
+
+    if (g_SunAngle > XM_2PI)
+        g_SunAngle -= XM_2PI;
+
+    if (g_SunAngle < 0.0f)
+        g_SunAngle += XM_2PI;
+
+    // Sun moves in circle around scene
+    float sunHeight = 0.8f;   // controls how high sun goes (0.0 - 1.0)
+    float radius = 1.0f;
+
+    // Circular motion
+    XMFLOAT3 lightDir =
+    {
+        cosf(g_SunAngle) * radius,
+        sunHeight,
+        sinf(g_SunAngle) * radius
+    };
+
+    // Normalize
     XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&lightDir));
     XMStoreFloat3(&lightDir, dir);
 
-    XMFLOAT3 focus = BallPlayer_GetPosition();
+    // Follow camera instead of ball (recommended)
+    XMFLOAT3 focus = PlayerCamera_GetPosition();
 
-    XMFLOAT3 lightPos = {
+    XMFLOAT3 lightPos =
+    {
         focus.x - lightDir.x * 80.0f,
         focus.y - lightDir.y * 80.0f,
         focus.z - lightDir.z * 80.0f
     };
+
+    // ===== INSERT HERE =====
+    float shadowMapSize = 1024.0f;  // your shadow resolution
+    float orthoSize = 40.0f;         // MUST match LightCamera_GetProjectionMatrix()
+
+    float texelSize = (orthoSize * 2.0f) / shadowMapSize;
+
+    // Snap only X and Z
+    lightPos.x = floor(lightPos.x / texelSize) * texelSize;
+    lightPos.z = floor(lightPos.z / texelSize) * texelSize;
+    // ===== END INSERT =====
 
     LightCamera_SetPosition(lightPos);
     LightCamera_SetFront(lightDir);
@@ -280,7 +335,8 @@ void Game_Update(double elapsed_time)
     PlayerCamera_Update(elapsed_time);
 
     BallPlayer_Update(elapsed_time);
-
+    UI_GoalAnim_Update(elapsed_time);
+    UI_KickPower_Update(elapsed_time);
 
     /*
     SpriteAnim_Update(elapsed_time);
@@ -411,6 +467,32 @@ void RenderPass_Shadow()
         }
     }
 
+    // === GOAL DEPTH RENDER ===
+    MODEL* goalModel = Goal_GetModel();
+    if (goalModel)
+    {
+        XMMATRIX goalWorld = Goal_GetWorldMatrix(); // we must expose this
+
+        for (unsigned int m = 0; m < goalModel->AiScene->mNumMeshes; m++)
+        {
+            UINT stride = 48;
+            UINT offset = 0;
+
+            context->IASetVertexBuffers(0, 1, &goalModel->VertexBuffer[m], &stride, &offset);
+            context->IASetIndexBuffer(goalModel->IndexBuffer[m], DXGI_FORMAT_R32_UINT, 0);
+
+            UINT indexCount = goalModel->AiScene->mMeshes[m]->mNumFaces * 3;
+
+            g_pDepthShader->Render(
+                context,
+                indexCount,
+                goalWorld,
+                lightView,
+                lightProj,
+                nullptr
+            );
+        }
+    }
 
     XMMATRIX world = BallPlayer_GetWorldMatrix();
     D3D11_VIEWPORT vp;
@@ -444,10 +526,16 @@ void RenderPass_Offscreen()
     Camera_SetMatrix(view, proj);
 
     // --- SKY ---
-
     XMFLOAT3 camPos = g_IsDebug ? Camera_GetPosition() : PlayerCamera_GetPosition();
+
     Direct3D_SetDepthEnable(false);
+
+    // IMPORTANT: Set matrices for unlit shader
+    Shader3dUnlit_SetViewMatrix(view);
+    Shader3dUnlit_SetProjectionMatrix(proj);
+
     Sky_Draw(camPos);
+
     Direct3D_SetDepthEnable(true);
 
 
@@ -550,11 +638,12 @@ void RenderPass_UI()
     if (g_CoinUI)
         g_CoinUI->Draw();
 
+    UI_GoalAnim_Draw();
+    UI_KickPower_Draw();
 
     Direct3D_SetDepthReadOnly(false);
     Direct3D_SetDefaultBlendState();
 }
-
 
 void Game_Draw()
 {
