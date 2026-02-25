@@ -18,7 +18,7 @@ static float g_ModelRotationY = -XM_PIDIV2;
 static float g_ModelHeightOffset = 1.0f;
 
 static bool g_ShowPoleDebug = true;
-static bool g_ShowNetDebug = false;
+static bool g_ShowNetDebug = true;
 
 static XMMATRIX g_GoalWorld;
 

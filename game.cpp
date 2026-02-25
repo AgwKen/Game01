@@ -45,6 +45,7 @@
 #include "sprite.h"
 #include "UI_GoalAnim.h"
 #include "UI_KickPower.h"
+#include "UIFont.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -85,6 +86,8 @@ static float g_AmbientLevel = 0.58f;   // default brightness
 
 static float g_SunAngle = 0.0f;
 static float g_SunSpeed = 0.2f;   // radians per second
+
+static UIFont g_Font;
 
 
 void Game_Initialize()
@@ -150,6 +153,10 @@ BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
 UI_GoalAnim_Initialize();
 Goal_Initialize();
 UI_KickPower_Initialize();
+g_Font.Initialize(
+    L"Texture/WhitePeaberry.png",
+    "Texture/WhitePeaberry.fnt"
+);
 
 g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
 
@@ -165,8 +172,7 @@ g_NextWindTime = 5.0f + (rand() % 10);
 
 
 g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
-g_CoinUI->SetCoinCount(g_PlayerCoinScore);
-
+g_CoinUI->SetInitialScore(g_PlayerCoinScore);
 AirCurveChallenge::Initialize();
 
 // ==============================
@@ -385,7 +391,7 @@ void Game_Update(double elapsed_time)
         }
         if (!coin.collected && distSq < (collectDistance * collectDistance))
         {
-            // 2. IMMEDIATE FEEDBACK: Update score and UI
+            coin.collected = true;
             g_PlayerCoinScore += 1;
             if (g_CoinUI) {
                 g_CoinUI->SetCoinCount(g_PlayerCoinScore);
@@ -628,12 +634,14 @@ void RenderPass_Main()
     Direct3D_SetDepthEnable(true);
 }
 
-
-
 void RenderPass_UI()
 {
     Direct3D_SetAlphaBlendState();
-    Direct3D_SetDepthReadOnly(true);
+    Direct3D_SetDepthEnable(false);
+
+    Sprite_Begin();
+
+    Sampler_SetFilterPoint();
 
     if (g_CoinUI)
         g_CoinUI->Draw();
@@ -641,7 +649,15 @@ void RenderPass_UI()
     UI_GoalAnim_Draw();
     UI_KickPower_Draw();
 
-    Direct3D_SetDepthReadOnly(false);
+    g_Font.DrawString(
+        " NGr loe ma SHwe Moe LAy",
+        200.0f,
+        200.0f,
+        3.0f,
+        DirectX::XMFLOAT4(1, 1, 1, 1)
+    );
+
+
     Direct3D_SetDefaultBlendState();
 }
 

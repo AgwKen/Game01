@@ -146,6 +146,7 @@
     <ClCompile Include="..\GameSample\mouse.cpp" />
     <ClCompile Include="AirCurveChallenge.cpp" />
     <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="BallPhysics.cpp" />
     <ClCompile Include="BallPlayer.cpp" />
     <ClCompile Include="billboard.cpp" />
     <ClCompile Include="bullet.cpp" />
@@ -189,6 +190,7 @@
     <ClCompile Include="Text.cpp" />
     <ClCompile Include="trajetory3d.cpp" />
     <ClCompile Include="UI.cpp" />
+    <ClCompile Include="UIFont.cpp" />
     <ClCompile Include="UI_GoalAnim.cpp" />
     <ClCompile Include="UI_KickPower.cpp" />
     <ClCompile Include="WICTextureLoader11.cpp" />
@@ -208,7 +210,9 @@
     <ClInclude Include="..\..\Users\pyaes\Downloads\モデル描画_学生配布用\モデル描画_学生配布用\Assimp\assimp\anim.h" />
     <ClInclude Include="..\GameSample\mouse.h" />
     <ClInclude Include="AirCurveChallenge.h" />
+    <ClInclude Include="BallPhysics.h" />
     <ClInclude Include="BallPlayer.h" />
+    <ClInclude Include="BallState.h" />
     <ClInclude Include="billboard.h" />
     <ClInclude Include="bullet.h" />
     <ClInclude Include="bullet_hit_effect.h" />
@@ -263,6 +267,7 @@
     <ClInclude Include="Text.h" />
     <ClInclude Include="trajetory3d.h" />
     <ClInclude Include="UI.h" />
+    <ClInclude Include="UIFont.h" />
     <ClInclude Include="UI_GoalAnim.h" />
     <ClInclude Include="UI_KickPower.h" />
     <ClInclude Include="WICTextureLoader11.h" />

@@ -25,9 +25,13 @@ enum class CameraMode
     PLAYER_FOLLOW, // The default camera following the player
     DEBUG_FREE      // The debug camera with free movement
 };
-
+void PlayerCamera_BeginKickCinematic();
+void PlayerCamera_EndKickCinematic();
+void PlayerCamera_SnapCloseNow();
+void PlayerCamera_ResetKickCinematic();
 void PlayerCamera_ToggleMode();
 CameraMode PlayerCamera_GetMode();
+
 
 const  DirectX::XMFLOAT4X4& PlayerCamera_GetViewMatrix();
 const  DirectX::XMFLOAT4X4& PlayerCamera_GetPerspectiveMatrix();
