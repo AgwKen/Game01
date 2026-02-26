@@ -39,7 +39,7 @@ static XMFLOAT2 g_PeekOffset = { 0.0f, 0.0f };
 static XMFLOAT2 g_TargetPeekOffset = { 0.0f, 0.0f };
 
 // Tunable Parameters
-static constexpr float CAMERA_HEIGHT = 1.2f;
+static constexpr float CAMERA_HEIGHT = 1.0f;
 
 // Normal camera distance (your original)
 static constexpr float CAMERA_DISTANCE_NORMAL = -4.0f;
@@ -66,6 +66,26 @@ static constexpr float PEEK_DOWN_SCALE = 0.6f; // optional
 
 static constexpr float CAMERA_FOLLOW_SPEED = 3.0f; // smaller = slower, heavier camera
 
+
+
+// ------------------------------------------------------------
+// NEW: Screen shake
+// ------------------------------------------------------------
+static float g_ShakeTime = 0.0f;
+static float g_ShakeDuration = 0.0f;
+static float g_ShakeMagnitude = 0.0f;
+
+static unsigned int g_ShakeSeed = 1;
+
+// tiny deterministic random (no <random>)
+
+
+static float Rand01()
+{
+    g_ShakeSeed = (1103515245u * g_ShakeSeed + 12345u);
+    return (g_ShakeSeed & 0x00FFFFFF) / float(0x01000000); // 0..1
+}
+
 // ------------------------------------------------------------
 // NEW: Kick cinematic lock
 // ------------------------------------------------------------
@@ -89,7 +109,19 @@ void PlayerCamera_ResetKickCinematic()
     g_KickCinematicActive = false;
     g_CameraDistanceCurrent = CAMERA_DISTANCE_NORMAL;
 }
-
+void PlayerCamera_StartShake(float duration, float magnitude)
+{
+    g_ShakeDuration = duration;
+    g_ShakeTime = duration;
+    g_ShakeMagnitude = magnitude;
+}
+bool PlayerCamera_IsAtKickClose()
+{
+    // You hard-lock distance when cinematic is active, so this becomes true immediately.
+    // But if you later change to smooth snap, this still works.
+    const float eps = 0.02f;
+    return fabsf(g_CameraDistanceCurrent - CAMERA_DISTANCE_IMPACT) <= eps;
+}
 void PlayerCamera_Initialize()
 {
     PlayerCamera_ResetKickCinematic();
@@ -171,7 +203,12 @@ void PlayerCamera_Update(double elapsed_time)
     if (g_KickCinematicActive)
     {
         targetDistance = CAMERA_DISTANCE_IMPACT;
-        g_CameraDistanceCurrent = targetDistance; // hard lock
+
+        // fast snap-in but not instant (gives a real "arrival" moment)
+        float k = CAMERA_SNAP_SPEED * dt;
+        if (k > 1.0f) k = 1.0f;
+
+        g_CameraDistanceCurrent += (targetDistance - g_CameraDistanceCurrent) * k;
     }
     else
     {
@@ -229,11 +266,35 @@ void PlayerCamera_Update(double elapsed_time)
     XMVECTOR lookTarget = playerPos +
         XMVectorSet(
             g_PeekOffset.x,
-            g_PeekOffset.y,
+            0.5f + g_PeekOffset.y,//look higher (ball moves lower on screen)
             0.0f,
             0.0f
         );
 
+    // ------------------------------------------------------------
+    // APPLY SCREEN SHAKE (position shake, optional target shake)
+    // ------------------------------------------------------------
+    if (g_ShakeTime > 0.0f)
+    {
+        g_ShakeTime -= dt;
+        if (g_ShakeTime < 0.0f) g_ShakeTime = 0.0f;
+
+        float t01 = (g_ShakeDuration > 0.0001f) ? (g_ShakeTime / g_ShakeDuration) : 0.0f;
+        float amp = g_ShakeMagnitude * t01; // fade out
+
+        // make it feel like "earthquake" = random jolts, smoothed a bit
+        static float curY = 0.0f;
+        float targetY = (Rand01() * 2.0f - 1.0f) * amp;
+
+        // high smoothing speed = quick vibration
+        curY += (targetY - curY) * 35.0f * dt;
+
+        // apply to camera
+        cameraPos += XMVectorSet(0.0f, curY, 0.0f, 0.0f);
+
+        // ALSO nudge lookTarget slightly so the view direction shakes too
+        lookTarget += XMVectorSet(0.0f, curY * 0.35f, 0.0f, 0.0f);
+    }
     XMVECTOR front = XMVector3Normalize(lookTarget - cameraPos);
     XMStoreFloat3(&g_PlayerCameraFront, front);
 

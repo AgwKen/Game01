@@ -87,6 +87,9 @@ static bool  g_HitStopActive = false;
 static float g_HitStopTime = 0.0f;
 static constexpr float HITSTOP_DURATION = 0.05f;
 
+static constexpr float KICK_CINEMATIC_MIN_CHARGE01 = 0.8f; // yellow+red zone
+
+
 // ============================================================================
 // MATRICES
 // ============================================================================
@@ -229,8 +232,10 @@ void BallPlayer_Update(double elapsedTime)
         // when timer ends -> kick happens NOW
         if (g_KickDelayTime <= 0.0f)
         {
-            // end cinematic (camera will return to normal logic after kick)
             PlayerCamera_EndKickCinematic();
+
+            // SHAKE ONLY WHEN BALL RELEASES (kick actually happens)
+            PlayerCamera_StartShake(0.3f, 0.8f);
 
             BallPlayer_Kick(g_PendingDir, g_PendingPower, g_PendingLift, g_PendingCurve);
 
@@ -312,10 +317,11 @@ void BallPlayer_Update(double elapsedTime)
         }
         else if (g_IsChargingKick)
         {
-            // --------------------------------------------------------
-            // RELEASE: SNAP TO CLOSE-UP + HOLD, DO NOT KICK YET
-            // --------------------------------------------------------
+            // RELEASE
             float power = std::max(g_KickCharge, KICK_MIN_POWER);
+
+            float charge01 = g_KickCharge / KICK_MAX_POWER;
+            charge01 = Clamp01(charge01);
 
             XMFLOAT3 camFront = PlayerCamera_GetFront();
             XMVECTOR dirVec = XMVectorSet(camFront.x, 0.0f, camFront.z, 0.0f);
@@ -324,24 +330,37 @@ void BallPlayer_Update(double elapsedTime)
             XMFLOAT3 shootDir;
             XMStoreFloat3(&shootDir, dirVec);
 
-            // store kick for later
-            g_PendingDir = shootDir;
-            g_PendingPower = power;
-            g_PendingLift = power * 0.18f;
-            g_PendingCurve = power * 0.06f;
+            // Decide if we do cinematic or instant kick
+            const bool doCinematic = (charge01 >= KICK_CINEMATIC_MIN_CHARGE01);
 
-            // start cinematic hold
-            g_KickPending = true;
-            g_KickDelayTime = KICK_CINEMATIC_HOLD;
+            if (doCinematic)
+            {
+                // store kick for later
+                g_PendingDir = shootDir;
+                g_PendingPower = power;
+                g_PendingLift = power * 0.18f;
+                g_PendingCurve = power * 0.06f;
 
-            // clear charging state
-            g_IsChargingKick = false;
-            g_KickCharge = 0.0f;
+                // start cinematic hold
+                g_KickPending = true;
+                g_KickDelayTime = KICK_CINEMATIC_HOLD;
 
-            // also: force camera to snap close immediately on release
-            PlayerCamera_SnapCloseNow();
+                // clear charging state (UI will stop showing charge)
+                g_IsChargingKick = false;
+                g_KickCharge = 0.0f;
 
-            return;
+                // snap camera close immediately
+                PlayerCamera_SnapCloseNow();
+
+                return; // freeze gameplay during hold (your existing behavior)
+            }
+            else
+            {
+                BallPlayer_Kick(shootDir, power, power * 0.18f, power * 0.06f);
+
+                g_IsChargingKick = false;
+                g_KickCharge = 0.0f;
+            }
         }
     }
 

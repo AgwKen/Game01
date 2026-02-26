@@ -29,6 +29,9 @@ void PlayerCamera_BeginKickCinematic();
 void PlayerCamera_EndKickCinematic();
 void PlayerCamera_SnapCloseNow();
 void PlayerCamera_ResetKickCinematic();
+void PlayerCamera_StartShake(float duration, float magnitude);
+bool PlayerCamera_IsAtKickClose();
+
 void PlayerCamera_ToggleMode();
 CameraMode PlayerCamera_GetMode();
 
