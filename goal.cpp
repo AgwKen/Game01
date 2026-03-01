@@ -3,7 +3,7 @@
 #include "terrain.h"
 #include "cube.h"
 #include "direct3d.h"
-
+#include "shader3d.h"
 #include <vector>
 
 using namespace DirectX;
@@ -51,7 +51,6 @@ bool Goal_HandleBallCollision(
 {
     return GoalCollision_HandleBall(ballPos, ballVelocity, ballRadius);
 }
-
 void Goal_Render()
 {
     if (!g_GoalModel)
@@ -74,69 +73,106 @@ void Goal_Render()
             g_GoalWorldPos.z
         );
 
-
     ModelDraw(g_GoalModel, g_GoalWorld);
+ // Always build collision boxes
+std::vector<AABB> boxes;
+GoalCollision_GetDebugBoxes(boxes);
+
+// ------------------------------------------------------------
+// POLE DEBUG BOXES (ALWAYS DRAW)
+// ------------------------------------------------------------
+if (g_ShowPoleDebug)
+{
+    for (int i = 0; i < 3 && i < (int)boxes.size(); i++)
+    {
+        AABB& box = boxes[i];
+
+        XMFLOAT3 center = {
+            (box.min.x + box.max.x) * 0.5f,
+            (box.min.y + box.max.y) * 0.5f,
+            (box.min.z + box.max.z) * 0.5f
+        };
+
+        XMFLOAT3 size = {
+            box.max.x - box.min.x,
+            box.max.y - box.min.y,
+            box.max.z - box.min.z
+        };
+
+        XMMATRIX debugWorld =
+            XMMatrixScaling(size.x, size.y, size.z) *
+            XMMatrixTranslation(center.x, center.y, center.z);
+
+        Direct3D_SetAlphaBlendState();
+        CUBE_Draw(-1, debugWorld);
+        Direct3D_SetDefaultBlendState();
+    }
+}
 
 #if defined(DEBUG) || defined(_DEBUG)
 
-    std::vector<AABB> boxes;
-    GoalCollision_GetDebugBoxes(boxes);
+// ------------------------------------------------------------
+// GOAL LINE DEBUG (DEBUG ONLY)
+// ------------------------------------------------------------
+if (boxes.size() >= 3)
+{
+    const AABB& left = boxes[0];
+    const AABB& right = boxes[1];
 
-    if (g_ShowPoleDebug)
+    float goalLineZ = (left.min.z + left.max.z) * 0.5f;
+
+    float minX = left.max.x;
+    float maxX = right.min.x;
+
+    float baseY = left.min.y + 0.05f;
+
+    float width = (maxX - minX);
+    float thickness = 0.05f;
+    float depth = 0.05f;
+
+    XMMATRIX debugGoalLine =
+        XMMatrixScaling(width, thickness, depth) *
+        XMMatrixTranslation(
+            (minX + maxX) * 0.5f,
+            baseY,
+            goalLineZ
+        );
+
+    Direct3D_SetAlphaBlendState();
+    CUBE_Draw(-1, debugGoalLine);
+    Direct3D_SetDefaultBlendState();
+}
+
+// ------------------------------------------------------------
+// NET DEBUG BOXES (DEBUG ONLY)
+// ------------------------------------------------------------
+if (g_ShowNetDebug)
+{
+    for (int i = 3; i < (int)boxes.size(); i++)
     {
-        for (int i = 0; i < 3; i++)
-        {
-            AABB& box = boxes[i];
+        AABB& box = boxes[i];
 
-            XMFLOAT3 center = {
-                (box.min.x + box.max.x) * 0.5f,
-                (box.min.y + box.max.y) * 0.5f,
-                (box.min.z + box.max.z) * 0.5f
-            };
+        XMFLOAT3 center = {
+            (box.min.x + box.max.x) * 0.5f,
+            (box.min.y + box.max.y) * 0.5f,
+            (box.min.z + box.max.z) * 0.5f
+        };
 
-            XMFLOAT3 size = {
-                box.max.x - box.min.x,
-                box.max.y - box.min.y,
-                box.max.z - box.min.z
-            };
+        XMFLOAT3 size = {
+            box.max.x - box.min.x,
+            box.max.y - box.min.y,
+            box.max.z - box.min.z
+        };
 
-            XMMATRIX debugWorld =
-                XMMatrixScaling(size.x, size.y, size.z) *
-                XMMatrixTranslation(center.x, center.y, center.z);
+        XMMATRIX debugWorld =
+            XMMatrixScaling(size.x, size.y, size.z) *
+            XMMatrixTranslation(center.x, center.y, center.z);
 
-            Direct3D_SetAlphaBlendState();
-            CUBE_Draw(-1, debugWorld);
-            Direct3D_SetDefaultBlendState();
-        }
+        Direct3D_SetAlphaBlendState();
+        CUBE_Draw(-1, debugWorld);
+        Direct3D_SetDefaultBlendState();
     }
-
-    if (g_ShowNetDebug)
-    {
-        for (int i = 3; i < boxes.size(); i++)
-        {
-            AABB& box = boxes[i];
-
-            XMFLOAT3 center = {
-                (box.min.x + box.max.x) * 0.5f,
-                (box.min.y + box.max.y) * 0.5f,
-                (box.min.z + box.max.z) * 0.5f
-            };
-
-            XMFLOAT3 size = {
-                box.max.x - box.min.x,
-                box.max.y - box.min.y,
-                box.max.z - box.min.z
-            };
-
-            XMMATRIX debugWorld =
-                XMMatrixScaling(size.x, size.y, size.z) *
-                XMMatrixTranslation(center.x, center.y, center.z);
-
-            Direct3D_SetAlphaBlendState();
-            CUBE_Draw(-1, debugWorld);
-            Direct3D_SetDefaultBlendState();
-        }
-    }
+}
 
 #endif
 }

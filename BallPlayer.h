@@ -21,6 +21,7 @@ void BallPlayer_Finalize();
 
 // --- Utility ---
 XMFLOAT3 BallPlayer_GetPosition();
+XMFLOAT3 BallPlayer_GetAimDirection();
 void BallPlayer_SetPosition(const XMFLOAT3& pos);
 
 DirectX::XMMATRIX BallPlayer_GetWorldMatrix();
@@ -30,3 +31,4 @@ float BallPlayer_GetKickCharge();
 bool  BallPlayer_IsCharging();
 float BallPlayer_GetKickMaxPower();
 bool BallPlayer_IsKicked();
+

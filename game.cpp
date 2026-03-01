@@ -46,6 +46,7 @@
 #include "UI_GoalAnim.h"
 #include "UI_KickPower.h"
 #include "UIFont.h"
+#include "cube.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -87,8 +88,11 @@ static float g_AmbientLevel = 0.58f;   // default brightness
 static float g_SunAngle = 0.0f;
 static float g_SunSpeed = 0.2f;   // radians per second
 
+static int g_AimDotTex = -1;
+
 static UIFont g_Font;
 
+static AirCurveChallenge g_AirCurve;
 
 void Game_Initialize()
 {
@@ -158,6 +162,9 @@ g_Font.Initialize(
     "Texture/WhitePeaberry.fnt"
 );
 
+g_AimDotTex = Texture_Load(L"Texture/white.png");  // or any small dot texture
+CUBE_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
+
 g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
 
 g_BGM = LoadAudio("Sounds/bg.wav");
@@ -173,7 +180,7 @@ g_NextWindTime = 5.0f + (rand() % 10);
 
 g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
 g_CoinUI->SetInitialScore(g_PlayerCoinScore);
-AirCurveChallenge::Initialize();
+g_AirCurve.Initialize();
 
 // ==============================
 // TEST: Spawn one world coin
@@ -232,6 +239,7 @@ void Game_Finalize()
     }
     // --- Now audio system shutdown ---
     UninitAudio();
+    CUBE_Finalize();
     Goal_Finalize();
     BallPlayer_Finalize();
     UI_KickPower_Finalize();
@@ -249,6 +257,24 @@ void Game_Finalize()
     delete g_CoinUI;
     g_CoinUI = nullptr;
 
+}
+
+void Game_OnGoalScored()
+{
+    UI_GoalAnim_Play();
+    XMFLOAT3 offset;
+    offset.x = (float)((rand() % 10) - 5);      // -5..+4
+    offset.y = 0.0f;
+    offset.z = 1.0f + (rand() / (float)RAND_MAX) * 19.0f; // 1..20
+
+    //Goal_SetWorldOffset(offset);
+    g_AirCurve.Reset();
+}
+
+void Game_OnGoalReset()
+{
+    // whenever ball resets / new round, respawn coin path too
+    g_AirCurve.Reset();
 }
 
 void Game_Update(double elapsed_time)
@@ -594,6 +620,31 @@ void RenderPass_Offscreen()
     Map_Draw();
     BallPlayer_Draw();
     Goal_Render();
+    // ===== AIM DOTS (only when NOT kicked) =====
+    if (!BallPlayer_IsKicked())
+    {
+        XMFLOAT3 p = BallPlayer_GetPosition();
+        XMFLOAT3 d = BallPlayer_GetAimDirection();
+
+        float len = 10.0f;
+        int dots = 12;
+        float dotSize = 0.07f;
+
+        XMVECTOR start = XMVectorSet(p.x, p.y + 0.15f, p.z, 1.0f);
+        XMVECTOR dir = XMVector3Normalize(XMVectorSet(d.x, 0.0f, d.z, 0.0f));
+
+        for (int i = 1; i <= dots; i++)
+        {
+            float t = (float)i / (float)dots;
+            XMVECTOR pos = start + dir * (len * t);
+
+            XMMATRIX world =
+                XMMatrixScaling(dotSize, dotSize, dotSize) *
+                XMMatrixTranslationFromVector(pos);
+
+            CUBE_DrawUnlit(g_AimDotTex, world); // unlit looks cleaner for UI-like aim
+        }
+    }
 
     // --- BILLBOARDS ---
     Billboard_SetViewMatrix(mtxView);

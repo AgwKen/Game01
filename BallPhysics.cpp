@@ -101,15 +101,43 @@ void BallPhysics_Update(BallState& state, float dt)
     }
 
     // MAGNUS EFFECT
-    XMVECTOR velXZ = XMVectorSet(state.velocity.x, 0, state.velocity.z, 0);
+    // (Fixes)
+    // - Use full velocity (including y) so lifted shots still curve.
+    // - Multiply by dt so it works consistently at any FPS.
+    // - Increase strength (0.015f was too weak for your scale).
+    // - Only apply strongly in air (still allowed on ground, but reduced feel naturally by friction).
+    XMVECTOR v = XMVectorSet(state.velocity.x, state.velocity.y, state.velocity.z, 0.0f);
 
-    if (XMVectorGetX(XMVector3Length(state.angularVelocity)) > 0.01f)
+    float spinLen = XMVectorGetX(XMVector3Length(state.angularVelocity));
+    float speedLen = XMVectorGetX(XMVector3Length(v));
+
+    if (spinLen > 0.01f && speedLen > 0.25f)
     {
-        XMVECTOR mag = XMVector3Cross(state.angularVelocity, velXZ) * 0.015f;
+        // Strength tuning (raise if you want more dramatic curve)
+        // Start here: 0.35f - 0.90f
+        const float MAGNUS_STRENGTH = 0.55f;
 
-        state.velocity.x += XMVectorGetX(mag);
-        state.velocity.z += XMVectorGetZ(mag);
+        // Direction: w x v (if curve direction feels reversed, swap cross order)
+        XMVECTOR magnusDir = XMVector3Cross(state.angularVelocity, v);
 
-        state.angularVelocity *= 0.99f;
+        // Normalize to avoid crazy acceleration spikes
+        if (XMVectorGetX(XMVector3LengthSq(magnusDir)) > 0.000001f)
+        {
+            magnusDir = XMVector3Normalize(magnusDir);
+
+            // Make accel scale a bit with speed and spin
+            float accel = MAGNUS_STRENGTH * spinLen * (speedLen * 0.18f);
+
+            // Clamp so it never becomes insane
+            if (accel > 40.0f) accel = 40.0f;
+
+            XMVECTOR dv = magnusDir * (accel * dt);
+
+            state.velocity.x += XMVectorGetX(dv);
+            state.velocity.z += XMVectorGetZ(dv);
+
+            // Spin decay (air resistance)
+            state.angularVelocity *= 0.995f;
+        }
     }
 }

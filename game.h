@@ -13,6 +13,9 @@
 void Game_Initialize();
 void Game_Finalize();
 
+void Game_OnGoalScored();
+void Game_OnGoalReset();
+
 void Game_Update(double elapsed_time);
 void RenderPass_Shadow();
 void RenderPass_Offscreen();

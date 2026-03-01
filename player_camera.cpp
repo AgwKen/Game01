@@ -56,9 +56,9 @@ static float g_CameraDistanceCurrent = CAMERA_DISTANCE_NORMAL;
 // Speeds
 static constexpr float CAMERA_ZOOM_SPEED = 4.0f;   // while holding charge
 static constexpr float CAMERA_SNAP_SPEED = 200.0f;  // snap back
-static constexpr float PEEK_DISTANCE = 2.0f;
+static constexpr float PEEK_DISTANCE = 0.1f;
 static constexpr float PEEK_SPEED = 3.0f;
-static constexpr float PEEK_RETURN_SPEED = 0.1f;
+static constexpr float PEEK_RETURN_SPEED = 1.0f;
 static constexpr float PEEK_DEADZONE = 0.2f;
 
 static constexpr float PEEK_Y_SCALE = 1.0f;   //  no more than 1

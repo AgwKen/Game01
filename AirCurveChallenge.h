@@ -1,14 +1,17 @@
 #pragma once
 #include <DirectXMath.h>
 
-using namespace DirectX;
-
 class AirCurveChallenge
 {
 public:
-    static void Initialize();
-    static void Reset();
+    void Initialize();
+    void Reset();
+
+    DirectX::XMFLOAT3 GetStartPoint() const { return m_StartPoint; }
 
 private:
-    static void SpawnCoins();
+    void SpawnCoinsToGoal();
+
+private:
+    DirectX::XMFLOAT3 m_StartPoint = { 0.0f, 1.0f, 3.0f };
 };

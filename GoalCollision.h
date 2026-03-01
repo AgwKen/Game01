@@ -22,5 +22,7 @@ extern float g_GoalWorldBaseY;
 bool GoalCollision_IsBallInsideGoal(const XMFLOAT3& ballPos, float radius);
 bool GoalCollision_BackNetTouched();
 void GoalCollision_ClearBackNetHit();
+bool GoalCollision_DidCrossGoalLine(const XMFLOAT3& prev, const XMFLOAT3& now, float r);
+bool GoalCollision_GetGoalMouthTarget(DirectX::XMFLOAT3& outTarget);
 
 

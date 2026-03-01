@@ -37,6 +37,7 @@ void UI_GoalAnim_Update(double dt)
     {
         g_active = false;
         SpriteAnim_DestroyPlayer(g_player);
+        g_player = -1;
     }
 }
 

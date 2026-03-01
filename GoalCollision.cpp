@@ -24,6 +24,30 @@ static bool g_BackNetHit = false;
 
 static void BuildGoalCollision(std::vector<AABB>& out);
 
+static bool IsInsideGoalMouth(const XMFLOAT3& p, float r, const std::vector<AABB>& boxes)
+{
+    const AABB& left = boxes[0];
+    const AABB& right = boxes[1];
+    const AABB& top = boxes[2];
+
+    // X range between inner faces of poles
+    float minX = left.max.x;
+    float maxX = right.min.x;
+
+    // Y range under crossbar
+    float minY = left.min.y;
+    float maxY = top.min.y;
+
+    // Z goal line (front of goal). Poles are thin in Z, so use their middle/front.
+    float goalLineZ = (left.min.z + left.max.z) * 0.5f;
+
+    return
+        p.x > minX - r && p.x < maxX + r &&
+        p.y > minY - r && p.y < maxY + r &&
+        p.z > goalLineZ; // behind the line
+}
+
+
 bool GoalCollision_IsBallInsideGoal(const XMFLOAT3& ballPos, float radius)
 {
     std::vector<AABB> boxes;
@@ -196,7 +220,26 @@ static bool SphereVsAABB(
     if (distSq > radius * radius) return false;
 
     float dist = sqrtf(distSq);
-    if (dist < 0.0001f) return false;
+    if (dist < 0.0001f)
+    {
+        if (isTopNet)
+        {
+            // put ball definitely ABOVE the top net box
+            pos.y = box.max.y + radius + 0.001f;
+
+            // stop falling so it won't sink back in next frame
+            if (vel.y < 0.0f) vel.y = 0.0f;
+
+            // small friction so it settles
+            vel.x *= 0.8f;
+            vel.z *= 0.8f;
+
+            return true;
+        }
+
+        // for other boxes, ignore this rare degenerate case
+        return false;
+    }
 
     XMFLOAT3 n = { diff.x / dist, diff.y / dist, diff.z / dist };
     float penetration = radius - dist;
@@ -213,8 +256,8 @@ static bool SphereVsAABB(
         {
             if (isTopNet)
             {
-                vel.x *= 0.80f;
-                vel.z *= 0.80f;
+                if (vel.y < 0.0f) vel.y = 0.0f;
+                pos.y += penetration + 0.002f;
                 vel.y *= 0.95f;
                 pos.y += 0.01f;
             }
@@ -279,4 +322,52 @@ bool GoalCollision_BackNetTouched()
 void GoalCollision_ClearBackNetHit()
 {
     g_BackNetHit = false;
+}
+bool GoalCollision_DidCrossGoalLine(const XMFLOAT3& prev, const XMFLOAT3& now, float r)
+{
+    std::vector<AABB> boxes;
+    BuildGoalCollision(boxes);
+
+    const AABB& left = boxes[0];
+    float goalLineZ = (left.min.z + left.max.z) * 0.5f;
+
+    // must cross from front -> behind
+    bool crossed = (prev.z <= goalLineZ && now.z > goalLineZ);
+
+    if (!crossed) return false;
+
+    // must be inside mouth at the moment it crosses
+    return IsInsideGoalMouth(now, r, boxes);
+}
+
+bool GoalCollision_GetGoalMouthTarget(DirectX::XMFLOAT3& outTarget)
+{
+    std::vector<AABB> boxes;
+    BuildGoalCollision(boxes);
+
+    if (boxes.size() < 3) return false;
+
+    const AABB& left = boxes[0];
+    const AABB& right = boxes[1];
+    const AABB& top = boxes[2];
+
+    // Inside between poles
+    float minX = left.max.x;
+    float maxX = right.min.x;
+
+    // Under crossbar
+    float minY = left.min.y;
+    float maxY = top.min.y;
+
+    // Goal line Z (same logic you used)
+    float goalLineZ = (left.min.z + left.max.z) * 0.5f;
+
+    // Put target slightly BEHIND the goal line so it truly goes "in"
+    float targetZ = goalLineZ + 0.35f;
+
+    outTarget.x = (minX + maxX) * 0.5f;
+    outTarget.y = (minY + maxY) * 0.5f;   // mid height of mouth
+    outTarget.z = targetZ;
+
+    return true;
 }
