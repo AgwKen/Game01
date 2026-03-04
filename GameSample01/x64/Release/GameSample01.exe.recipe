@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <ProjectOutputs>
+    <ProjectOutput>
+      <FullPath>C:\directxgames\3DGame\x64\Release\GameSample01.exe</FullPath>
+    </ProjectOutput>
+  </ProjectOutputs>
+  <ContentFiles>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\depth_pixel.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\depth_vertex.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_pixel_2d.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_pixel_3d_Field.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_pixel_3d.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_pixel_3d_unlit.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_pixel_billboard.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_vertex_2d.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_vertex_3d.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_vertex_3d_unlit.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_vertex_billboard.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>C:\directxgames\3DGame\x64\Release\shader_vertex_field.cso</FullPath>
+    </ContentFile>
+  </ContentFiles>
+  <SatelliteDlls />
+  <NonRecipeFileRefs />
+</Project>

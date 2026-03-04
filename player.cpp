@@ -23,7 +23,6 @@
 #include "terrain.h"
 #include "enemy.h"
 #include "collision.h"
-#include "circle_shadow.h"
 #include "Audio.h"
 
 using namespace DirectX;
@@ -614,7 +613,6 @@ void Player_Draw()
             g_PlayerPosition.z + g_VisualOffset.z
         };
         BillboardAnim_Draw(animPlayerId, drawPos, { 1.5f, 1.5f }, { 0.5f, 0.5f });
-        CircleShadow_Draw(g_PlayerPosition);
     }
 }
 

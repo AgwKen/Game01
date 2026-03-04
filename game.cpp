@@ -28,7 +28,6 @@
 #include "bullet_hit_effect.h"
 #include "trajetory3d.h"
 #include "sky.h"
-#include "circle_shadow.h"
 #include "Audio.h"
 #include "shader3d_unlit.h"
 #include "rendertextureclass.h"
@@ -47,6 +46,13 @@
 #include "UI_KickPower.h"
 #include "UIFont.h"
 #include "cube.h"
+#include "RunManager.h"
+#include <cstdio>
+#include <cmath>  
+#include "Leaderboard.h"
+#include "NameEntry.h"
+#include "LeaderboardUI.h"
+#include "MatchHUDUI.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -93,6 +99,8 @@ static int g_AimDotTex = -1;
 static UIFont g_Font;
 
 static AirCurveChallenge g_AirCurve;
+
+static bool g_SubmittedThisRun = false;
 
 void Game_Initialize()
 {
@@ -151,17 +159,18 @@ Map_Initialize();
 Billboard_Initialize();
 BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
-//Fog_Initialize();x
-CircleShadow_Initialize();
 BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
 UI_GoalAnim_Initialize();
 Goal_Initialize();
 UI_KickPower_Initialize();
+Leaderboard_Initialize();
 g_Font.Initialize(
     L"Texture/WhitePeaberry.png",
     "Texture/WhitePeaberry.fnt"
 );
-
+MatchHUDUI::Initialize(&g_Font);
+LeaderboardUI_Initialize(&g_Font);
+NameEntry_Initialize(&g_Font);
 g_AimDotTex = Texture_Load(L"Texture/white.png");  // or any small dot texture
 CUBE_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 
@@ -238,14 +247,16 @@ void Game_Finalize()
         g_WindSE = -1;
     }
     // --- Now audio system shutdown ---
+    MatchHUDUI::Finalize();
     UninitAudio();
     CUBE_Finalize();
+    Leaderboard_Finalize();
     Goal_Finalize();
     BallPlayer_Finalize();
     UI_KickPower_Finalize();
+    UI_GoalAnim_Finalize();
 
     // --- Rest ---
-    CircleShadow_Finalize();
     Billboard_Finalize();
     Map_Finalize();
     Sky_Finalize();
@@ -266,7 +277,7 @@ void Game_OnGoalScored()
     offset.x = (float)((rand() % 10) - 5);      // -5..+4
     offset.y = 0.0f;
     offset.z = 1.0f + (rand() / (float)RAND_MAX) * 19.0f; // 1..20
-
+    Run_AddGoal();
     //Goal_SetWorldOffset(offset);
     g_AirCurve.Reset();
 }
@@ -275,11 +286,65 @@ void Game_OnGoalReset()
 {
     // whenever ball resets / new round, respawn coin path too
     g_AirCurve.Reset();
+
 }
 
 void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
+    Run_Update((float)elapsed_time);
+    LeaderboardUI_Update((float)elapsed_time);
+    MatchHUDUI::Update((float)elapsed_time);
+    if (NameEntry_IsActive())
+    {
+        NameEntry_Update();
+        return;
+    }
+    // =============================
+// NEW RUN / RESTART (sync with UI text)
+// =============================
+    if (!NameEntry_IsActive())
+    {
+        bool pressedNewRun =
+            KeyLogger_IsTrigger(KK_SPACE) ||
+            PadLogger_IsTrigger(0, XINPUT_GAMEPAD_START);
+
+        // If run finished -> SPACE/START should restart + reset gameplay objects
+        if (pressedNewRun && Run_IsFinished())
+        {
+            // start fresh timer
+            Run_Start(60.0f);
+
+            // reset coin score
+            g_PlayerCoinScore = 0;
+            if (g_CoinUI) g_CoinUI->SetInitialScore(g_PlayerCoinScore);
+
+            // reset ball/goal so player can play immediately
+            BallPlayer_Reset();
+
+            // optional: if you want coins to respawn, do it here
+            // g_Coins.clear(); SpawnCoins();
+
+            // allow leaderboard submission again
+            g_SubmittedThisRun = false;
+        }
+
+        // If not started yet -> SPACE/START starts normally (your existing logic)
+    }
+    if (!Run_IsActive() && !Run_IsFinished())
+    {
+        if (KeyLogger_IsTrigger(KK_SPACE) || PadLogger_IsTrigger(0, XINPUT_GAMEPAD_START))
+        {
+            Run_Start(60.0f);
+
+            // Reset coin score (UI side)
+            g_PlayerCoinScore = 0;
+            if (g_CoinUI) g_CoinUI->SetInitialScore(g_PlayerCoinScore);
+
+            // (Optional) respawn coins for the new run
+            // g_Coins.clear(); SpawnCoins();
+        }
+    }
 
     float manualSpeed = 0.5f;
 
@@ -369,7 +434,24 @@ void Game_Update(double elapsed_time)
     BallPlayer_Update(elapsed_time);
     UI_GoalAnim_Update(elapsed_time);
     UI_KickPower_Update(elapsed_time);
+    // Submit leaderboard once when run finishes
+    if (Run_IsFinished() && !g_SubmittedThisRun)
+    {
+        g_SubmittedThisRun = true;
 
+        RunResult r = Run_GetResult();
+
+        // Only open name entry if it would enter Top10
+        NameEntry_BeginIfQualifies(r);
+
+        // If it DOESN'T qualify, do nothing (or you can still save as PLAYER if you want)
+        // else Leaderboard_Add("PLAYER", r);
+    }
+    if (!Run_IsActive() && !Run_IsFinished())
+    {
+        // Not started state -> allow submission next run
+        g_SubmittedThisRun = false;
+    }
     /*
     SpriteAnim_Update(elapsed_time);
     Bullet_Update(elapsed_time);
@@ -411,20 +493,24 @@ void Game_Update(double elapsed_time)
         float dy = coin.position.y - playerPos.y;
         float dz = coin.position.z - playerPos.z;
         float distSq = dx * dx + dy * dy + dz * dz;
-        if (coin.timer < 1.0f) {
+        if (coin.timer < 0.3f) {
             ++it;
             continue;
         }
-        if (!coin.collected && distSq < (collectDistance * collectDistance))
+        if (!coin.collected &&
+            BallPlayer_IsKicked() &&
+            distSq < (collectDistance * collectDistance))
         {
             coin.collected = true;
             g_PlayerCoinScore += 1;
-            if (g_CoinUI) {
-                g_CoinUI->SetCoinCount(g_PlayerCoinScore);
-            }
+            Run_AddCoin();
 
-            // 3. REMOVAL: Since you aren't playing a "collection animation," 
-            // just erase it immediately to make it feel snappy.
+            if (g_CoinUI)
+                g_CoinUI->SetCoinCount(g_PlayerCoinScore);
+
+            if (coin.animPlayId >= 0)
+                SpriteAnim_DestroyPlayer(coin.animPlayId);
+
             it = g_Coins.erase(it);
             continue;
         }
@@ -691,28 +777,49 @@ void RenderPass_UI()
     Direct3D_SetDepthEnable(false);
 
     Sprite_Begin();
-
     Sampler_SetFilterPoint();
 
+    // -------------------------
+    // HUD (always)
+    // -------------------------
     if (g_CoinUI)
         g_CoinUI->Draw();
 
     UI_GoalAnim_Draw();
     UI_KickPower_Draw();
 
-    g_Font.DrawString(
-        " NGr loe ma SHwe Moe LAy",
-        200.0f,
-        200.0f,
-        3.0f,
-        DirectX::XMFLOAT4(1, 1, 1, 1)
+    // -------------------------
+    // Match HUD (soccer style)
+    // -------------------------
+    RunResult r = Run_GetResult();
+    float t = Run_GetTimeLeft();
+
+    // show 60 before start (same behavior as before)
+    if (!Run_IsActive() && !Run_IsFinished())
+        t = 60.0f;
+
+    MatchHUDUI::Draw(
+        t,
+        r.goals,
+        Run_IsActive(),
+        Run_IsFinished()
     );
 
+    // -------------------------
+    // Finished UI
+    // -------------------------
+    if (Run_IsFinished())
+    {
+        LeaderboardUI_Draw();
+    }
+
+    // -------------------------
+    // Name entry overlay (top priority)
+    // -------------------------
+    NameEntry_Draw();
 
     Direct3D_SetDefaultBlendState();
-}
-
-void Game_Draw()
+}void Game_Draw()
 {
     RenderPass_Shadow();
     RenderPass_Offscreen();   // Pass 1

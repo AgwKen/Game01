@@ -52,6 +52,12 @@ void AirCurveChallenge::Initialize()
 
 void AirCurveChallenge::Reset()
 {
+    for (auto& c : g_Coins)
+    {
+        if (c.animPlayId >= 0)
+            SpriteAnim_DestroyPlayer(c.animPlayId);
+    }
+
     g_Coins.clear();
     SpawnCoinsToGoal();
 }

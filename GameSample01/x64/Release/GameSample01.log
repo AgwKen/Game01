@@ -1,0 +1,25 @@
+﻿  AirCurveChallenge.cpp
+  BallControl.cpp
+  BallPhysics.cpp
+  BallPlayer.cpp
+  bullet.cpp
+  enemy_humanoid.cpp
+  goal.cpp
+  GoalCollision.cpp
+  player_camera.cpp
+  trajetory3d.cpp
+  UI_GoalAnim.cpp
+  UI_KickPower.cpp
+  game.cpp
+  scene.cpp
+C:\directxgames\3DGame\GoalCollision.cpp(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss
+C:\directxgames\3DGame\rendertextureclass.h(11,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+  (compiling source file 'game.cpp')
+  
+  Generating code
+  156 of 1810 functions ( 8.6%) were compiled, the rest were copied from previous compilation.
+    24 functions were new in current compilation
+    65 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  GameSample01.vcxproj -> C:\directxgames\3DGame\x64\Release\GameSample01.exe
+  0 File(s) copied

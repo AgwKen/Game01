@@ -33,11 +33,16 @@ static ID3D11DeviceContext* g_pContext = nullptr;
 
 void Texture_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 {
-    for (Texture& t : g_Textures) {
+    for (Texture& t : g_Textures)
+    {
+        t.filename.clear();
+        t.width = 0;
+        t.height = 0;
         t.pTexture = nullptr;
+        t.pTextureView = nullptr;
     }
-    g_SetTextureIndex = -1;
 
+    g_SetTextureIndex = (unsigned int)-1;
     g_pDevice = pDevice;
     g_pContext = pContext;
 }
@@ -49,56 +54,77 @@ void Texture_Finalize(void)
 
 int Texture_Load(const wchar_t* pFilename)
 {
-    //既に読み込んだファイルは読み込んまない
-    for (int i = 0; i < TEXTURE_MAX; i++) {
-        if (g_Textures[i].filename == pFilename) {
+    // Already loaded? return same ID
+    for (int i = 0; i < TEXTURE_MAX; i++)
+    {
+        if (!g_Textures[i].filename.empty() && g_Textures[i].filename == pFilename)
             return i;
-        }
     }
 
-    //空いてる管理料を探す
-    for (int i = 0; i < TEXTURE_MAX; i++) {
+    // Find free slot
+    for (int i = 0; i < TEXTURE_MAX; i++)
+    {
+        if (g_Textures[i].pTexture) continue;
 
-        if (g_Textures[i].pTexture)continue;//使用中
-
-        HRESULT hr;
-
-        hr = CreateWICTextureFromFile(g_pDevice, g_pContext, pFilename, &g_Textures[i].pTexture, &g_Textures[i].pTextureView);
-
-        ID3D11Texture2D* pTexture = (ID3D11Texture2D*)g_Textures[i].pTexture;
-        D3D11_TEXTURE2D_DESC t2desc;
-        pTexture->GetDesc(&t2desc);
-        g_Textures[i].width = t2desc.Width;
-        g_Textures[i].height = t2desc.Height;
-
-        if (FAILED(hr)) {
-            MessageBoxW(nullptr, L"テクスチャの読み込みに失敗しました", pFilename, MB_OK | MB_ICONERROR);
+        // IMPORTANT: device/context must exist
+        if (!g_pDevice || !g_pContext)
+        {
+            MessageBoxW(nullptr, L"Texture_Initialize was not called (device/context is null)", pFilename, MB_OK | MB_ICONERROR);
             return -1;
         }
 
+        HRESULT hr = CreateWICTextureFromFile(
+            g_pDevice,
+            g_pContext,
+            pFilename,
+            &g_Textures[i].pTexture,
+            &g_Textures[i].pTextureView
+        );
+
+        // CHECK FIRST (before GetDesc)
+        if (FAILED(hr) || !g_Textures[i].pTexture)
+        {
+            MessageBoxW(nullptr, L"テクスチャの読み込みに失敗しました", pFilename, MB_OK | MB_ICONERROR);
+            g_Textures[i].filename.clear();
+            SAFE_RELEASE(g_Textures[i].pTexture);
+            SAFE_RELEASE(g_Textures[i].pTextureView);
+            return -1;
+        }
+
+        // Now safe
+        ID3D11Texture2D* pTex2D = (ID3D11Texture2D*)g_Textures[i].pTexture;
+        D3D11_TEXTURE2D_DESC desc{};
+        pTex2D->GetDesc(&desc);
+
+        g_Textures[i].width = desc.Width;
+        g_Textures[i].height = desc.Height;
         g_Textures[i].filename = pFilename;
 
         return i;
     }
+
     return -1;
 }
-
 void Texture_AllRelease()
 {
-    for (Texture& t : g_Textures) {
-        t.filename.clear();
-        SAFE_RELEASE(t.pTexture);
-    }
-
-}
-
-void Texture_Release(int texid)
-{
-    for (Texture& t : g_Textures) {
+    for (Texture& t : g_Textures)
+    {
         t.filename.clear();
         SAFE_RELEASE(t.pTexture);
         SAFE_RELEASE(t.pTextureView);
+        t.width = 0;
+        t.height = 0;
     }
+}
+void Texture_Release(int texid)
+{
+    if (texid < 0 || texid >= TEXTURE_MAX) return;
+
+    g_Textures[texid].filename.clear();
+    SAFE_RELEASE(g_Textures[texid].pTexture);
+    SAFE_RELEASE(g_Textures[texid].pTextureView);
+    g_Textures[texid].width = 0;
+    g_Textures[texid].height = 0;
 }
 
 void Texture_SetTexture(int texid, int  slot)

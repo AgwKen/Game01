@@ -13,6 +13,7 @@ int g_PlayerCoinScore = 0;
 void Coin_Update(Coin& coin, double elapsed)
 {
     if (coin.collected) return; // skip bounce/animation
+    if (coin.animPlayId < 0) return;
 
     SpriteAnim_UpdatePlayer(coin.animPlayId, elapsed);
 
@@ -23,6 +24,7 @@ void Coin_Update(Coin& coin, double elapsed)
 void Coin_Draw(const Coin& coin)
 {
     if (coin.collected) return;
+    if (coin.animPlayId < 0) return;
 
     BillboardAnim_Draw(
         coin.animPlayId,
