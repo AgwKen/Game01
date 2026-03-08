@@ -122,8 +122,8 @@ void CoinScoreUI::Draw()
 
     m_Font->DrawString(
         scoreBuf,
-        120.0f,
-        155.0f,
+        110.0f,
+        145.0f,
         2.0f,
         DirectX::XMFLOAT4(1, 1, 1, 1)
     );

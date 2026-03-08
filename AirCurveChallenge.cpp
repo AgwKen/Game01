@@ -1,13 +1,26 @@
+/*========================================================================================
+
+    AirCurveChallenge.cpp
+    FIXED VERSION
+    - Stable banana curves
+    - Target clamped inside goal
+    - Last coin forced into goal
+
+========================================================================================*/
+
 #include "AirCurveChallenge.h"
 
 #include "coin.h"
 #include "sprite_anim.h"
 #include "CoinScore.h"
 #include "GoalCollision.h"
-#include "terrain.h"     // Mesh_GetHeightAt
+#include "terrain.h"
+#include "Goal.h"
 
 #include <vector>
 #include <cmath>
+#include <cstdlib>
+#include "BallPlayer.h"
 
 using namespace DirectX;
 
@@ -15,7 +28,7 @@ extern std::vector<Coin> g_Coins;
 extern CoinScoreUI* g_CoinUI;
 
 // ------------------------------------------------------------
-// Manual clamp helpers (NO std::clamp)
+// Helpers
 // ------------------------------------------------------------
 static float ClampFloat(float v, float mn, float mx)
 {
@@ -36,14 +49,50 @@ static float Rand01()
     return rand() / (float)RAND_MAX;
 }
 
-static DirectX::XMFLOAT3 Lerp3(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b, float t)
+static float RandRange(float a, float b)
 {
-    DirectX::XMFLOAT3 out;
-    out.x = a.x + (b.x - a.x) * t;
-    out.y = a.y + (b.y - a.y) * t;
-    out.z = a.z + (b.z - a.z) * t;
-    return out;
+    return a + (b - a) * Rand01();
 }
+
+static XMFLOAT3 Lerp3(const XMFLOAT3& a, const XMFLOAT3& b, float t)
+{
+    XMFLOAT3 r;
+    r.x = a.x + (b.x - a.x) * t;
+    r.y = a.y + (b.y - a.y) * t;
+    r.z = a.z + (b.z - a.z) * t;
+    return r;
+}
+
+// ------------------------------------------------------------
+// Cubic Bezier
+// ------------------------------------------------------------
+static XMFLOAT3 Bezier3_3(
+    const XMFLOAT3& a,
+    const XMFLOAT3& b,
+    const XMFLOAT3& c,
+    const XMFLOAT3& d,
+    float t)
+{
+    float u = 1.0f - t;
+
+    float uu = u * u;
+    float tt = t * t;
+
+    float w0 = uu * u;
+    float w1 = 3.0f * uu * t;
+    float w2 = 3.0f * u * tt;
+    float w3 = tt * t;
+
+    XMFLOAT3 r;
+
+    r.x = a.x * w0 + b.x * w1 + c.x * w2 + d.x * w3;
+    r.y = a.y * w0 + b.y * w1 + c.y * w2 + d.y * w3;
+    r.z = a.z * w0 + b.z * w1 + c.z * w2 + d.z * w3;
+
+    return r;
+}
+
+// ------------------------------------------------------------
 
 void AirCurveChallenge::Initialize()
 {
@@ -62,95 +111,206 @@ void AirCurveChallenge::Reset()
     SpawnCoinsToGoal();
 }
 
+// ------------------------------------------------------------
+// MAIN SPAWN FUNCTION
+// ------------------------------------------------------------
 void AirCurveChallenge::SpawnCoinsToGoal()
 {
     if (!g_CoinUI) return;
 
-    // ------------------------------------------------------------
-    // Goal mouth target (center inside posts)
-    // ------------------------------------------------------------
-    XMFLOAT3 target;
-    if (!GoalCollision_GetGoalMouthTarget(target))
+    //----------------------------------------------------------
+    // Goal mouth center (based on CURRENT goal position)
+    //----------------------------------------------------------
+    XMFLOAT3 mouth;
+    if (!GoalCollision_GetGoalMouthTarget(mouth))
         return;
 
-    // ------------------------------------------------------------
-// Balanced MID/FAR system (no extreme values)
-// ------------------------------------------------------------
+    XMFLOAT3 target = mouth;
+
+    //----------------------------------------------------------
+    // Randomize inside goal
+    //----------------------------------------------------------
     int roll = rand() % 100;
 
-    float minForward = 16.0f;
-    float maxForward = 20.0f;  // default mid
-
-    if (roll < 25)
+    if (roll < 45)
     {
-        // 25%: slightly far
-        minForward = 20.0f;
-        maxForward = 24.0f;
+        target.x += RandRange(-0.8f, 0.8f);
+        target.y += RandRange(0.2f, 0.8f);
     }
     else if (roll < 80)
     {
-        // 55%: mid (most common)
-        minForward = 16.0f;
-        maxForward = 20.0f;
+        float side = (Rand01() < 0.5f) ? -1.0f : 1.0f;
+        target.x += side * RandRange(1.2f, 2.0f);
+        target.y += RandRange(0.4f, 1.2f);
     }
     else
     {
-        // 20%: slightly closer (but not close)
-        minForward = 14.0f;
-        maxForward = 16.0f;
+        float side = (Rand01() < 0.5f) ? -1.0f : 1.0f;
+        target.x += side * RandRange(1.6f, 2.3f);
+        target.y += RandRange(1.2f, 2.2f);
     }
 
-    float forward = minForward + (maxForward - minForward) * Rand01();
+    const float GOAL_HALF_WIDTH = 2.2f;
+    const float GOAL_MIN_Y = 0.2f;
+    const float GOAL_MAX_Y = 2.2f;
 
-    // Side range increases with distance (far shots can be angled more)
-    float sideRange = 3.0f + forward * 0.12f;
-    float side = (Rand01() * 2.0f - 1.0f) * sideRange;
+    // safety insets
+    const float INSET_X = 0.30f;
+    const float INSET_Y = 0.18f;
 
-    // Start point: in front of goal (toward player side) => target.z - forward
-    m_StartPoint.x = target.x + side;
-    m_StartPoint.z = target.z - forward;
+    target.z = mouth.z;
 
-    // Snap to ground (so player runs to a real area, not floating)
+    target.x = ClampFloat(target.x,
+        mouth.x - (GOAL_HALF_WIDTH - INSET_X),
+        mouth.x + (GOAL_HALF_WIDTH - INSET_X));
+
+    target.y = ClampFloat(target.y,
+        mouth.y + (GOAL_MIN_Y + 0.05f),
+        mouth.y + (GOAL_MAX_Y - INSET_Y));
+
+    //----------------------------------------------------------
+    // Lane type
+    //----------------------------------------------------------
+    enum LaneType
+    {
+        LANE_STRAIGHT,
+        LANE_BANANA,
+        LANE_LATE
+    };
+
+    LaneType lane;
+    int laneRoll = rand() % 100;
+
+    if (laneRoll < 35) lane = LANE_STRAIGHT;
+    else if (laneRoll < 75) lane = LANE_BANANA;
+    else lane = LANE_LATE;
+
+    //----------------------------------------------------------
+    // Start position = CURRENT BALL POSITION
+    //----------------------------------------------------------
+    XMFLOAT3 ballPos = BallPlayer_GetPosition();
+
+    // start from the ball's current axis
+    m_StartPoint = ballPos;
+
+    // keep it slightly above ground for nice visible coin path
     float groundY = Mesh_GetHeightAt(m_StartPoint.x, m_StartPoint.z);
-    m_StartPoint.y = groundY + 1.0f; // coins lane height ~1m above ground
+    m_StartPoint.y = groundY + 0.35f;
 
-    // ------------------------------------------------------------
-    // Coin settings derived from distance
-    // ------------------------------------------------------------
-    int pattern = g_CoinUI->GetCoinPattern();
+    // optional tiny push toward goal so first coin is not exactly inside the ball
+    XMFLOAT3 toTarget =
+    {
+        target.x - m_StartPoint.x,
+        0.0f,
+        target.z - m_StartPoint.z
+    };
 
+    float len = sqrtf(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
+    if (len > 0.0001f)
+    {
+        toTarget.x /= len;
+        toTarget.z /= len;
+
+        m_StartPoint.x += toTarget.x * 1.0f;
+        m_StartPoint.z += toTarget.z * 1.0f;
+    } 
+    //----------------------------------------------------------
+    // Distance
+    //----------------------------------------------------------
     float dx = target.x - m_StartPoint.x;
     float dy = target.y - m_StartPoint.y;
     float dz = target.z - m_StartPoint.z;
+
     float dist = sqrtf(dx * dx + dy * dy + dz * dz);
 
-    // More distance => more coins (feels like a "lane")
-    int coinCount = (int)(dist * 0.75f);
-    coinCount = ClampInt(coinCount, 10, 22);
+    int coinCount = ClampInt((int)(dist * 0.9f), 12, 26);
+    float arcHeight = ClampFloat(dist * 0.12f, 2.4f, 5.0f);
+    //----------------------------------------------------------
+    // Direction vectors
+    //----------------------------------------------------------
+    XMVECTOR A = XMVectorSet(m_StartPoint.x, 0, m_StartPoint.z, 0);
+    XMVECTOR D = XMVectorSet(target.x, 0, target.z, 0);
 
-    // Arc height scales with distance
-    float arcHeight = dist * 0.18f;
-    arcHeight = ClampFloat(arcHeight, 3.0f, 10.0f);
+    XMVECTOR dir = XMVector3Normalize(D - A);
+    XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+    XMVECTOR right = XMVector3Normalize(XMVector3Cross(up, dir));
 
-    // ------------------------------------------------------------
-    // Spawn coins along arc from START -> GOAL
-    // ------------------------------------------------------------
+    float curveAmount = ClampFloat(dist * 0.36f, 5.0f, 13.0f);
+
+    //----------------------------------------------------------
+    // Control points
+    //----------------------------------------------------------
+    XMFLOAT3 B = Lerp3(m_StartPoint, target, 0.10f);
+    XMFLOAT3 C = Lerp3(m_StartPoint, target, 0.90f);
+
+    // lower curve body (NOT target)
+    const float LOWER_Y = 0.9f;
+    m_StartPoint.y -= LOWER_Y;
+    B.y -= LOWER_Y;
+    C.y -= LOWER_Y;
+
+    //----------------------------------------------------------
+    // Apply curve
+    //----------------------------------------------------------
+    if (lane != LANE_STRAIGHT)
+    {
+        float sign = (target.x > m_StartPoint.x) ? 1.0f : -1.0f;
+
+        if (lane == LANE_BANANA)
+        {
+            float bAmt = curveAmount;
+            float cAmt = curveAmount * 0.65f;
+
+            B.x += XMVectorGetX(right) * bAmt * sign;
+            B.z += XMVectorGetZ(right) * bAmt * sign;
+
+            C.x += XMVectorGetX(right) * cAmt * sign;
+            C.z += XMVectorGetZ(right) * cAmt * sign;
+        }
+        else // LANE_LATE
+        {
+            float bAmt = curveAmount * 0.2f;
+            float cAmt = curveAmount * 1.1f;
+
+            B.x += XMVectorGetX(right) * bAmt * sign;
+            B.z += XMVectorGetZ(right) * bAmt * sign;
+
+            C.x += XMVectorGetX(right) * cAmt * sign;
+            C.z += XMVectorGetZ(right) * cAmt * sign;
+        }
+    }
+
+    //----------------------------------------------------------
+    // Spawn coins
+    //----------------------------------------------------------
     for (int i = 0; i < coinCount; i++)
     {
-        float t = (coinCount <= 1) ? 0.0f : (float)i / (float)(coinCount - 1);
+        float t = (float)i / (coinCount - 1);
 
-        XMFLOAT3 p = Lerp3(m_StartPoint, target, t);
+        XMFLOAT3 p = (lane == LANE_STRAIGHT)
+            ? Lerp3(m_StartPoint, target, t)
+            : Bezier3_3(m_StartPoint, B, C, target, t);
 
-        // Arc hump (highest in middle)
-        p.y += sinf(t * XM_PI) * arcHeight;
+        float arc = sinf(t * XM_PI);
+        arc = powf(arc, 0.65f);
+        p.y += arc * arcHeight;
 
         Coin coin;
         coin.position = p;
         coin.spawnY = p.y;
         coin.collected = false;
         coin.timer = 0.0f;
-        coin.animPlayId = SpriteAnim_CreatePlayer(pattern);
+        coin.animPlayId = SpriteAnim_CreatePlayer(g_CoinUI->GetCoinPattern());
 
         g_Coins.push_back(coin);
+    }
+
+    //----------------------------------------------------------
+    // Force last coin exactly into goal
+    //----------------------------------------------------------
+    if (!g_Coins.empty())
+    {
+        g_Coins.back().position = target;
+        g_Coins.back().spawnY = target.y;
     }
 }

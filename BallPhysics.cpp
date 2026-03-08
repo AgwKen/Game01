@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-static constexpr float BALL_RADIUS = 0.3f;
+static constexpr float BALL_RADIUS = 0.25f;
 static constexpr float GRAVITY = -25.0f;
 static constexpr float BOUNCE_RESTITUTION = 0.35f;
 static constexpr float SPIN_LOSS_ON_BOUNCE = 0.7f;

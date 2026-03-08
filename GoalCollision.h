@@ -24,5 +24,6 @@ bool GoalCollision_BackNetTouched();
 void GoalCollision_ClearBackNetHit();
 bool GoalCollision_DidCrossGoalLine(const XMFLOAT3& prev, const XMFLOAT3& now, float r);
 bool GoalCollision_GetGoalMouthTarget(DirectX::XMFLOAT3& outTarget);
+bool GoalCollision_GetPostEffectPositions(DirectX::XMFLOAT3& outLeft, DirectX::XMFLOAT3& outRight);
 
 

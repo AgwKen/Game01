@@ -17,9 +17,11 @@
 #include "game.h"
 #include "RunManager.h"
 
-// NEW:
 #include "BallControl.h"
 #include "trajetory3d.h"
+#include "GoalKeeper.h"
+#include "audio.h"
+#include "LeaderboardUI.h"
 
 using namespace DirectX;
 
@@ -37,8 +39,8 @@ static XMFLOAT3 g_StartPosition = { 0,5,0 };
 // ============================================================================
 // CONSTANTS
 // ============================================================================
-static constexpr float BALL_RADIUS = 0.3f;
-static constexpr float BALL_SCALE = 0.07f;
+static constexpr float BALL_RADIUS = 0.15f;
+static constexpr float BALL_SCALE = 0.06f;
 static constexpr float STOP_SPEED = 0.15f;
 
 // ============================================================================
@@ -88,6 +90,11 @@ static XMFLOAT3 g_PrevBallPos = { 0,0,0 };
 // ============================================================================
 static float g_TrajSpawnAcc = 0.0f;
 
+static int g_BallKickSE = -1;
+
+extern int g_GoalSE;
+
+
 // ============================================================================
 // KICK
 // ============================================================================
@@ -114,20 +121,23 @@ void BallPlayer_Kick(const XMFLOAT3& dir, float power, float lift, float curve)
     XMVECTOR upAxis = XMVectorSet(0, 1, 0, 0);
     float spinScale = power / KICK_MAX_POWER;
 
-    // If curve direction feels reversed, change to: -(curve * spinScale)
     g_Ball.angularVelocity += upAxis * (curve * spinScale);
 
     g_IsKicked = true;
+
+    // PLAY KICK SOUND HERE
+    if (g_BallKickSE >= 0)
+    {
+        PlayAudio(g_BallKickSE, false);
+    }
 
     BallControl_OnKickApplied();
 
     g_AirCurveUsed = false;
     g_AirCurveTime = 0.0f;
 
-    // reset curve trail spawn timer so it starts clean on first curve
     g_TrajSpawnAcc = 0.0f;
 }
-
 // ============================================================================
 // RESET
 // ============================================================================
@@ -184,6 +194,8 @@ void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
     g_BallModel = ModelLoad("Resources/Model/ball.fbx", 1.0f);
     g_DustEmitter = new DustEmitter(4000, XMVectorZero(), 160.0);
 
+    g_BallKickSE = LoadAudio("Sounds/kick.wav");
+
     // Trajectory effect system
     Trajetory3d_Initialize();
     g_TrajSpawnAcc = 0.0f;
@@ -196,8 +208,10 @@ void BallPlayer_Update(double elapsedTime)
 {
     if (Run_IsActive())
     {
-        if (KeyLogger_IsTrigger(KK_ENTER) || PadLogger_IsTrigger(0, XINPUT_GAMEPAD_B))
+        if (KeyLogger_IsTrigger(KK_ENTER) || KeyLogger_IsTrigger(KK_SPACE) ||
+            PadLogger_IsTrigger(0, XINPUT_GAMEPAD_B) || PadLogger_IsTrigger(0, XINPUT_GAMEPAD_START))
         {
+            LeaderboardUI_StopBGM();
             BallPlayer_Reset();
             g_Scored = false;
             return;
@@ -367,12 +381,16 @@ void BallPlayer_Update(double elapsedTime)
     if (!g_Scored && GoalCollision_DidCrossGoalLine(g_PrevBallPos, g_Ball.position, BALL_RADIUS))
     {
         g_Scored = true;
-        //UI_GoalAnim_Play();
+
+        if (g_GoalSE >= 0)
+            PlayAudio(g_GoalSE, false);
+
         Game_OnGoalScored();
     }
 
     // GOAL COLLISION
     Goal_HandleBallCollision(g_Ball.position, g_Ball.velocity, BALL_RADIUS);
+    GoalKeeper_HandleBallCollision(g_Ball.position, g_Ball.velocity, BALL_RADIUS);
 
     // STOP
     XMVECTOR velXZ = XMVectorSet(g_Ball.velocity.x, 0, g_Ball.velocity.z, 0);
@@ -434,6 +452,12 @@ void BallPlayer_Finalize()
 
     if (g_BallModel) ModelRelease(g_BallModel);
     g_BallModel = nullptr;
+
+    if (g_BallKickSE >= 0)
+    {
+        UnloadAudio(g_BallKickSE);
+        g_BallKickSE = -1;
+    }
 
     Trajetory3d_Finalize();
 }

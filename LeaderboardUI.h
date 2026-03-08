@@ -3,4 +3,6 @@
 
 void LeaderboardUI_Initialize(UIFont* font);
 void LeaderboardUI_Update(float dt);
-void LeaderboardUI_Draw();   // draws only when Run_IsFinished()
+void LeaderboardUI_Draw();
+void LeaderboardUI_StopBGM();
+void LeaderboardUI_Finalize();

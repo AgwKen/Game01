@@ -181,6 +181,19 @@ static void BuildGoalCollision(std::vector<AABB>& out)
         p.z + g_BackNetOffsetZ
     };
 
+    // ---- GOAL FLOOR NET / BOTTOM BLOCKER ----
+    AABB GoalFloor;
+    GoalFloor.min = {
+        p.x - (width / 2),
+        baseY - depth * 0.5f,
+        p.z
+    };
+    GoalFloor.max = {
+        p.x + (width / 2),
+        baseY + depth * 0.5f,
+        p.z + g_BackNetOffsetZ
+    };
+
     // ORDER IMPORTANT
     out.push_back(left);
     out.push_back(right);
@@ -189,6 +202,7 @@ static void BuildGoalCollision(std::vector<AABB>& out)
     out.push_back(LeftNet);
     out.push_back(RightNet);
     out.push_back(TopNet);
+    out.push_back(GoalFloor); // 7
 }
 
 // ------------------------------------------------------------
@@ -292,8 +306,7 @@ bool GoalCollision_HandleBall(
     for (int i = 0; i < boxes.size(); i++)
     {
         bool isNet = (i >= 3);
-        bool isTopNet = (i == 6);
-
+        bool isTopNet = (i == 6 || i == 7);
         if (SphereVsAABB(ballPos, ballVelocity, ballRadius, boxes[i], isNet, isTopNet))
         {
             hit = true;
@@ -366,8 +379,31 @@ bool GoalCollision_GetGoalMouthTarget(DirectX::XMFLOAT3& outTarget)
     float targetZ = goalLineZ + 0.35f;
 
     outTarget.x = (minX + maxX) * 0.5f;
-    outTarget.y = (minY + maxY) * 0.5f;   // mid height of mouth
+    outTarget.y = minY;                  // bottom of mouth (IMPORTANT)
     outTarget.z = targetZ;
+
+    return true;
+}
+bool GoalCollision_GetPostEffectPositions(DirectX::XMFLOAT3& outLeft, DirectX::XMFLOAT3& outRight)
+{
+    std::vector<AABB> boxes;
+    BuildGoalCollision(boxes);
+
+    if (boxes.size() < 2)
+        return false;
+
+    const AABB& left = boxes[0];
+    const AABB& right = boxes[1];
+
+    float widen = 0.6f;   // increase this more if needed
+
+    outLeft.x = ((left.min.x + left.max.x) * 0.5f) - widen;
+    outLeft.y = left.min.y + 1.0f;
+    outLeft.z = (left.min.z + left.max.z) * 0.5f;
+
+    outRight.x = ((right.min.x + right.max.x) * 0.5f) + widen;
+    outRight.y = right.min.y + 1.0f;
+    outRight.z = (right.min.z + right.max.z) * 0.5f;
 
     return true;
 }

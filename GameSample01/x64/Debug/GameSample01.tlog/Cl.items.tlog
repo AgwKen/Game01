@@ -21,6 +21,7 @@ C:\directxgames\3DGame\enemy_normal.cpp;C:\directxgames\3DGame\GameSample01\x64\
 C:\directxgames\3DGame\fog.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\fog.obj
 C:\directxgames\3DGame\goal.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\goal.obj
 C:\directxgames\3DGame\GoalCollision.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\GoalCollision.obj
+C:\directxgames\3DGame\GoalKeeper.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\GoalKeeper.obj
 C:\directxgames\3DGame\grid.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\grid.obj
 C:\directxgames\3DGame\Leaderboard.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\Leaderboard.obj
 C:\directxgames\3DGame\LeaderboardUI.cpp;C:\directxgames\3DGame\GameSample01\x64\Debug\LeaderboardUI.obj

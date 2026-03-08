@@ -14,6 +14,7 @@ using namespace DirectX;
 #include "pad_logger.h"
 #include "direct3d.h"
 #include <algorithm>
+#include <cmath>
 #include "BallPlayer.h"
 
 // ------------------------------------------------------------
@@ -24,6 +25,19 @@ static float Clamp01(float v)
     if (v < 0.0f) return 0.0f;
     if (v > 1.0f) return 1.0f;
     return v;
+}
+
+// ------------------------------------------------------------
+// HELPER
+// ------------------------------------------------------------
+static XMFLOAT3 NormalizeXZ(const XMFLOAT3& v)
+{
+    float lenSq = v.x * v.x + v.z * v.z;
+    if (lenSq < 0.0001f)
+        return { 0.0f, 0.0f, 1.0f };
+
+    float invLen = 1.0f / sqrtf(lenSq);
+    return { v.x * invLen, 0.0f, v.z * invLen };
 }
 
 // Camera State
@@ -66,6 +80,15 @@ static constexpr float PEEK_DOWN_SCALE = 0.6f; // optional
 
 static constexpr float CAMERA_FOLLOW_SPEED = 3.0f; // smaller = slower, heavier camera
 
+// ------------------------------------------------------------
+// NEW: Aim camera lock
+// ------------------------------------------------------------
+static bool g_AimCameraLocked = false;
+static XMFLOAT3 g_AimCameraForward = { 0.0f, 0.0f, 1.0f };
+
+static constexpr float AIM_STICK_DEADZONE = 0.15f;
+static constexpr float AIM_CAMERA_TURN_SPEED = 10.0f;
+static constexpr float AIM_LOOK_AHEAD = 2.0f;
 
 
 // ------------------------------------------------------------
@@ -78,8 +101,6 @@ static float g_ShakeMagnitude = 0.0f;
 static unsigned int g_ShakeSeed = 1;
 
 // tiny deterministic random (no <random>)
-
-
 static float Rand01()
 {
     g_ShakeSeed = (1103515245u * g_ShakeSeed + 12345u);
@@ -96,25 +117,33 @@ void PlayerCamera_BeginKickCinematic()
 {
     g_KickCinematicActive = true;
 }
+
 void PlayerCamera_EndKickCinematic()
 {
     g_KickCinematicActive = false;
 }
+
 void PlayerCamera_SnapCloseNow()
 {
     g_CameraDistanceCurrent = CAMERA_DISTANCE_IMPACT;
 }
+
 void PlayerCamera_ResetKickCinematic()
 {
     g_KickCinematicActive = false;
     g_CameraDistanceCurrent = CAMERA_DISTANCE_NORMAL;
+
+    g_AimCameraLocked = false;
+    g_AimCameraForward = { 0.0f, 0.0f, 1.0f };
 }
+
 void PlayerCamera_StartShake(float duration, float magnitude)
 {
     g_ShakeDuration = duration;
     g_ShakeTime = duration;
     g_ShakeMagnitude = magnitude;
 }
+
 bool PlayerCamera_IsAtKickClose()
 {
     // You hard-lock distance when cinematic is active, so this becomes true immediately.
@@ -122,6 +151,7 @@ bool PlayerCamera_IsAtKickClose()
     const float eps = 0.02f;
     return fabsf(g_CameraDistanceCurrent - CAMERA_DISTANCE_IMPACT) <= eps;
 }
+
 void PlayerCamera_Initialize()
 {
     PlayerCamera_ResetKickCinematic();
@@ -149,7 +179,7 @@ void PlayerCamera_Update(double elapsed_time)
     const float dt = static_cast<float>(elapsed_time);
 
     // ------------------------------------------------------------
-    // INPUT (PEEK)
+    // INPUT (PEEK + AIM CAMERA)
     // ------------------------------------------------------------
     float inputX = 0.0f;
     float inputY = 0.0f;
@@ -160,9 +190,57 @@ void PlayerCamera_Update(double elapsed_time)
     if (KeyLogger_IsPressed(KK_DOWN))  inputY -= 1.0f;
 
     XMFLOAT2 stick = PadLogger_GetRightThumbStick(0);
-    inputX += stick.x;
-    inputY += stick.y;
 
+    bool isCharging = BallPlayer_IsCharging();
+    bool isKicked = BallPlayer_IsKicked();
+
+    bool stickAiming =
+        (fabs(stick.x) > AIM_STICK_DEADZONE || fabs(stick.y) > AIM_STICK_DEADZONE);
+
+    // Aim mode should work:
+    // 1) when player is moving right stick before shoot
+    // 2) while charging
+    // 3) after release while ball is kicked
+    bool wantsAimCamera = stickAiming || isCharging || isKicked;
+
+    // Enter aim lock as soon as player starts aiming with stick
+    if (wantsAimCamera && !g_AimCameraLocked)
+    {
+        XMFLOAT3 curFront = NormalizeXZ(g_PlayerCameraFront);
+        g_AimCameraForward = curFront;
+        g_AimCameraLocked = true;
+    }
+
+    // If right stick is being moved, update aim direction immediately
+    if (stickAiming)
+    {
+        XMFLOAT3 desired = NormalizeXZ({ stick.x, 0.0f, stick.y });
+
+        XMFLOAT3 cur = g_AimCameraForward;
+        float k = AIM_CAMERA_TURN_SPEED * dt;
+        if (k > 1.0f) k = 1.0f;
+
+        cur.x += (desired.x - cur.x) * k;
+        cur.z += (desired.z - cur.z) * k;
+        cur = NormalizeXZ(cur);
+
+        g_AimCameraForward = cur;
+        g_AimCameraLocked = true;
+    }
+
+    // Leave aim lock only when player is no longer aiming,
+    // no longer charging, and ball is no longer kicked
+    if (!wantsAimCamera)
+    {
+        g_AimCameraLocked = false;
+    }
+
+    // Only use right stick for normal peek if not aim-locking
+    if (!g_AimCameraLocked)
+    {
+        inputX += stick.x;
+        inputY += stick.y;
+    }
     XMVECTOR inputVec = XMVectorSet(inputX, inputY, 0.0f, 0.0f);
     float inputLen = XMVectorGetX(XMVector2Length(inputVec));
 
@@ -237,14 +315,32 @@ void PlayerCamera_Update(double elapsed_time)
         g_CameraDistanceCurrent += (targetDistance - g_CameraDistanceCurrent) * k;
     }
 
-    XMVECTOR cameraOffset = XMVectorSet(
-        0.0f,
-        CAMERA_HEIGHT,
-        g_CameraDistanceCurrent,
-        0.0f
-    );
+    XMVECTOR desiredCameraPos;
 
-    XMVECTOR desiredCameraPos = playerPos + cameraOffset;
+    if (g_AimCameraLocked)
+    {
+        XMFLOAT3 aimF = NormalizeXZ(g_AimCameraForward);
+        XMVECTOR aimForward = XMVectorSet(aimF.x, 0.0f, aimF.z, 0.0f);
+
+        float dist = fabsf(g_CameraDistanceCurrent);
+
+        XMVECTOR cameraOffset =
+            (-aimForward * dist) + XMVectorSet(0.0f, CAMERA_HEIGHT, 0.0f, 0.0f);
+
+        desiredCameraPos = playerPos + cameraOffset;
+    }
+    else
+    {
+        XMVECTOR cameraOffset = XMVectorSet(
+            0.0f,
+            CAMERA_HEIGHT,
+            g_CameraDistanceCurrent,
+            0.0f
+        );
+
+        desiredCameraPos = playerPos + cameraOffset;
+    }
+
     XMVECTOR currentCameraPos = XMLoadFloat3(&g_PlayerCameraPosition);
 
     float t = CAMERA_FOLLOW_SPEED * dt;
@@ -263,13 +359,33 @@ void PlayerCamera_Update(double elapsed_time)
 
     XMVECTOR cameraPos = currentCameraPos;
 
-    XMVECTOR lookTarget = playerPos +
-        XMVectorSet(
-            g_PeekOffset.x,
-            0.5f + g_PeekOffset.y,//look higher (ball moves lower on screen)
-            0.0f,
-            0.0f
-        );
+    XMVECTOR lookTarget;
+
+    if (g_AimCameraLocked)
+    {
+        XMFLOAT3 aimF = NormalizeXZ(g_AimCameraForward);
+        XMVECTOR aimForward = XMVectorSet(aimF.x, 0.0f, aimF.z, 0.0f);
+
+        lookTarget =
+            playerPos +
+            (aimForward * AIM_LOOK_AHEAD) +
+            XMVectorSet(
+                g_PeekOffset.x * 0.25f,
+                0.5f + g_PeekOffset.y,
+                0.0f,
+                0.0f
+            );
+    }
+    else
+    {
+        lookTarget = playerPos +
+            XMVectorSet(
+                g_PeekOffset.x,
+                0.5f + g_PeekOffset.y,//look higher (ball moves lower on screen)
+                0.0f,
+                0.0f
+            );
+    }
 
     // ------------------------------------------------------------
     // APPLY SCREEN SHAKE (position shake, optional target shake)
@@ -295,6 +411,7 @@ void PlayerCamera_Update(double elapsed_time)
         // ALSO nudge lookTarget slightly so the view direction shakes too
         lookTarget += XMVectorSet(0.0f, curY * 0.35f, 0.0f, 0.0f);
     }
+
     XMVECTOR front = XMVector3Normalize(lookTarget - cameraPos);
     XMStoreFloat3(&g_PlayerCameraFront, front);
 

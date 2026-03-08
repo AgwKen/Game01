@@ -1,9 +1,7 @@
 #pragma once
 #include <DirectXMath.h>
-#include "model.h"
 
-
-using namespace DirectX;
+struct MODEL;
 
 void Goal_Initialize();
 void Goal_Finalize();
@@ -11,13 +9,19 @@ void Goal_Finalize();
 void Goal_Render();
 
 bool Goal_HandleBallCollision(
-    XMFLOAT3& ballPos,
-    XMFLOAT3& ballVelocity,
+    DirectX::XMFLOAT3& ballPos,
+    DirectX::XMFLOAT3& ballVelocity,
     float ballRadius
 );
 
-bool Goal_CheckScored(const XMFLOAT3& pos, float r);
-XMMATRIX Goal_GetWorldMatrix();
+bool Goal_CheckScored(const DirectX::XMFLOAT3& pos, float r);
+
+// NEW
+void Goal_SetWorldPosition(float x, float z);
+void Goal_RandomizePlacement();
+
+DirectX::XMMATRIX Goal_GetWorldMatrix();
 MODEL* Goal_GetModel();
-void Goal_SetWorldOffset(const XMFLOAT3& offset);
-XMFLOAT3 Goal_GetWorldPosition();
+
+void Goal_SetWorldOffset(const DirectX::XMFLOAT3& offset);
+DirectX::XMFLOAT3 Goal_GetWorldPosition();

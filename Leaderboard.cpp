@@ -172,7 +172,7 @@ bool Leaderboard_WouldEnterTop10(const RunResult& r)
     if ((int)g_List.size() < LEADERBOARD_MAX)
         return true;
 
-    SortAndTrim();
+    SortAndTrim();  
     const LeaderboardEntry& worst = g_List.back();
 
     return IsBetterEntry(e, worst);

@@ -166,6 +166,7 @@
     <ClCompile Include="fog.cpp" />
     <ClCompile Include="goal.cpp" />
     <ClCompile Include="GoalCollision.cpp" />
+    <ClCompile Include="GoalKeeper.cpp" />
     <ClCompile Include="grid.cpp" />
     <ClCompile Include="Leaderboard.cpp" />
     <ClCompile Include="LeaderboardUI.cpp" />
@@ -236,6 +237,7 @@
     <ClInclude Include="fog.h" />
     <ClInclude Include="goal.h" />
     <ClInclude Include="GoalCollision.h" />
+    <ClInclude Include="GoalKeeper.h" />
     <ClInclude Include="grid.h" />
     <ClInclude Include="key_logger.h" />
     <ClCompile Include="main.cpp" />

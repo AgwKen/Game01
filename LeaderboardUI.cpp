@@ -5,6 +5,7 @@
 #include "direct3d.h"
 #include "texture.h"
 #include "sprite.h"
+#include "audio.h"
 
 #include <cstdio>
 #include <cmath>
@@ -12,6 +13,18 @@
 static UIFont* g_Font = nullptr;
 static int g_WhiteTex = -1;
 static float g_T = 0.0f;
+
+// ============================================================
+// RESULT BGM
+// ============================================================
+static int   g_ResultBGM = -1;
+static bool  g_ResultBGMPlaying = false;
+static bool  g_WasFinishedLastFrame = false;
+static float g_ResultBGMTime = 0.0f;
+
+static constexpr float RESULT_BGM_FULL_VOLUME = 1.0f;
+static constexpr float RESULT_BGM_FADE_START = 60.0f; // start fading after 10 sec
+static constexpr float RESULT_BGM_FADE_TIME = 2.0f;  // fade length
 
 static void DrawRect(float x, float y, float w, float h, const DirectX::XMFLOAT4& c)
 {
@@ -37,23 +50,88 @@ static DirectX::XMFLOAT4 LerpCol(const DirectX::XMFLOAT4& a, const DirectX::XMFL
     };
 }
 
+void LeaderboardUI_StopBGM()
+{
+    if (g_ResultBGMPlaying && g_ResultBGM >= 0)
+    {
+        StopAudio(g_ResultBGM);                 // <-- must exist in your audio system
+        SetAudioVolume(g_ResultBGM, 1.0f);      // reset for next time
+    }
+
+    g_ResultBGMPlaying = false;
+    g_ResultBGMTime = 0.0f;
+}
+
 void LeaderboardUI_Initialize(UIFont* font)
 {
     g_Font = font;
+
     if (g_WhiteTex < 0)
         g_WhiteTex = Texture_Load(L"Texture/white.png");
+
+    if (g_ResultBGM < 0)
+        g_ResultBGM = LoadAudio("Sounds/10. World Cup.wav"); // change filename if needed
+
     g_T = 0.0f;
+    g_ResultBGMTime = 0.0f;
+    g_ResultBGMPlaying = false;
+    g_WasFinishedLastFrame = false;
 }
 
 void LeaderboardUI_Update(float dt)
 {
     g_T += dt;
+
+    bool finished = Run_IsFinished();
+
+    // just entered leaderboard/result screen
+    if (finished && !g_WasFinishedLastFrame)
+    {
+        g_ResultBGMTime = 0.0f;
+
+        if (g_ResultBGM >= 0)
+        {
+            SetAudioVolume(g_ResultBGM, RESULT_BGM_FULL_VOLUME);
+            PlayAudio(g_ResultBGM, true);   // loop while result screen active
+            g_ResultBGMPlaying = true;
+        }
+    }
+
+    // left leaderboard/result screen
+    if (!finished && g_WasFinishedLastFrame)
+    {
+        LeaderboardUI_StopBGM();
+    }
+
+    // fade logic while result screen active
+    if (finished && g_ResultBGMPlaying && g_ResultBGM >= 0)
+    {
+        g_ResultBGMTime += dt;
+
+        if (g_ResultBGMTime >= RESULT_BGM_FADE_START)
+        {
+            float fadeT = (g_ResultBGMTime - RESULT_BGM_FADE_START) / RESULT_BGM_FADE_TIME;
+            fadeT = Clamp01(fadeT);
+
+            float vol = RESULT_BGM_FULL_VOLUME * (1.0f - fadeT);
+            SetAudioVolume(g_ResultBGM, vol);
+
+            if (fadeT >= 1.0f)
+            {
+                StopAudio(g_ResultBGM);
+                SetAudioVolume(g_ResultBGM, RESULT_BGM_FULL_VOLUME);
+                g_ResultBGMPlaying = false;
+            }
+        }
+    }
+
+    g_WasFinishedLastFrame = finished;
 }
 
 void LeaderboardUI_Draw()
 {
     if (!g_Font) return;
-    if (!Run_IsFinished()) return; // show only when run finished
+    if (!Run_IsFinished()) return;
 
     float sw = (float)Direct3D_GetBackBufferWidth();
     float sh = (float)Direct3D_GetBackBufferHeight();
@@ -79,19 +157,14 @@ void LeaderboardUI_Draw()
     int count = Leaderboard_GetCount();
     int rowsWanted = (count < 10) ? count : 10;
 
-    // These must match your actual draw layout
-    const float hyOffset = 86.0f;   // hy = y + 86
-    const float rowStartOffset = 44.0f;   // rowY = hy + 44
-    const float rowStep = 38.0f;   // rowY += 38 each row
-    const float footerStripTop = 50.0f;   // footer uses y + h - 50
-    const float bottomPad = 18.0f;   // breathing room
-
+    const float hyOffset = 86.0f;
+    const float rowStartOffset = 44.0f;
+    const float rowStep = 38.0f;
+    const float footerStripTop = 50.0f;
+    const float bottomPad = 18.0f;
     const float minH = 260.0f;
 
-    // distance from panel top (y) to first row baseline (rowY when i==0)
     const float baseTop = hyOffset + rowStartOffset;
-
-    // needed height so rows + footer never overlap
     float needH = baseTop + (rowsWanted * rowStep) + footerStripTop + bottomPad;
 
     float maxH = sh - margin * 2.0f;
@@ -99,7 +172,6 @@ void LeaderboardUI_Draw()
     if (h < minH) h = minH;
     if (h > maxH) h = maxH;
 
-    // If we clamped height, compute how many rows actually fit
     float availableForRows = h - (baseTop + footerStripTop + bottomPad);
     int rowsFit = (int)floorf(availableForRows / rowStep);
     if (rowsFit < 0) rowsFit = 0;
@@ -110,21 +182,19 @@ void LeaderboardUI_Draw()
     float x = sw - w - margin;
     float y = margin;
 
-    // -------------------------
-    // BACKGROUND DIM
-    // -------------------------
+    // Background dim
     DrawRect(0, 0, sw, sh, { 0.0f, 0.0f, 0.0f, 0.18f });
 
     // Shadow
     DrawRect(x + 8, y + 10, w, h, { 0,0,0,0.30f });
 
-    // Panel base (pitch stripes)
+    // Panel base
     DrawRect(x, y, w, h, pitchA);
     float stripeW = 42.0f;
     for (float sx = x; sx < x + w; sx += stripeW * 2.0f)
         DrawRect(sx, y, stripeW, h, pitchB);
 
-    // Border (white field lines)
+    // Border
     DrawRect(x - 2, y - 2, w + 4, 2, lineWhite);
     DrawRect(x - 2, y + h, w + 4, 2, lineWhite);
     DrawRect(x - 2, y - 2, 2, h + 4, lineWhite);
@@ -138,7 +208,7 @@ void LeaderboardUI_Draw()
     g_Font->DrawString("RESULT", x + 24, y + 18, 1.8f, { 1,1,1,1 });
     g_Font->DrawString("LEADERBOARD", x + 200, y + 18, 1.8f, { 1,1,1,1 });
 
-    // Small gTIME UPh badge
+    // TIME UP badge
     float badgeW = 130.0f;
     float badgeH = 32.0f;
     float bx = x + w - badgeW - 20.0f;
@@ -195,14 +265,25 @@ void LeaderboardUI_Draw()
         rowY += rowStep;
     }
 
-    // Footer hint (always pinned to bottom)
+    // Footer
     DrawRect(x + 18, y + h - 50.0f, w - 36, 34.0f, { 0,0,0,0.22f });
     g_Font->DrawString("PRESS SPACE/START = NEW RUN", x + 32, y + h - 44.0f, 1.25f, { 1,1,1,1 });
 
-    // Animated bottom bar
+    // Bottom bar
     float barW = w * 0.30f;
     float barX = x + (w - barW) * 0.5f;
     float barY = y + h - 10.0f;
     float pulse = 0.20f + 0.25f * ((sinf(g_T * 3.2f) + 1.0f) * 0.5f);
     DrawRect(barX, barY, barW, 3.0f, { neon.x, neon.y, neon.z, pulse });
+}
+
+void LeaderboardUI_Finalize()
+{
+    LeaderboardUI_StopBGM();
+
+    if (g_ResultBGM >= 0)
+    {
+        UnloadAudio(g_ResultBGM);
+        g_ResultBGM = -1;
+    }
 }

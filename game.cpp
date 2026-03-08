@@ -53,6 +53,8 @@
 #include "NameEntry.h"
 #include "LeaderboardUI.h"
 #include "MatchHUDUI.h"
+#include <ctime> 
+#include "GoalKeeper.h"
 
 static float g_angle = 0.0f;
 static double g_AccumulatedTime = 0.0;
@@ -64,6 +66,15 @@ static int g_BGM = -1;
 
 // Wind ambience
 static int g_WindSE = -1;
+
+// Coin collect
+static int g_CoinSE = -1;
+//net effect 
+static int g_NetSE = -1;
+// goal scored sound
+ int g_GoalSE = -1;
+
+
 static float g_WindTimer = 0.0f;
 static float g_NextWindTime = 0.0f;
 static float bgmDelayTimer = 0.0f;
@@ -71,9 +82,6 @@ static bool bgmStarted = false;
 
 static RenderTextureClass* g_pRenderTexture = nullptr;
 static DepthShaderClass* g_pDepthShader = nullptr;
-
-//testing pparticle effect 
-static NormalEmitter* g_Emitter;
 
 CoinScoreUI* g_CoinUI = nullptr;
 
@@ -102,8 +110,16 @@ static AirCurveChallenge g_AirCurve;
 
 static bool g_SubmittedThisRun = false;
 
+static NormalEmitter* g_LeftGoalEmitter = nullptr;
+static NormalEmitter* g_RightGoalEmitter = nullptr;
+
+static bool g_GoalEffectActive = false;
+static float g_GoalEffectTimer = 0.0f;
+static float g_GoalEffectDuration = 1.2f;
+
 void Game_Initialize()
 {
+    srand((unsigned int)time(nullptr));
 
     // ==========================================
     // CREATE RENDER TEXTURE (IMPORTANT)
@@ -159,9 +175,10 @@ Map_Initialize();
 Billboard_Initialize();
 BulletHitEffect_Initialize();
 Trajetory3d_Initialize();
-BallPlayer_Initialize({ 0, 0, 0 }, 1.0f); // start position, radius
+BallPlayer_Initialize({ 12, 0, -15 }, 1.0f); // start position, radius
 UI_GoalAnim_Initialize();
 Goal_Initialize();
+GoalKeeper_Initialize();
 UI_KickPower_Initialize();
 Leaderboard_Initialize();
 g_Font.Initialize(
@@ -174,8 +191,19 @@ NameEntry_Initialize(&g_Font);
 g_AimDotTex = Texture_Load(L"Texture/white.png");  // or any small dot texture
 CUBE_Initialize(Direct3D_GetDevice(), Direct3D_GetDeviceContext());
 
-g_Emitter = new NormalEmitter(6000, { 0,0,0 }, 900.0, true);
+g_LeftGoalEmitter = new NormalEmitter(
+    250,
+    XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f),
+    60.0,
+    true
+);
 
+g_RightGoalEmitter = new NormalEmitter(
+    250,
+    XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f),
+    60.0,
+    true
+);
 g_BGM = LoadAudio("Sounds/bg.wav");
 //PlayAudio(g_BGM, true);
 //SetAudioVolume(g_BGM, 0.08f);
@@ -186,35 +214,26 @@ SetAudioVolume(g_WindSE, 0.15f);
 // First wind after random delay (5?15 sec)
 g_NextWindTime = 5.0f + (rand() % 10);
 
+//coin collect audio
+g_CoinSE = LoadAudio("Sounds/coin.wav");
+SetAudioVolume(g_CoinSE, 0.35f);
+
+// Net hit sound
+g_NetSE = LoadAudio("Sounds/net.wav");
+SetAudioVolume(g_NetSE, 0.35f);
+
+g_GoalSE = LoadAudio("Sounds/goal.wav");
+SetAudioVolume(g_GoalSE, 0.45f);
+
 
 g_CoinUI = new CoinScoreUI(Direct3D_GetDevice(), Direct3D_GetDeviceContext(), 1280, 720);
 g_CoinUI->SetInitialScore(g_PlayerCoinScore);
 g_AirCurve.Initialize();
 
-// ==============================
-// TEST: Spawn one world coin
-// ==============================
-
-Coin testCoin;
-
-testCoin.position = { 0.0f, 3.0f, 5.0f };  // in front of player
-testCoin.spawnY = testCoin.position.y;
-testCoin.collected = false;
-testCoin.timer = 0.0f;
-
-// IMPORTANT: use SAME pattern as UI
-int coinPattern = g_CoinUI->GetCoinPattern();
-testCoin.animPlayId = SpriteAnim_CreatePlayer(coinPattern);
-
-g_Coins.push_back(testCoin);
-
-
-
 }
 
 void Game_Finalize()
 {
-
     if (g_pDepthShader)
     {
         g_pDepthShader->Shutdown();
@@ -229,9 +248,13 @@ void Game_Finalize()
         g_pRenderTexture = nullptr;
     }
 
-	delete g_Emitter;
-	g_Emitter = nullptr;
-    // --- Stop & unload BGM ---
+    delete g_LeftGoalEmitter;
+    g_LeftGoalEmitter = nullptr;
+
+    delete g_RightGoalEmitter;
+    g_RightGoalEmitter = nullptr;
+
+    // Stop & unload game-level sounds first
     if (g_BGM >= 0)
     {
         StopAudio(g_BGM);
@@ -239,24 +262,44 @@ void Game_Finalize()
         g_BGM = -1;
     }
 
-    // --- Stop & unload wind ---
     if (g_WindSE >= 0)
     {
         StopAudio(g_WindSE);
         UnloadAudio(g_WindSE);
         g_WindSE = -1;
     }
-    // --- Now audio system shutdown ---
+
+    if (g_CoinSE >= 0)
+    {
+        StopAudio(g_CoinSE);
+        UnloadAudio(g_CoinSE);
+        g_CoinSE = -1;
+    }
+
+    if (g_NetSE >= 0)
+    {
+        StopAudio(g_NetSE);
+        UnloadAudio(g_NetSE);
+        g_NetSE = -1;
+    }
+
+    if (g_GoalSE >= 0)
+    {
+        StopAudio(g_GoalSE);
+        UnloadAudio(g_GoalSE);
+        g_GoalSE = -1;
+    }
+
     MatchHUDUI::Finalize();
-    UninitAudio();
+
     CUBE_Finalize();
     Leaderboard_Finalize();
+    GoalKeeper_Finalize();
     Goal_Finalize();
     BallPlayer_Finalize();
     UI_KickPower_Finalize();
     UI_GoalAnim_Finalize();
 
-    // --- Rest ---
     Billboard_Finalize();
     Map_Finalize();
     Sky_Finalize();
@@ -265,30 +308,95 @@ void Game_Finalize()
     PlayerCamera_Finalize();
     Camera_Finalize();
     Trajetory3d_Finalize();
+
     delete g_CoinUI;
     g_CoinUI = nullptr;
 
+    // AUDIO SYSTEM LAST
+    UninitAudio();
 }
 
 void Game_OnGoalScored()
 {
     UI_GoalAnim_Play();
-    XMFLOAT3 offset;
-    offset.x = (float)((rand() % 10) - 5);      // -5..+4
-    offset.y = 0.0f;
-    offset.z = 1.0f + (rand() / (float)RAND_MAX) * 19.0f; // 1..20
     Run_AddGoal();
-    //Goal_SetWorldOffset(offset);
-    g_AirCurve.Reset();
-}
 
+    XMFLOAT3 leftPos, rightPos;
+    if (GoalCollision_GetPostEffectPositions(leftPos, rightPos))
+    {
+        if (g_LeftGoalEmitter)
+        {
+            delete g_LeftGoalEmitter;
+            g_LeftGoalEmitter = nullptr;
+        }
+
+        if (g_RightGoalEmitter)
+        {
+            delete g_RightGoalEmitter;
+            g_RightGoalEmitter = nullptr;
+        }
+
+        g_LeftGoalEmitter = new NormalEmitter(
+            250,
+            XMVectorSet(leftPos.x, leftPos.y, leftPos.z, 1.0f),
+            60.0,
+            true
+        );
+
+        g_RightGoalEmitter = new NormalEmitter(
+            250,
+            XMVectorSet(rightPos.x, rightPos.y, rightPos.z, 1.0f),
+            60.0,
+            true
+        );
+    }
+
+    g_GoalEffectActive = true;
+    g_GoalEffectTimer = g_GoalEffectDuration;
+}
 void Game_OnGoalReset()
 {
-    // whenever ball resets / new round, respawn coin path too
+    // Move goal only when player manually resets
+    Goal_RandomizePlacement();
+
+    // reset keeper to new goal position
+    GoalKeeper_Initialize();
+
+    // Rebuild coin path for the NEW goal
     g_AirCurve.Reset();
 
-}
+    // stop goal effect
+    g_GoalEffectActive = false;
+    g_GoalEffectTimer = 0.0f;
 
+    // destroy old particles instantly
+    if (g_LeftGoalEmitter)
+    {
+        delete g_LeftGoalEmitter;
+        g_LeftGoalEmitter = nullptr;
+    }
+
+    if (g_RightGoalEmitter)
+    {
+        delete g_RightGoalEmitter;
+        g_RightGoalEmitter = nullptr;
+    }
+
+    // recreate idle emitters
+    g_LeftGoalEmitter = new NormalEmitter(
+        250,
+        XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f),
+        60.0,
+        true
+    );
+
+    g_RightGoalEmitter = new NormalEmitter(
+        250,
+        XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f),
+        60.0,
+        true
+    );
+}
 void Game_Update(double elapsed_time)
 {
     PadLogger_Update();
@@ -432,6 +540,12 @@ void Game_Update(double elapsed_time)
     PlayerCamera_Update(elapsed_time);
 
     BallPlayer_Update(elapsed_time);
+    // Play net hit sound
+    if (GoalCollision_BackNetTouched())
+    {
+        if (g_NetSE >= 0)
+            PlayAudio(g_NetSE, false);
+    }
     UI_GoalAnim_Update(elapsed_time);
     UI_KickPower_Update(elapsed_time);
     // Submit leaderboard once when run finishes
@@ -505,6 +619,10 @@ void Game_Update(double elapsed_time)
             g_PlayerCoinScore += 1;
             Run_AddCoin();
 
+            // NEW
+            if (g_CoinSE >= 0)
+                PlayAudio(g_CoinSE, false);
+
             if (g_CoinUI)
                 g_CoinUI->SetCoinCount(g_PlayerCoinScore);
 
@@ -516,15 +634,48 @@ void Game_Update(double elapsed_time)
         }
         ++it;
     }
-
+    GoalKeeper_Update(elapsed_time);
     if (g_CoinUI)
         g_CoinUI->Update(elapsed_time);
     // --- PARTICLE FIX ---
 
-    g_Emitter->Emmit(true);
-    g_Emitter->Update(elapsed_time);
+    if (g_GoalEffectActive)
+    {
+        g_GoalEffectTimer -= (float)elapsed_time;
 
+        bool emitNow = (g_GoalEffectTimer > 0.0f);
 
+        if (g_LeftGoalEmitter)
+        {
+            g_LeftGoalEmitter->Emmit(emitNow);
+            g_LeftGoalEmitter->Update(elapsed_time);
+        }
+
+        if (g_RightGoalEmitter)
+        {
+            g_RightGoalEmitter->Emmit(emitNow);
+            g_RightGoalEmitter->Update(elapsed_time);
+        }
+
+        if (!emitNow)
+        {
+            g_GoalEffectActive = false;
+        }
+    }
+    else
+    {
+        if (g_LeftGoalEmitter)
+        {
+            g_LeftGoalEmitter->Emmit(false);
+            g_LeftGoalEmitter->Update(elapsed_time);
+        }
+
+        if (g_RightGoalEmitter)
+        {
+            g_RightGoalEmitter->Emmit(false);
+            g_RightGoalEmitter->Update(elapsed_time);
+        }
+    }
     // === DISCO LIGHT MOVEMENT ===
     g_LightMoveTime += (float)elapsed_time * g_DiscoSpeed;
 
@@ -706,6 +857,7 @@ void RenderPass_Offscreen()
     Map_Draw();
     BallPlayer_Draw();
     Goal_Render();
+    GoalKeeper_Render();
     // ===== AIM DOTS (only when NOT kicked) =====
     if (!BallPlayer_IsKicked())
     {
@@ -738,7 +890,11 @@ void RenderPass_Offscreen()
     for (auto& coin : g_Coins)
         Coin_Draw(coin);
 
-    g_Emitter->Render();
+    if (g_LeftGoalEmitter)
+        g_LeftGoalEmitter->Render();
+
+    if (g_RightGoalEmitter)
+        g_RightGoalEmitter->Render();
 
  
     ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
@@ -819,7 +975,8 @@ void RenderPass_UI()
     NameEntry_Draw();
 
     Direct3D_SetDefaultBlendState();
-}void Game_Draw()
+}
+void Game_Draw()
 {
     RenderPass_Shadow();
     RenderPass_Offscreen();   // Pass 1

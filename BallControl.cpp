@@ -51,11 +51,32 @@ static float    g_AimStrength = 0.55f;         // how much arrow/right stick ben
 
 // AIR CURVE CONTROL WINDOW (PLAYER CONTROL AFTER RELEASE)
 static float g_AirCurveControlTimer = 0.0f;
-static constexpr float AIR_CURVE_CONTROL_DURATION = 0.5f; // <-- 1.5 seconds
+static constexpr float AIR_CURVE_CONTROL_DURATION = 1.5f; // <-- 1.5 seconds
 
 // How strong player control changes spin during air
 static constexpr float AIR_CURVE_CONTROL_SPIN_STRENGTH = 50.0f;
 static constexpr float AIR_CURVE_Y_DECAY = 16.0f; // bigger = curve stops faster
+
+// ------------------------------------------------------------
+// AIM CAMERA LOCK (for controller right-stick aiming)
+// ------------------------------------------------------------
+static bool g_AimCameraLocked = false;
+static XMFLOAT3 g_AimCameraForward = { 0.0f, 0.0f, 1.0f };
+
+static constexpr float AIM_STICK_DEADZONE = 0.15f;
+static constexpr float AIM_CAMERA_TURN_SPEED = 22.0f;
+static constexpr float AIM_LOOK_AHEAD = 2.0f;
+
+static XMFLOAT3 NormalizeXZ(const XMFLOAT3& v)
+{
+    float lenSq = v.x * v.x + v.z * v.z;
+    if (lenSq < 0.0001f)
+        return { 0.0f, 0.0f, 1.0f };
+
+    float invLen = 1.0f / sqrtf(lenSq);
+    return { v.x * invLen, 0.0f, v.z * invLen };
+}
+
 
 // ============================================================================
 // AIM HELPER (use camera forward + aim input)
@@ -130,7 +151,7 @@ void BallControl_UpdateAimInput()
                 float s = (v < 0.0f) ? -1.0f : 1.0f;
                 float a = fabs(v);
 
-                // curve: small inputs become MUCH smaller (better precision)
+                // curve: small inputs become much smaller (better precision)
                 a = powf(a, 1.8f);
 
                 return s * a;
@@ -149,7 +170,6 @@ void BallControl_UpdateAimInput()
     if (fabs(g_AimInput.x) < 0.10f) g_AimInput.x = 0.0f;
     if (fabs(g_AimInput.y) < 0.10f) g_AimInput.y = 0.0f;
 }
-
 void BallControl_UpdateDribble(float dt, BallState& ball, bool isKicked, bool hitStopActive)
 {
     // DRIBBLE (exact code moved)
@@ -204,7 +224,9 @@ BallKickRelease BallControl_UpdateKickCharge(float dt, bool isKicked, bool hitSt
     // KICK CHARGE (exact logic moved)
     if (!isKicked && !hitStopActive)
     {
-        bool keyboardCharging = KeyLogger_IsPressed(KK_SPACE);
+        // TEMP: disable keyboard kick
+        bool keyboardCharging = false;
+
         float triggerValue = PadLogger_GetRightTrigger(0);
         bool controllerCharging = triggerValue > 0.1f;
 

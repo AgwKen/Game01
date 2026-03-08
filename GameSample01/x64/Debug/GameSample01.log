@@ -1,3 +1,11 @@
-﻿  UI_KickPower.cpp
+﻿  AirCurveChallenge.cpp
+  BallPlayer.cpp
+  GoalCollision.cpp
+  game.cpp
+  goal.cpp
+C:\directxgames\3DGame\GoalCollision.cpp(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (932). Save the file in Unicode format to prevent data loss
+C:\directxgames\3DGame\rendertextureclass.h(11,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+  (compiling source file 'game.cpp')
+  
   GameSample01.vcxproj -> C:\directxgames\3DGame\x64\Debug\GameSample01.exe
   0 File(s) copied
