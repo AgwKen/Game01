@@ -26,6 +26,8 @@ static constexpr float RESULT_BGM_FULL_VOLUME = 1.0f;
 static constexpr float RESULT_BGM_FADE_START = 60.0f; // start fading after 10 sec
 static constexpr float RESULT_BGM_FADE_TIME = 2.0f;  // fade length
 
+static bool g_Visible = true;
+
 static void DrawRect(float x, float y, float w, float h, const DirectX::XMFLOAT4& c)
 {
     if (g_WhiteTex < 0) return;
@@ -76,6 +78,8 @@ void LeaderboardUI_Initialize(UIFont* font)
     g_ResultBGMTime = 0.0f;
     g_ResultBGMPlaying = false;
     g_WasFinishedLastFrame = false;
+
+    g_Visible = true;
 }
 
 void LeaderboardUI_Update(float dt)
@@ -87,12 +91,13 @@ void LeaderboardUI_Update(float dt)
     // just entered leaderboard/result screen
     if (finished && !g_WasFinishedLastFrame)
     {
+        g_Visible = true;
         g_ResultBGMTime = 0.0f;
 
         if (g_ResultBGM >= 0)
         {
             SetAudioVolume(g_ResultBGM, RESULT_BGM_FULL_VOLUME);
-            PlayAudio(g_ResultBGM, true);   // loop while result screen active
+            PlayAudio(g_ResultBGM, true);
             g_ResultBGMPlaying = true;
         }
     }
@@ -127,11 +132,11 @@ void LeaderboardUI_Update(float dt)
 
     g_WasFinishedLastFrame = finished;
 }
-
 void LeaderboardUI_Draw()
 {
     if (!g_Font) return;
     if (!Run_IsFinished()) return;
+    if (!g_Visible) return;
 
     float sw = (float)Direct3D_GetBackBufferWidth();
     float sh = (float)Direct3D_GetBackBufferHeight();
@@ -286,4 +291,19 @@ void LeaderboardUI_Finalize()
         UnloadAudio(g_ResultBGM);
         g_ResultBGM = -1;
     }
+}
+
+void LeaderboardUI_Show()
+{
+    g_Visible = true;
+}
+
+void LeaderboardUI_Hide()
+{
+    g_Visible = false;
+}
+
+void LeaderboardUI_Toggle()
+{
+    g_Visible = !g_Visible;
 }

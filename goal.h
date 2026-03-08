@@ -9,10 +9,10 @@ void Goal_Finalize();
 void Goal_Render();
 
 bool Goal_HandleBallCollision(
+    const DirectX::XMFLOAT3& prevBallPos,
     DirectX::XMFLOAT3& ballPos,
     DirectX::XMFLOAT3& ballVelocity,
-    float ballRadius
-);
+    float ballRadius);
 
 bool Goal_CheckScored(const DirectX::XMFLOAT3& pos, float r);
 

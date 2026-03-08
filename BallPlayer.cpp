@@ -206,17 +206,14 @@ void BallPlayer_Initialize(const XMFLOAT3& startPos, float)
 // ============================================================================
 void BallPlayer_Update(double elapsedTime)
 {
-    if (Run_IsActive())
-    {
-        if (KeyLogger_IsTrigger(KK_ENTER) || KeyLogger_IsTrigger(KK_SPACE) ||
-            PadLogger_IsTrigger(0, XINPUT_GAMEPAD_B) || PadLogger_IsTrigger(0, XINPUT_GAMEPAD_START))
+        // Allow controller B reset anytime, even before run starts
+        if (PadLogger_IsTrigger(0, XINPUT_GAMEPAD_B))
         {
             LeaderboardUI_StopBGM();
             BallPlayer_Reset();
             g_Scored = false;
             return;
         }
-    }
 
     float dt = (float)elapsedTime;
 
@@ -389,7 +386,7 @@ void BallPlayer_Update(double elapsedTime)
     }
 
     // GOAL COLLISION
-    Goal_HandleBallCollision(g_Ball.position, g_Ball.velocity, BALL_RADIUS);
+    Goal_HandleBallCollision(g_PrevBallPos, g_Ball.position, g_Ball.velocity, BALL_RADIUS);
     GoalKeeper_HandleBallCollision(g_Ball.position, g_Ball.velocity, BALL_RADIUS);
 
     // STOP

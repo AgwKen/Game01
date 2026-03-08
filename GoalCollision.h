@@ -10,11 +10,10 @@ void GoalCollision_Initialize();
 void GoalCollision_Finalize();
 
 bool GoalCollision_HandleBall(
+    const XMFLOAT3& prevBallPos,
     XMFLOAT3& ballPos,
     XMFLOAT3& ballVelocity,
-    float ballRadius
-);
-
+    float ballRadius);
 void GoalCollision_GetDebugBoxes(std::vector<AABB>& out);
 extern DirectX::XMFLOAT3 g_GoalWorldOffset;
 extern float g_GoalWorldBaseY;

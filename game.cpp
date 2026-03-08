@@ -638,7 +638,13 @@ void Game_Update(double elapsed_time)
     if (g_CoinUI)
         g_CoinUI->Update(elapsed_time);
     // --- PARTICLE FIX ---
-
+    if (Run_IsFinished())
+    {
+        if (KeyLogger_IsTrigger(KK_TAB))
+        {
+            LeaderboardUI_Toggle();
+        }
+    }
     if (g_GoalEffectActive)
     {
         g_GoalEffectTimer -= (float)elapsed_time;

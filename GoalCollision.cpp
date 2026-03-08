@@ -156,6 +156,8 @@ static void BuildGoalCollision(std::vector<AABB>& out)
         p.z + g_BackNetOffsetZ
     };
 
+    float backNetThickness = 0.45f; // try 0.45f ~ 0.8f
+
     AABB BackNet;
     BackNet.min = {
         p.x + g_BackNetOffsetX,
@@ -165,7 +167,7 @@ static void BuildGoalCollision(std::vector<AABB>& out)
     BackNet.max = {
         p.x + g_BackNetOffsetX + g_BackNetWidth,
         baseY + height,
-        p.z + g_BackNetOffsetZ + depth
+        p.z + g_BackNetOffsetZ + backNetThickness
     };
 
     // ---- TOP NET ----
@@ -292,8 +294,8 @@ static bool SphereVsAABB(
     return true;
 }
 
-// ------------------------------------------------------------
 bool GoalCollision_HandleBall(
+    const XMFLOAT3& prevBallPos,
     XMFLOAT3& ballPos,
     XMFLOAT3& ballVelocity,
     float ballRadius)
@@ -303,24 +305,50 @@ bool GoalCollision_HandleBall(
 
     bool hit = false;
 
-    for (int i = 0; i < boxes.size(); i++)
-    {
-        bool isNet = (i >= 3);
-        bool isTopNet = (i == 6 || i == 7);
-        if (SphereVsAABB(ballPos, ballVelocity, ballRadius, boxes[i], isNet, isTopNet))
-        {
-            hit = true;
+    XMFLOAT3 start = prevBallPos;
+    XMFLOAT3 end = ballPos;
 
-            if (i == 3) // BackNet index
+    float dx = end.x - start.x;
+    float dy = end.y - start.y;
+    float dz = end.z - start.z;
+
+    float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+
+    float stepSize = ballRadius * 0.5f;
+    if (stepSize < 0.02f) stepSize = 0.02f;
+
+    int steps = (int)ceilf(dist / stepSize);
+    if (steps < 1) steps = 1;
+    if (steps > 32) steps = 32;
+
+    XMFLOAT3 testPos = start;
+
+    for (int s = 1; s <= steps; s++)
+    {
+        float t = (float)s / (float)steps;
+
+        testPos.x = start.x + dx * t;
+        testPos.y = start.y + dy * t;
+        testPos.z = start.z + dz * t;
+
+        for (int i = 0; i < (int)boxes.size(); i++)
+        {
+            bool isNet = (i >= 3);
+            bool isTopNet = (i == 6 || i == 7);
+
+            if (SphereVsAABB(testPos, ballVelocity, ballRadius, boxes[i], isNet, isTopNet))
             {
-                g_BackNetHit = true;
+                hit = true;
+
+                if (i == 3)
+                    g_BackNetHit = true;
             }
         }
     }
 
+    ballPos = testPos;
     return hit;
 }
-
 // ------------------------------------------------------------
 void GoalCollision_GetDebugBoxes(std::vector<AABB>& out)
 {

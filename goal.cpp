@@ -178,11 +178,12 @@ void Goal_Finalize()
 }
 
 bool Goal_HandleBallCollision(
+    const XMFLOAT3& prevBallPos,
     XMFLOAT3& ballPos,
     XMFLOAT3& ballVelocity,
     float ballRadius)
 {
-    return GoalCollision_HandleBall(ballPos, ballVelocity, ballRadius);
+    return GoalCollision_HandleBall(prevBallPos, ballPos, ballVelocity, ballRadius);
 }
 
 void Goal_Render()
